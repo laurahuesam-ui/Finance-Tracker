@@ -52,6 +52,23 @@ const fixedCostsV6 = [
 {name:"Friseur",amount:25.00,frequency:"bimonthly",when:"alle 2 Monate"}
 ];
 
+
+const defaultFixedCostsV12 = fixedCostsV6.map((x,i)=>({
+  id:"fixed-master-"+i,
+  name:x.name,
+  amount:x.amount,
+  day:1,
+  frequency:
+    x.frequency==="twice" ? "semiannual" :
+    x.frequency==="bimonthly" ? "bimonthly" :
+    x.frequency==="yearly" ? "annual" :
+    x.frequency,
+  startMonth:"2026-01",
+  account:"Standard",
+  active:true,
+  when:x.when
+}));
+
 const passiveCapitalTargetsV6 = [
 [0.16,2595.56],[0.17,2757.78],[0.18,2920.00],[0.19,3082.22],[0.20,3244.44],
 [0.21,3406.67],[0.22,3568.89],[0.23,3731.11],[0.24,3893.33],[0.25,4055.56],
@@ -59,9 +76,9 @@ const passiveCapitalTargetsV6 = [
 ];
 
 
-const STORAGE_KEY = "finanzenPwaV8";
-const LEGACY_STORAGE_KEYS = ["finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3"];
-const APP_VERSION = 4;
+const STORAGE_KEY = "finanzenPwa";
+const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
+const APP_VERSION = 12;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -81,7 +98,7 @@ const seededHistory = [
   {month:"2026-09",sparkasse:null,sparkasseInterest:0.00,tradeRepublic:null,trInterest:null,dividend:null}
 ].map(x=>({...x,total:Number(x.sparkasseInterest||0)+Number(x.trInterest||0)+Number(x.dividend||0)}));
 const defaultData = {
-  balances: [], incomes: [], fixedCosts: [], goals: [], amexPaid: {},
+  balances: [], incomes: [], fixedCosts: structuredClone(defaultFixedCostsV12), goals: [], amexPaid: {},
   assets: [
     {
       id:"seed-sparkasse-giro",
@@ -132,33 +149,8 @@ const defaultData = {
   settings: { currency: "EUR", seedVersion:5, trackingStart:"2025-06-01", capitalStart:2386.50, lifetimeStart:"2023-05-01", lifetimeCapitalStart:0 }
 };
 let data = loadData();
-if(!data.balances)data.balances=[];
-if(!data.financeHistory || !data.financeHistory.length)data.financeHistory=structuredClone(seededHistory);
-if(!data.metrics)data.metrics=structuredClone(defaultData.metrics);
-if(!data.settings)data.settings={currency:"EUR"};
-if(!data.settings.trackingStart)data.settings.trackingStart="2025-06-01";
-if(!data.settings.lifetimeStart)data.settings.lifetimeStart="2023-05-01";
-if(data.settings.lifetimeCapitalStart===undefined)data.settings.lifetimeCapitalStart=0;
-if(data.settings.capitalStart===undefined)data.settings.capitalStart=2386.50;
-if(Number(data.settings.seedVersion||0)<5){
-  const oldSparkasse=(data.assets||[]).find(a=>a.name==="Sparkasse");
-  data.assets=(data.assets||[]).filter(a=>a.name!=="Sparkasse");
-  const required=structuredClone(defaultData.assets);
-  const existingNames=new Set(data.assets.map(a=>a.name));
-  required.forEach(a=>{if(!existingNames.has(a.name))data.assets.push(a);});
-  if(oldSparkasse){
-    const tg1=data.assets.find(a=>a.name==="Sparkasse Tagesgeld 1");
-    if(tg1 && oldSparkasse.history?.length){
-      tg1.history=oldSparkasse.history.map(h=>({...h}));
-      tg1.balance=590;
-      tg1.history.push({date:"2026-07-23",balance:590});
-    }
-  }
-  (data.goals||[]).forEach(g=>g.linkedToWealth=true);
-  data.settings.seedVersion=5;
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
-}
-ensureV7Data();
+guaranteeMasterData();
+localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 let deferredPrompt = null;
 
 const $ = id => document.getElementById(id);
@@ -170,22 +162,210 @@ const monthISO = d => {
 };
 const uid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random();
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
-function loadData(){
-  try{
-    let saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if(!saved){
-      for(const key of LEGACY_STORAGE_KEYS){
-        const candidate = JSON.parse(localStorage.getItem(key));
-        if(candidate){
-          saved = candidate;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(candidate));
-          break;
+
+function isPlainObject(v){
+  return v && typeof v==="object" && !Array.isArray(v);
+}
+
+function itemIdentity(item){
+  if(!item || typeof item!=="object") return JSON.stringify(item);
+  return String(
+    item.id ??
+    item.month ??
+    item.date ??
+    item.name ??
+    item.account ??
+    item.title ??
+    item.label ??
+    JSON.stringify(item)
+  );
+}
+
+function mergeArraysPreservingData(arrays){
+  const result=[];
+  const index=new Map();
+
+  for(const arr of arrays){
+    if(!Array.isArray(arr)) continue;
+    for(const item of arr){
+      if(!isPlainObject(item)){
+        const raw=JSON.stringify(item);
+        if(!index.has(raw)){
+          index.set(raw,result.length);
+          result.push(item);
         }
+        continue;
+      }
+
+      const key=itemIdentity(item);
+      if(!index.has(key)){
+        index.set(key,result.length);
+        result.push(structuredClone(item));
+      }else{
+        const pos=index.get(key);
+        result[pos]=mergeObjectsPreservingData(result[pos],item);
       }
     }
-    return saved ? {...structuredClone(defaultData),...saved} : structuredClone(defaultData);
-  }catch{return structuredClone(defaultData)}
+  }
+  return result;
 }
+
+function meaningful(v){
+  if(v===null || v===undefined || v==="") return false;
+  if(Array.isArray(v)) return v.length>0;
+  if(isPlainObject(v)) return Object.keys(v).length>0;
+  return true;
+}
+
+function mergeObjectsPreservingData(base, incoming){
+  if(Array.isArray(base) || Array.isArray(incoming)){
+    return mergeArraysPreservingData([base,incoming]);
+  }
+  if(!isPlainObject(base)) return meaningful(incoming) ? structuredClone(incoming) : base;
+  if(!isPlainObject(incoming)) return meaningful(base) ? structuredClone(base) : incoming;
+
+  const out=structuredClone(base);
+  for(const [key,value] of Object.entries(incoming)){
+    if(Array.isArray(value)){
+      out[key]=mergeArraysPreservingData([out[key],value]);
+    }else if(isPlainObject(value)){
+      out[key]=mergeObjectsPreservingData(isPlainObject(out[key])?out[key]:{},value);
+    }else if(meaningful(value) || !meaningful(out[key])){
+      out[key]=value;
+    }
+  }
+  return out;
+}
+
+function looksLikeFinanceData(obj){
+  if(!isPlainObject(obj)) return false;
+  const keys=[
+    "balances","incomes","fixedCosts","goals","assets","financeHistory",
+    "metrics","settings","amexPaid","transactions","v7"
+  ];
+  return keys.some(k=>k in obj);
+}
+
+function loadAllStoredCandidates(){
+  const candidates=[];
+  const seen=new Set();
+
+  const known=[
+    STORAGE_KEY,
+    ...LEGACY_STORAGE_KEYS,
+    "finanzenPwaV2","finanzenPwaV1",
+    "finanzen-pwa","finanzen_pwa","financeTrackerData",
+    "financeTracker","finanzTracker","finanzdaten"
+  ];
+
+  for(const key of known){
+    if(!key || seen.has(key)) continue;
+    seen.add(key);
+    try{
+      const parsed=JSON.parse(localStorage.getItem(key));
+      if(looksLikeFinanceData(parsed)) candidates.push({key,data:parsed});
+    }catch{}
+  }
+
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(!key || seen.has(key)) continue;
+    seen.add(key);
+    try{
+      const parsed=JSON.parse(localStorage.getItem(key));
+      if(looksLikeFinanceData(parsed)) candidates.push({key,data:parsed});
+    }catch{}
+  }
+
+  return candidates;
+}
+
+function loadData(){
+  try{
+    const candidates=loadAllStoredCandidates();
+
+    // Mit den Standard-Stammdaten beginnen und anschließend ALLE gefundenen
+    // Speicherstände zusammenführen. Ein leerer neuer Speicherstand kann
+    // dadurch keinen älteren vollständigen Datensatz mehr verdrängen.
+    let merged=structuredClone(defaultData);
+
+    // Ältere Versionen zuerst, aktueller dauerhafter Schlüssel zuletzt.
+    const ordered=candidates.sort((a,b)=>{
+      if(a.key===STORAGE_KEY) return 1;
+      if(b.key===STORAGE_KEY) return -1;
+      return String(a.key).localeCompare(String(b.key),undefined,{numeric:true});
+    });
+
+    for(const candidate of ordered){
+      merged=mergeObjectsPreservingData(merged,candidate.data);
+    }
+
+    // Speicherkopie vor der Migration sichern.
+    if(candidates.length){
+      try{
+        localStorage.setItem(
+          "finanzenPwaMigrationBackup",
+          JSON.stringify({
+            createdAt:new Date().toISOString(),
+            sources:candidates.map(x=>x.key),
+            data:merged
+          })
+        );
+      }catch{}
+    }
+
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(merged));
+    return merged;
+  }catch{
+    return structuredClone(defaultData);
+  }
+}
+
+function guaranteeMasterData(){
+  data.assets = mergeArraysPreservingData([
+    structuredClone(defaultData.assets),
+    Array.isArray(data.assets) ? data.assets : []
+  ]);
+
+  data.fixedCosts = mergeArraysPreservingData([
+    structuredClone(defaultFixedCostsV12),
+    Array.isArray(data.fixedCosts) ? data.fixedCosts : []
+  ]);
+
+  // Alte, gleichnamige Fixkosten ohne stabile ID mit den Stammdaten verbinden.
+  const byName=new Map();
+  for(const item of data.fixedCosts){
+    const key=String(item.name||"").trim().toLowerCase();
+    if(!key) continue;
+    if(!byName.has(key)){
+      byName.set(key,item);
+    }else{
+      const first=byName.get(key);
+      Object.assign(first,mergeObjectsPreservingData(item,first));
+      const idx=data.fixedCosts.indexOf(item);
+      if(idx>=0)data.fixedCosts.splice(idx,1);
+    }
+  }
+
+  data.financeHistory = mergeArraysPreservingData([
+    structuredClone(seededHistory),
+    Array.isArray(data.financeHistory) ? data.financeHistory : []
+  ]).sort((a,b)=>String(a.month||a.date).localeCompare(String(b.month||b.date)));
+
+  if(!data.metrics || !Object.keys(data.metrics).length){
+    data.metrics=structuredClone(defaultData.metrics);
+  }else{
+    data.metrics=mergeObjectsPreservingData(structuredClone(defaultData.metrics),data.metrics);
+  }
+
+  data.settings=mergeObjectsPreservingData(
+    structuredClone(defaultData.settings),
+    isPlainObject(data.settings)?data.settings:{}
+  );
+
+  ensureV7Data();
+}
+
 function saveData(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); renderAll(); }
 function toast(msg){ $("toast").textContent=msg;$("toast").classList.remove("hidden");setTimeout(()=>$("toast").classList.add("hidden"),2200); }
 function daysInMonth(y,m){ return new Date(y,m,0).getDate(); }
@@ -513,7 +693,7 @@ $("importBackup").addEventListener("change",async e=>{
     const incoming=parsed.data||parsed;
     if(!incoming.assets)throw new Error("Ungültiges Backup");
     if(confirm("Aktuelle Daten durch dieses Backup ersetzen?")){
-      data={...structuredClone(defaultData),...incoming};saveData();toast("Backup importiert");
+      data=mergeObjectsPreservingData(structuredClone(defaultData),incoming);guaranteeMasterData();saveData();toast("Backup importiert");
     }
   }catch(err){alert("Backup konnte nicht gelesen werden: "+err.message)}
   e.target.value="";
@@ -525,7 +705,7 @@ $("exportCsv").addEventListener("click",()=>{
 });
 $("deleteAll").addEventListener("click",()=>{
   if(confirm("Wirklich ALLE Finanzdaten auf diesem Gerät löschen?")){
-    localStorage.removeItem(STORAGE_KEY);data=structuredClone(defaultData);saveData();toast("Alle Daten gelöscht");
+    localStorage.removeItem(STORAGE_KEY);data=structuredClone(defaultData);guaranteeMasterData();saveData();toast("Alle Daten gelöscht");
   }
 });
 function download(name,content,type){
@@ -552,16 +732,23 @@ function daysInMonthKey(ym){
 
 function ensureV7Data(){
   data.v7 = data.v7 || {};
-  if(!Array.isArray(data.v7.incomeHistory)){
-    data.v7.incomeHistory = structuredClone(defaultIncomeHistoryV7);
-  }else{
-    const existing = new Set(data.v7.incomeHistory.map(x=>x.month));
-    defaultIncomeHistoryV7.forEach(x=>{ if(!existing.has(x.month)) data.v7.incomeHistory.push(structuredClone(x)); });
-    data.v7.incomeHistory.sort((a,b)=>a.month.localeCompare(b.month));
-  }
-  if(!Array.isArray(data.v7.amexHistory)) data.v7.amexHistory = structuredClone(defaultAmexHistoryV7);
-  if(!Array.isArray(data.v7.fuelEntries)){
-    data.v7.fuelEntries = [{id:"fuel-initial",date:"2026-07-01",amount:278.75,note:"Bisheriger Stand"}];
+
+  const storedIncome = Array.isArray(data.v7.incomeHistory) ? data.v7.incomeHistory : [];
+  data.v7.incomeHistory = mergeArraysPreservingData([
+    structuredClone(defaultIncomeHistoryV7),
+    storedIncome
+  ]).sort((a,b)=>String(a.month).localeCompare(String(b.month)));
+
+  const storedAmex = Array.isArray(data.v7.amexHistory) ? data.v7.amexHistory : [];
+  data.v7.amexHistory = mergeArraysPreservingData([
+    structuredClone(defaultAmexHistoryV7),
+    storedAmex
+  ]).sort((a,b)=>String(a.month).localeCompare(String(b.month)));
+
+  if(!Array.isArray(data.v7.fuelEntries) || !data.v7.fuelEntries.length){
+    data.v7.fuelEntries = [
+      {id:"fuel-initial",date:"2026-07-01",amount:278.75,note:"Bisheriger Stand"}
+    ];
   }
 }
 function incomeRows(){ ensureV7Data(); return data.v7.incomeHistory; }
@@ -575,6 +762,7 @@ function saveIncomeRow(month){
     if(el)row[key]=Number(el.value)||0;
   });
   row.total=row.salary+row.bonus+row.tips+row.parents+row.costs;
+  editingIncomeMonth=null;
   saveData();
 }
 function tradeRepublicCashBalance(){
@@ -584,6 +772,64 @@ function tradeRepublicCashBalance(){
   });
   return Number(asset?.balance||0);
 }
+
+
+let editingIncomeMonth = null;
+let editingAmexMonth = null;
+
+function renderIncomeRowV9(x){
+  const editing = editingIncomeMonth === x.month;
+  if(!editing){
+    return `<tr>
+      <td>${monthLabel(x.month)}</td>
+      <td>${fmt(x.salary)}</td>
+      <td>${fmt(x.bonus)}</td>
+      <td>${fmt(x.tips)}</td>
+      <td>${fmt(x.parents)}</td>
+      <td>${fmt(x.costs)}</td>
+      <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
+      <td><button class="edit-income" data-month="${x.month}" type="button">Bearbeiten</button></td>
+    </tr>`;
+  }
+  return `<tr>
+    <td>${monthLabel(x.month)}</td>
+    ${["salary","bonus","tips","parents","costs"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`).join("")}
+    <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
+    <td><button class="save-income" data-month="${x.month}" type="button">Speichern</button> <button class="cancel-income" type="button">Abbrechen</button></td>
+  </tr>`;
+}
+
+function renderAmexRowV9(x){
+  const editing = editingAmexMonth === x.month;
+  if(!editing){
+    return `<tr>
+      <td>${monthLabel(x.month)}</td>
+      <td>${fmt(x.expenses)}</td>
+      <td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td>
+      <td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td>
+      <td>${x.saving==null?"–":fmt(x.saving)}</td>
+      <td><button class="edit-amex" data-month="${x.month}" type="button">Bearbeiten</button></td>
+    </tr>`;
+  }
+  return `<tr>
+    <td>${monthLabel(x.month)}</td>
+    ${["expenses","incomeDay","passiveDay","saving"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="${k}" value="${x[k]==null?"":Number(x[k]).toFixed(2)}"></td>`).join("")}
+    <td><button class="save-amex" data-month="${x.month}" type="button">Speichern</button> <button class="cancel-amex" type="button">Abbrechen</button></td>
+  </tr>`;
+}
+
+function saveAmexRow(month){
+  const row=amexRows().find(x=>x.month===month);
+  if(!row)return;
+  ["expenses","incomeDay","passiveDay","saving"].forEach(key=>{
+    const el=document.querySelector(`[data-amex-month="${month}"][data-amex-field="${key}"]`);
+    row[key]=el && el.value!=="" ? Number(el.value) : null;
+  });
+  editingAmexMonth=null;
+  saveData();
+}
+
+const priorityGoalsV10 = [[1, "Absicherung", "Polster", 10000, 10000, null, null, null, null, 39.36, 39.36, 3936.33], [2, "Bildung", "Master", 182.1, 370, null, null, null, null, 0, 0, null], [3, "Haus", "Dachzustand prüfen und reparieren", 1500, 5000, null, null, null, null, 0, 0, null], [4, "Haus", "Treppenhaus sanieren", 900, 3063, null, null, null, null, 0, 0, null], [5, "Haus", "Sanierung Bad Erdgeschoss", 5000, 10000, null, null, null, null, 0, 0, null], [6, "Haus", "Renovierung Bad Wohnung", 3000, 7000, null, null, null, null, 0, 0, null], [7, "Haus", "Sanierung Bad Opa", 5000, 10000, null, null, null, null, 0, 0, null], [8, "Bank", "Kredit Deutsche Bildung", 13440, 13790, null, null, null, null, 8.3, 0, null], [9, "Bank", "Raten Vorwerk", 581.97, 529.02, null, null, null, null, 0, 0, null], [10, "Bank", "Kredit ING", 52336.78, 52336.78, 7080, 7080, 590, 590, 0, 0, null], [11, "Bank", "Kredit Bulldog", 45727.88, 45727.88, 7017.12, 7017.12, 584.76, 584.76, 0, 0, null], [12, "Bank", "Kredit Haus", 51436.68, 51436.68, 10277.64, 10277.64, 856.47, 856.47, 0, 0, null], [13, "Scheune", "Wohnung in Scheune sanieren", 180000, 250000, null, null, null, null, 0, 0, null], [14, "Altes Haus", "Architekten/Bauplaner beauftragen", 18000, 103500, null, null, null, null, 0, 0, null], [15, "Altes Haus", "Grundsanierung", 200000, 690000, 16800, 22200, 1400, 1850, 0, 0, null], [16, "Altes Haus", "Automat", 1150, 9200, 534, 7620, 44.5, 635, 0, 0, null], [17, "Altes Haus", "Laden einrichten", 3300, 10000, null, null, null, null, 0, 0, null], [18, "Altes Haus", "Ferienwohnung einrichten", 12000, 25000, null, null, null, null, 0, 0, null], [19, "Altes Haus", "Eventraum einrichten", 10000, 22000, null, null, null, null, 0, 0, null], [20, "Altes Haus", "Büro einrichten", 3200, 11200, null, null, null, null, 0, 0, null], [null, "Haus", "Bodenbeläge Zimmer", 2500, 6000, null, null, null, null, 0, 0, null], [null, "Haus", "Modernisierung Haus Isolation", 37000, 80000, null, null, null, null, 0, 0, null], [null, "Haus", "Modernisierung Haus Heizung", 8000, 23000, 2400, 3600, 200, 300, 0, 0, null], [null, "Scheune", "Stall bauen", 4200, 12900, null, null, null, null, 0, 0, null], [null, "Scheune", "Werkstatt renovieren", 4000, 4800, null, null, null, null, 0, 0, null], [null, "Gewölbekeller", "renovieren", 13500, 22500, null, null, null, null, 0, 0, null], [null, "Eckhaus", "zurückkaufen", 400000, 480000, null, null, null, null, 0, 0, null], [null, "Garten", "Gartenhaus renovieren", 3000, 5000, null, null, null, null, 0, 0, null], [null, "Haustier", "Hund/e", 150, 400, 600, 1800, 50, 150, 0, 0, null], [null, "Haustier", "Pferde", 11000, 24000, 9600, 13200, 800, 1100, 0, 0, null], [null, "Auto", "Audi A3", 22000, 30000, 2640, 3600, 220, 300, 0, 0, null], [null, "Eltern", "Versorgt", 650000, 1100000, null, null, null, null, 0, 0, null], [null, "Gnadenhof", "Land kaufen & bauen", 5913254.39, 18394160, 1218590, 2768939, 101549.17, 230744.92, 0, 0, null], [null, "Strandhaus", "kaufen", 300000, 2500000, null, null, null, null, 0, 0, null], [null, "Herrenhaus", "kaufen", 300000, 1500000, null, null, null, null, 0, 0, null], [null, "Herrenhaus", "sanieren", 90000, 700000, null, null, null, null, 0, 0, null], [null, "Schloss", "kaufen", 300000, 4000000, null, null, null, null, 0, 0, null], [null, "Schloss", "sanieren", 480000, 4500000, 30000, 135000, 2500, 11250, 0, 0, null]];
 
 function renderV6(){
   const wealth=totalWealth();
@@ -618,12 +864,7 @@ function renderV6(){
   set("taxAllowanceLeft",fmt(Math.max(0,12096-salary2026)));
 
   const ih=$("incomeHistoryBody");
-  if(ih)ih.innerHTML=incomeRows().map(x=>`<tr>
-    <td>${monthLabel(x.month)}</td>
-    ${["salary","bonus","tips","parents","costs"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`).join("")}
-    <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
-    <td><button class="save-income" data-month="${x.month}" type="button">Speichern</button></td>
-  </tr>`).join("");
+  if(ih)ih.innerHTML=incomeRows().map(renderIncomeRowV9).join("");
 
   set("avgExpenses",fmt(avgExp));
   const avgDailyExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses)/daysInMonthKey(x.month),0)/validExpenses.length;
@@ -633,7 +874,7 @@ function renderV6(){
   set("avgMonthlySaving",fmt(avgSaving));
 
   const eh=$("expenseHistoryBody");
-  if(eh)eh.innerHTML=amexRows().map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.expenses)}</td><td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td><td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td><td>${x.saving==null?"–":fmt(x.saving)}</td></tr>`).join("");
+  if(eh)eh.innerHTML=amexRows().map(renderAmexRowV9).join("");
 
   set("fixedMonthlyTotal",fmt(monthlyFixed));
   set("fixedYearlyTotal",fmt(monthlyFixed*12));
@@ -647,7 +888,7 @@ function renderV6(){
   set("passiveYear",fmt(passiveMonthly*12));
   const pt=$("passiveTargetsBody");
   const trCash=tradeRepublicCashBalance();
-  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${trCash>=capital?'<span class="badge success">erreicht</span>':fmt(capital-trCash)+" fehlen"}</td></tr>`).join("");
+  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${fmt(Math.max(0,capital-trCash))+" fehlt"}</td></tr>`).join("");
 
 
   const fuels=fuelRows().slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -669,6 +910,40 @@ function renderV6(){
     <td><input class="inline-input fuel-note" data-id="${x.id}" value="${esc(x.note||"")}"></td>
     <td><button class="save-fuel" data-id="${x.id}" type="button">Speichern</button> <button class="delete-fuel" data-id="${x.id}" type="button">Löschen</button></td>
   </tr>`).join("");
+
+
+  const pgb=$("priorityGoalsBody");
+  if(pgb){
+    pgb.innerHTML=priorityGoalsV10.map(r=>`<tr>
+      <td>${r[0]??""}</td>
+      <td>${esc(r[1])}</td>
+      <td>${esc(r[2])}</td>
+      <td>${r[3]==null?"–":fmt(r[3])}</td>
+      <td>${r[4]==null?"–":fmt(r[4])}</td>
+      <td>${r[5]==null?"–":fmt(r[5])}</td>
+      <td>${r[6]==null?"–":fmt(r[6])}</td>
+      <td>${r[7]==null?"–":fmt(r[7])}</td>
+      <td>${r[8]==null?"–":fmt(r[8])}</td>
+      <td>${r[9]==null?"–":Number(r[9]).toFixed(2).replace(".",",")+" %"}</td>
+      <td>${r[10]==null?"–":Number(r[10]).toFixed(2).replace(".",",")+" %"}</td>
+      <td>${r[11]==null?"–":fmt(r[11])}</td>
+    </tr>`).join("");
+  }
+  const pgf=$("priorityGoalsFoot");
+  if(pgf){
+    const sums=priorityGoalsV10.reduce((a,r)=>{
+      for(let i=3;i<=8;i++)a[i]=(a[i]||0)+(Number(r[i])||0);
+      a[11]=(a[11]||0)+(Number(r[11])||0);
+      return a;
+    },{});
+    pgf.innerHTML=`<tr class="total-row">
+      <th colspan="3">Summe</th>
+      <th>${fmt(sums[3])}</th><th>${fmt(sums[4])}</th>
+      <th>${fmt(sums[5])}</th><th>${fmt(sums[6])}</th>
+      <th>${fmt(sums[7])}</th><th>${fmt(sums[8])}</th>
+      <th>0,04299 %</th><th>0,01134 %</th><th>${fmt(sums[11])}</th>
+    </tr>`;
+  }
 
   const milestones=[5000,10000,25000,50000,100000];
   const c=capitalStats();
@@ -703,6 +978,18 @@ function renderV6(){
 
 
 document.addEventListener("click",e=>{
+
+  const editIncome=e.target.closest(".edit-income");
+  if(editIncome){ editingIncomeMonth=editIncome.dataset.month; renderV6(); return; }
+  if(e.target.closest(".cancel-income")){ editingIncomeMonth=null; renderV6(); return; }
+
+  const editAmex=e.target.closest(".edit-amex");
+  if(editAmex){ editingAmexMonth=editAmex.dataset.month; renderV6(); return; }
+  if(e.target.closest(".cancel-amex")){ editingAmexMonth=null; renderV6(); return; }
+
+  const saveAmex=e.target.closest(".save-amex");
+  if(saveAmex){ saveAmexRow(saveAmex.dataset.month); return; }
+
   const incomeBtn=e.target.closest(".save-income");
   if(incomeBtn){ saveIncomeRow(incomeBtn.dataset.month); return; }
 

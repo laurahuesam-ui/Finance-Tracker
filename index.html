@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 8</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 12</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -192,6 +192,31 @@
   </section>
 
   <section id="goals" class="page">
+
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Priorisierte Sparziele</h2>
+        <p class="muted">Einmalige Kosten und laufende Kosten mit Mindest- und Maximalwerten.</p>
+      </div>
+    </div>
+    <div class="table-wrap wide-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Prio</th><th>Kategorie</th><th>Unterkategorie</th>
+            <th>Einmalig min</th><th>Einmalig max</th>
+            <th>LK min p.a.</th><th>LK max p.a.</th>
+            <th>LK min p.m.</th><th>LK max p.m.</th>
+            <th>% min</th><th>% max</th><th>Verfügbar</th>
+          </tr>
+        </thead>
+        <tbody id="priorityGoalsBody"></tbody>
+        <tfoot id="priorityGoalsFoot"></tfoot>
+      </table>
+    </div>
+  </article>
+
     <article class="panel">
       <h2>Sparziel anlegen</h2>
       <form id="goalForm" class="form-grid">
@@ -228,7 +253,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 8</span>
+      <span class="badge">Version 12</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
@@ -285,7 +310,7 @@
       <div class="stat"><span>Ø Sparrate/Monat</span><strong id="avgMonthlySaving">–</strong></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Monat</th><th>Ausgaben</th><th>Einnahmen/Tag</th><th>Passiv/Tag</th><th>Sparbetrag</th></tr></thead>
+      <thead><tr><th>Monat</th><th>Amex</th><th>Einnahmen/Tag</th><th>Passiv/Tag</th><th>Sparbetrag</th><th></th></tr></thead>
       <tbody id="expenseHistoryBody"></tbody>
     </table></div>
   </article>
