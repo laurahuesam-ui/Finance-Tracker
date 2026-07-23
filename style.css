@@ -66,5 +66,3 @@ th:first-child,td:first-child{text-align:left}
 .inline-input{width:100%;min-width:82px;padding:.45rem;border:1px solid var(--border,#d5d9e0);border-radius:.5rem;background:var(--surface,#fff);color:inherit}
 .tabs{overflow-x:auto}
 .tabs .tab{white-space:nowrap}
-
-.edit-income,.edit-amex,.save-income,.save-amex,.cancel-income,.cancel-amex{white-space:nowrap}
