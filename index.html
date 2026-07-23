@@ -14,20 +14,28 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 7</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 8</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
 </header>
 
+
 <nav class="tabs" aria-label="Bereiche">
-<button data-page="overview">Übersicht</button>
-<button data-page="incomeAnalysis">Einkommen</button>
-<button data-page="expenseAnalysis">Ausgaben</button>
-<button data-page="fixedCostsOverview">Fixkosten</button>
-<button data-page="passiveIncome">Passiv</button>
-<button data-page="goals">Sparziele</button>
+  <button class="tab active" type="button" data-page="dashboard">Start</button>
+  <button class="tab" type="button" data-page="expenses">Kontostände</button>
+  <button class="tab" type="button" data-page="fixed">Fixkosten eingeben</button>
+  <button class="tab" type="button" data-page="income">Einkommen eingeben</button>
+  <button class="tab" type="button" data-page="assets">Anlagen</button>
+  <button class="tab" type="button" data-page="goals">Sparziele</button>
+  <button class="tab" type="button" data-page="overview">Analyse</button>
+  <button class="tab" type="button" data-page="incomeAnalysis">Einkommensverlauf</button>
+  <button class="tab" type="button" data-page="expenseAnalysis">Amex</button>
+  <button class="tab" type="button" data-page="fixedCostsOverview">Kostenübersicht</button>
+  <button class="tab" type="button" data-page="passiveIncome">Passiv</button>
+  <button class="tab" type="button" data-page="backup">Backup</button>
 </nav>
+
 
 <main>
   <section id="dashboard" class="page active">
@@ -225,7 +233,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 7</span>
+      <span class="badge">Version 8</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>

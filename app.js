@@ -178,6 +178,13 @@ if(!Array.isArray(data.priorityGoalsV7) || !data.priorityGoalsV7.length){
 data.settings.seedVersion=7;
 localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 
+
+// Update-Sicherheit: Der bestehende localStorage-Schlüssel bleibt unverändert.
+// Neue Versionen dürfen nur fehlende Felder ergänzen und keine vorhandenen Nutzerdaten ersetzen.
+function ensureArrayField(name, seed=[]){
+  if(!Array.isArray(data[name])) data[name]=structuredClone(seed);
+}
+
 let deferredPrompt = null;
 
 const $ = id => document.getElementById(id);
@@ -267,10 +274,7 @@ function monthLabel(ym){
 function renderAll(){
   renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
 }
-document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
-  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===btn));
-  document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===btn.dataset.page));
-}));
+
 
 function renderDashboard(){
   $("headerMonth").textContent=monthLabel(monthISO());
@@ -328,7 +332,25 @@ function typeLabel(t){return ({stocks:"Aktien",cash:"Tagesgeldkonto",bank:"Spark
 $("balanceForm").addEventListener("submit",e=>{
   e.preventDefault();
   data.balances.push({id:uid(),date:$("balanceDate").value,account:$("balanceAccount").value,amount:Number($("balanceAmount").value),note:$("balanceNote").value});
-  e.target.reset();$("balanceDate").value=todayISO();saveData();toast("Kontostand gespeichert");
+  e.target.reset();
+function openPage(pageId){
+  const target=document.getElementById(pageId);
+  if(!target)return;
+  document.querySelectorAll(".page").forEach(page=>page.classList.toggle("active",page===target));
+  document.querySelectorAll(".tab[data-page]").forEach(tab=>tab.classList.toggle("active",tab.dataset.page===pageId));
+  if(["overview","incomeAnalysis","expenseAnalysis","fixedCostsOverview","passiveIncome"].includes(pageId)){
+    renderV6();
+  }
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+document.addEventListener("click",event=>{
+  const tab=event.target.closest(".tab[data-page]");
+  if(!tab)return;
+  event.preventDefault();
+  openPage(tab.dataset.page);
+});
+
+$("balanceDate").value=todayISO();saveData();toast("Kontostand gespeichert");
 });
 $("balanceMonthFilter").addEventListener("change",renderBalances);
 $("balanceAccountFilter").addEventListener("change",renderBalances);
@@ -668,15 +690,7 @@ function renderV6(){
 }
 
 
-document.addEventListener("click",e=>{
-  const btn=e.target.closest("[data-page]");
-  if(!btn)return;
-  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-  const target=document.getElementById(btn.dataset.page);
-  if(target)target.classList.add("active");
-  document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b===btn));
-  if(btn.dataset.page==="overview")renderV6();
-});
+
 
 
 function parseMoneyPrompt(label,current){
