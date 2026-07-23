@@ -1,5 +1,65 @@
 
-const STORAGE_KEY = "finanzenPwaV4";
+const incomeHistoryV6 = [
+["2025-06",426.53,50,150,100,-35.93,790.60],
+["2025-07",237.31,50,125,100,-35.93,591.38],
+["2025-08",599.89,50,200,100,-35.93,1013.96],
+["2025-09",617.17,50,200,100,-60.93,1006.24],
+["2025-10",667.81,50,250,100,-137.08,1030.73],
+["2025-11",719.60,50,225,100,-920.42,274.18],
+["2025-12",761.84,50,250,100,-181.42,1065.42],
+["2026-01",735.94,50,225,100,-187.42,923.52],
+["2026-02",506.80,50,125,100,-191.70,590.10],
+["2026-03",595.92,50,225,100,-247.20,723.72],
+["2026-04",920.26,50,300,100,-303.70,1066.56],
+["2026-05",1014.08,50,300,100,-215.70,1248.38],
+["2026-06",514.92,50,300,100,-215.70,749.22],
+["2026-07",679.50,50,300,100,-215.70,913.80],
+["2026-08",910,50,300,100,-215.70,1144.30],
+["2026-09",840,50,300,100,-215.70,1074.30],
+["2026-10",840,50,300,100,-215.70,1074.30],
+["2026-11",840,50,300,100,-215.70,1074.30],
+["2026-12",840,50,300,100,-215.70,1074.30]
+].map(([month,salary,bonus,tips,parents,costs,total])=>({month,salary,bonus,tips,parents,costs,total}));
+
+const expenseHistoryV6 = [
+["2025-05",-942.84,null,null,null],
+["2025-06",-332.81,25.92,0.109726776,455.5898333],
+["2025-07",-485.92,19.39,0.090273224,116.0507527],
+["2025-08",-556.42,33.24,0.084808743,469.1011828],
+["2025-09",-379.02,32.99,0.083278689,623.443],
+["2025-10",-354.97,33.79,0.128196721,685.3953226],
+["2025-11",-368.61,8.99,0.13136612,-96.56683333],
+["2025-12",-1426.30,34.93,0.156830601,-333.091828],
+["2026-01",-633.60,30.28,0.143934426,304.5293548],
+["2026-02",-509.36,19.35,0.130819672,39.25142857],
+["2026-03",-602.85,23.73,0.173114754,72.32410714],
+["2026-04",-363.47,34.97,0.166229508,675.7073214],
+["2026-05",-781.81,40.93,0.337704918,407.0655357],
+["2026-06",-275.20,24.56,0.224590164,456.2985714],
+["2026-07",-642.97,29.96,0.214754098,219.9719643]
+].map(([month,expenses,incomeDay,passiveDay,saving])=>({month,expenses,incomeDay,passiveDay,saving}));
+
+const fixedCostsV6 = [
+{name:"Netflix",amount:9.99,frequency:"monthly",when:"Ende des Monats"},
+{name:"Telekom",amount:19.95,frequency:"monthly",when:"Ende des Monats"},
+{name:"Spotify",amount:12.99,frequency:"monthly",when:"Anfang des Monats"},
+{name:"Versicherung",amount:148.77,frequency:"monthly",when:"Mitte des Monats"},
+{name:"Cheerleading",amount:24.00,frequency:"monthly",when:"Anfang des Monats"},
+{name:"FSV",amount:31.50,frequency:"twice",when:"April & Oktober"},
+{name:"HanseMerkur",amount:25.00,frequency:"yearly",when:"Mitte September"},
+{name:"Cheerleading Jahresbeitrag",amount:59.00,frequency:"yearly",when:"April"},
+{name:"Reitverein",amount:50.00,frequency:"yearly",when:"März"},
+{name:"Friseur",amount:25.00,frequency:"bimonthly",when:"alle 2 Monate"}
+];
+
+const passiveCapitalTargetsV6 = [
+[0.16,2595.56],[0.17,2757.78],[0.18,2920.00],[0.19,3082.22],[0.20,3244.44],
+[0.21,3406.67],[0.22,3568.89],[0.23,3731.11],[0.24,3893.33],[0.25,4055.56],
+[0.26,4217.78],[0.27,4380.00],[0.28,4542.22],[0.29,4704.44],[0.30,4866.67]
+];
+
+
+const STORAGE_KEY = "finanzenPwaV6";
 const APP_VERSION = 4;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
@@ -184,7 +244,7 @@ function monthLabel(ym){
   return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"}).format(new Date(y,m-1,1));
 }
 function renderAll(){
-  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderFinanceHistory();
+  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
 }
 document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===btn));
@@ -471,3 +531,107 @@ $("incomeMonthFilter").value=monthISO();
 $("fixedStartMonth").value=monthISO();
 $("goalCurrent").value=totalWealth().toFixed(2);
 renderAll();
+
+
+function daysInMonthKey(ym){
+  const [y,m]=ym.split("-").map(Number);
+  return new Date(y,m,0).getDate();
+}
+function renderV6(){
+  const wealth=totalWealth();
+  const validExpenses=expenseHistoryV6.filter(x=>x.month>="2025-06");
+  const avgExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses),0)/validExpenses.length;
+  const avgSaving=validExpenses.reduce((s,x)=>s+Number(x.saving||0),0)/validExpenses.length;
+  const avgIncome=incomeHistoryV6.reduce((s,x)=>s+x.total,0)/incomeHistoryV6.length;
+  const savingRate=avgIncome ? avgSaving/avgIncome*100 : 0;
+  const monthlyFixed=fixedCostsV6.reduce((s,x)=>{
+    if(x.frequency==="monthly")return s+x.amount;
+    if(x.frequency==="bimonthly")return s+x.amount/2;
+    if(x.frequency==="twice")return s+x.amount*2/12;
+    return s+x.amount/12;
+  },0);
+  const interestDay=Number(data.metrics?.currentDailyInterest||0.17);
+  const dividendDay=Number(data.metrics?.currentDailyDividend||0.05);
+  const passiveMonthly=(interestDay+dividendDay)*30.4375;
+  const coverage=monthlyFixed?passiveMonthly/monthlyFixed*100:0;
+
+  const set=(id,val)=>{const el=$(id);if(el)el.textContent=val};
+  set("v6TotalWealth",fmt(wealth));
+  set("v6AvgSaving",fmt(avgSaving)+"/Monat");
+  set("v6SavingRate",savingRate.toFixed(1).replace(".",",")+" %");
+  set("v6PassiveMonthly",fmt(passiveMonthly));
+  set("v6FixedMonthly",fmt(monthlyFixed));
+  set("v6Coverage",coverage.toFixed(1).replace(".",",")+" %");
+
+  const salary2025=incomeHistoryV6.filter(x=>x.month.startsWith("2025")).reduce((s,x)=>s+x.salary,0);
+  const salary2026=incomeHistoryV6.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.salary,0);
+  set("salary2025",fmt(salary2025));
+  set("salary2026",fmt(salary2026));
+  set("taxAllowanceLeft",fmt(Math.max(0,12096-salary2026)));
+
+  const ih=$("incomeHistoryBody");
+  if(ih)ih.innerHTML=incomeHistoryV6.map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.salary)}</td><td>${fmt(x.bonus)}</td><td>${fmt(x.tips)}</td><td>${fmt(x.parents)}</td><td>${fmt(x.costs)}</td><td><strong>${fmt(x.total)}</strong></td></tr>`).join("");
+
+  set("avgExpenses",fmt(avgExp));
+  const avgDailyExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses)/daysInMonthKey(x.month),0)/validExpenses.length;
+  const avgDailyIncome=validExpenses.filter(x=>x.incomeDay).reduce((s,x)=>s+x.incomeDay,0)/validExpenses.filter(x=>x.incomeDay).length;
+  set("avgExpensesDaily",fmt(avgDailyExp));
+  set("avgIncomeDaily",fmt(avgDailyIncome));
+  set("avgMonthlySaving",fmt(avgSaving));
+
+  const eh=$("expenseHistoryBody");
+  if(eh)eh.innerHTML=expenseHistoryV6.map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.expenses)}</td><td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td><td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td><td>${x.saving==null?"–":fmt(x.saving)}</td></tr>`).join("");
+
+  set("fixedMonthlyTotal",fmt(monthlyFixed));
+  set("fixedYearlyTotal",fmt(monthlyFixed*12));
+  set("nextFixedCount",String(fixedCostsV6.length));
+  const fl=$("fixedCostListV6");
+  if(fl)fl.innerHTML=fixedCostsV6.map(x=>`<div class="list-item"><div><h3>${esc(x.name)}</h3><p>${esc(x.when)}</p></div><strong>${fmt(x.amount)}</strong></div>`).join("");
+
+  set("passiveInterestDay",fmt(interestDay));
+  set("passiveDividendDay",fmt(dividendDay));
+  set("passiveMonth",fmt(passiveMonthly));
+  set("passiveYear",fmt(passiveMonthly*12));
+  const pt=$("passiveTargetsBody");
+  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${wealth>=capital?'<span class="badge success">erreicht</span>':fmt(capital-wealth)+" fehlen"}</td></tr>`).join("");
+
+  const milestones=[5000,10000,25000,50000,100000];
+  const c=capitalStats();
+  const ml=$("milestoneList");
+  if(ml)ml.innerHTML=milestones.map(target=>{
+    const pct=Math.min(100,wealth/target*100);
+    const remaining=Math.max(0,target-wealth);
+    let eta="–";
+    if(remaining<=0)eta="Erreicht";
+    else if(c.monthly>0){
+      const d=new Date();
+      d.setDate(d.getDate()+remaining/c.monthly*30.4375);
+      eta=d.toLocaleDateString("de-DE");
+    }
+    return `<div class="list-item"><div style="width:100%"><div class="milestone-row"><strong>${fmt(target)}</strong><span>${pct.toFixed(1).replace(".",",")} % · ${eta}</span></div><div class="progress"><div style="width:${pct}%"></div></div></div></div>`;
+  }).join("");
+
+  const yf=$("yearForecast");
+  if(yf){
+    const projectedIncome=incomeHistoryV6.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.total,0);
+    const projectedExpenses=avgExp*12;
+    const projectedPassive=passiveMonthly*12;
+    const projectedEnd=wealth+Math.max(0,avgSaving)*(12-new Date().getMonth()-1);
+    yf.innerHTML=`
+      <div class="stat"><span>Einkommen 2026</span><strong>${fmt(projectedIncome)}</strong></div>
+      <div class="stat"><span>Ausgaben hochgerechnet</span><strong>${fmt(projectedExpenses)}</strong></div>
+      <div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(projectedPassive)}</strong></div>
+      <div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(projectedEnd)}</strong></div>`;
+  }
+}
+
+
+document.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-page]");
+  if(!btn)return;
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  const target=document.getElementById(btn.dataset.page);
+  if(target)target.classList.add("active");
+  document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b===btn));
+  if(btn.dataset.page==="overview")renderV6();
+});
