@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b5ed7">
+  <meta name="description" content="Lokale Finanz-PWA für Vermögen, Ausgaben, Fixkosten und Sparziele">
+  <title>Finanzen</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="app-header">
+  <div>
+    <h1>Finanzen</h1>
+    <p id="headerMonth"></p>
+  </div>
+  <button id="installBtn" class="secondary hidden">Installieren</button>
+</header>
+
+<nav class="tabs" aria-label="Bereiche">
+  <button class="tab active" data-page="dashboard">Dashboard</button>
+  <button class="tab" data-page="expenses">Ausgaben</button>
+  <button class="tab" data-page="fixed">Fixkosten</button>
+  <button class="tab" data-page="income">Gehalt</button>
+  <button class="tab" data-page="assets">Vermögen</button>
+  <button class="tab" data-page="goals">Sparziele</button>
+  <button class="tab" data-page="backup">Backup</button>
+</nav>
+
+<main>
+  <section id="dashboard" class="page active">
+    <div class="grid cards">
+      <article class="card hero">
+        <span>Gesamtvermögen</span>
+        <strong id="totalWealth">0,00 €</strong>
+        <small id="wealthChange">Noch keine Historie</small>
+      </article>
+      <article class="card">
+        <span>Ausgaben diesen Monat</span>
+        <strong id="monthExpenses">0,00 €</strong>
+        <small>inklusive fälliger Fixkosten</small>
+      </article>
+      <article class="card">
+        <span>Gehalt diesen Monat</span>
+        <strong id="monthIncome">0,00 €</strong>
+        <small id="monthBalance">Monatssaldo: 0,00 €</small>
+      </article>
+      <article class="card">
+        <span>Passives Einkommen</span>
+        <strong id="passiveMonth">0,00 €/Monat</strong>
+        <small id="passiveYear">0,00 €/Jahr</small>
+      </article>
+    </div>
+
+    <div class="grid two">
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Break-even Fixkosten</h2>
+        </div>
+        <div class="progress"><div id="passiveProgress"></div></div>
+        <p><strong id="breakEvenPassive">0 %</strong> durch Zinsen und Dividenden gedeckt</p>
+        <p id="breakEvenWithSalary" class="muted"></p>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Amex-Abrechnung</h2>
+          <select id="amexMonthSelect" aria-label="Amex-Monat"></select>
+        </div>
+        <p class="big" id="amexMonthTotal">0,00 €</p>
+        <p id="amexStatus" class="muted"></p>
+        <button id="toggleAmexPaid">Als abgebucht markieren</button>
+      </article>
+    </div>
+
+    <div class="grid two">
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Kontenübersicht</h2>
+        </div>
+        <div id="assetSummary" class="list"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Nächste Fixkosten</h2>
+        </div>
+        <div id="nextFixedCosts" class="list"></div>
+      </article>
+    </div>
+  </section>
+
+  <section id="expenses" class="page">
+    <article class="panel">
+      <h2>Ausgabe erfassen</h2>
+      <form id="expenseForm" class="form-grid">
+        <label>Datum<input id="expenseDate" type="date" required></label>
+        <label>Betrag<input id="expenseAmount" type="number" min="0" step="0.01" required></label>
+        <label>Zahlungsart
+          <select id="expenseAccount" required>
+            <option>Amex</option>
+            <option>Sparkasse</option>
+          </select>
+        </label>
+        <label>Kategorie
+          <select id="expenseCategory">
+            <option>Lebensmittel</option><option>Tanken</option><option>Freizeit</option>
+            <option>Kleidung</option><option>Gesundheit</option><option>Haushalt</option>
+            <option>Mobilität</option><option>Sonstiges</option>
+          </select>
+        </label>
+        <label class="wide">Beschreibung<input id="expenseNote" type="text" placeholder="z. B. Tanken"></label>
+        <button type="submit">Ausgabe speichern</button>
+      </form>
+    </article>
+
+    <article class="panel">
+      <div class="panel-head">
+        <h2>Ausgaben</h2>
+        <div class="filters">
+          <input id="expenseMonthFilter" type="month">
+          <select id="expenseAccountFilter"><option value="">Alle Zahlungsarten</option><option>Amex</option><option>Sparkasse</option></select>
+        </div>
+      </div>
+      <div id="expenseTotals" class="summary-line"></div>
+      <div id="expenseList" class="list"></div>
+    </article>
+  </section>
+
+  <section id="fixed" class="page">
+    <article class="panel">
+      <h2>Fixkosten anlegen</h2>
+      <form id="fixedForm" class="form-grid">
+        <label>Name<input id="fixedName" required placeholder="z. B. Internet"></label>
+        <label>Betrag<input id="fixedAmount" type="number" min="0" step="0.01" required></label>
+        <label>Abbuchungstag<input id="fixedDay" type="number" min="1" max="31" value="1" required></label>
+        <label>Intervall
+          <select id="fixedFrequency"><option value="monthly">Monatlich</option><option value="quarterly">Vierteljährlich</option><option value="semiannual">Halbjährlich</option><option value="annual">Jährlich</option></select>
+        </label>
+        <label>Erster Abbuchungsmonat<input id="fixedStartMonth" type="month" required></label>
+        <label>Konto<select id="fixedAccount"><option>Sparkasse</option><option>Amex</option></select></label>
+        <button type="submit">Fixkosten speichern</button>
+      </form>
+    </article>
+    <article class="panel">
+      <div class="panel-head"><h2>Fixkostenübersicht</h2><strong id="fixedMonthlyAverage"></strong></div>
+      <div id="fixedList" class="list"></div>
+    </article>
+  </section>
+
+  <section id="income" class="page">
+    <article class="panel">
+      <h2>Gehalt / Einkommen erfassen</h2>
+      <form id="incomeForm" class="form-grid">
+        <label>Datum<input id="incomeDate" type="date" required></label>
+        <label>Betrag<input id="incomeAmount" type="number" min="0" step="0.01" required></label>
+        <label>Art<select id="incomeType"><option>Gehalt</option><option>Trinkgeld</option><option>Nebenverdienst</option><option>Sonstiges</option></select></label>
+        <label class="wide">Notiz<input id="incomeNote" placeholder="optional"></label>
+        <button type="submit">Einkommen speichern</button>
+      </form>
+    </article>
+    <article class="panel">
+      <div class="panel-head"><h2>Einkommenshistorie</h2><input id="incomeMonthFilter" type="month"></div>
+      <div id="incomeList" class="list"></div>
+    </article>
+  </section>
+
+  <section id="assets" class="page">
+    <article class="panel">
+      <h2>Vermögenswert anlegen</h2>
+      <form id="assetForm" class="form-grid">
+        <label>Name<input id="assetName" required placeholder="z. B. Trade Republic Aktien"></label>
+        <label>Typ
+          <select id="assetType">
+            <option value="stocks">Aktien</option>
+            <option value="cash">Tagesgeldkonto</option>
+            <option value="bank">Sparkasse Konto</option>
+            <option value="other">Sonstiges</option>
+          </select>
+        </label>
+        <label>Aktueller Stand<input id="assetBalance" type="number" step="0.01" required></label>
+        <label>Dividenden-/Zinssatz p. a. (%)<input id="assetRate" type="number" min="0" step="0.01" value="0"></label>
+        <button type="submit">Vermögenswert speichern</button>
+      </form>
+    </article>
+    <article class="panel">
+      <div class="panel-head"><h2>Vermögen und Erträge</h2><strong id="assetTotal"></strong></div>
+      <div id="assetList" class="list"></div>
+    </article>
+  </section>
+
+  <section id="goals" class="page">
+    <article class="panel">
+      <h2>Sparziel anlegen</h2>
+      <form id="goalForm" class="form-grid">
+        <label>Name<input id="goalName" required placeholder="z. B. Notgroschen"></label>
+        <label>Zielbetrag<input id="goalTarget" type="number" step="0.01" required></label>
+        <label>Aktueller Stand<input id="goalCurrent" type="number" step="0.01" required></label>
+        <label>Wunschdatum<input id="goalDate" type="date" required></label>
+        <button type="submit">Sparziel speichern</button>
+      </form>
+    </article>
+    <div id="goalList" class="grid two"></div>
+  </section>
+
+  <section id="backup" class="page">
+    <article class="panel">
+      <h2>Backup und Export</h2>
+      <p>Alle Daten bleiben lokal auf diesem Gerät. Erstelle regelmäßig ein Backup.</p>
+      <div class="button-row">
+        <button id="exportBackup">Backup als JSON</button>
+        <label class="file-button">Backup importieren<input id="importBackup" type="file" accept=".json,application/json"></label>
+        <button id="exportCsv" class="secondary">Ausgaben als CSV</button>
+      </div>
+      <hr>
+      <h3>Alle Daten löschen</h3>
+      <p class="muted">Löscht sämtliche Finanzdaten nur auf diesem Gerät.</p>
+      <button id="deleteAll" class="danger">Alle Daten löschen</button>
+    </article>
+  </section>
+</main>
+
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <button id="closeModal" class="icon-btn" aria-label="Schließen">×</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="app.js"></script>
+</body>
+</html>
