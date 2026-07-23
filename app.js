@@ -550,12 +550,10 @@ function daysInMonthKey(ym){
   return new Date(y,m,0).getDate();
 }
 
-
-let incomeEditMode = false;
-let amexEditMode = false;
-
 function ensureV7Data(){
   data.v7 = data.v7 || {};
+  if(typeof data.v7.incomeEditMode!=="boolean") data.v7.incomeEditMode=false;
+  if(typeof data.v7.amexEditMode!=="boolean") data.v7.amexEditMode=false;
   if(!Array.isArray(data.v7.incomeHistory)){
     data.v7.incomeHistory = structuredClone(defaultIncomeHistoryV7);
   }else{
@@ -571,50 +569,6 @@ function ensureV7Data(){
 function incomeRows(){ ensureV7Data(); return data.v7.incomeHistory; }
 function amexRows(){ ensureV7Data(); return data.v7.amexHistory; }
 function fuelRows(){ ensureV7Data(); return data.v7.fuelEntries; }
-
-function accountSnapshots(){
-  return Array.isArray(data.accountHistory) ? data.accountHistory : [];
-}
-function currentMonthKey(){
-  return new Date().toISOString().slice(0,7);
-}
-function currentIncomeRow(){
-  const key=currentMonthKey();
-  return incomeRows().find(x=>x.month===key) || incomeRows().slice().sort((a,b)=>b.month.localeCompare(a.month))[0];
-}
-function currentAmexRow(){
-  const key=currentMonthKey();
-  return amexRows().find(x=>x.month===key) || amexRows().slice().sort((a,b)=>b.month.localeCompare(a.month))[0];
-}
-function monthlyAccountChange(){
-  const rows=accountSnapshots().slice().sort((a,b)=>String(a.month||a.date||"").localeCompare(String(b.month||b.date||"")));
-  if(rows.length>=2){
-    const a=rows[rows.length-2], b=rows[rows.length-1];
-    const av=Number(a.total??a.balance??a.value??0);
-    const bv=Number(b.total??b.balance??b.value??0);
-    return bv-av;
-  }
-  const cs=capitalStats();
-  return Number(cs.monthly||0);
-}
-function fixedMonthlyTotalV9(){
-  return fixedCostsV6.reduce((s,x)=>{
-    if(x.frequency==="monthly") return s+x.amount;
-    if(x.frequency==="bimonthly") return s+x.amount/2;
-    if(x.frequency==="twice") return s+x.amount*2/12;
-    return s+x.amount/12;
-  },0);
-}
-function saveAmexRow(month){
-  const row=amexRows().find(x=>x.month===month);
-  if(!row)return;
-  ["expenses","incomeDay","passiveDay","saving"].forEach(key=>{
-    const el=document.querySelector(`[data-amex-month="${month}"][data-amex-field="${key}"]`);
-    if(el) row[key]=Number(el.value)||0;
-  });
-  saveData();
-}
-
 function saveIncomeRow(month){
   const row=incomeRows().find(x=>x.month===month);
   if(!row)return;
@@ -623,6 +577,16 @@ function saveIncomeRow(month){
     if(el)row[key]=Number(el.value)||0;
   });
   row.total=row.salary+row.bonus+row.tips+row.parents+row.costs;
+  saveData();
+}
+
+function saveAmexRow(month){
+  const row=amexRows().find(x=>x.month===month);
+  if(!row)return;
+  ["expenses","incomeDay","passiveDay","saving"].forEach(key=>{
+    const el=document.querySelector(`[data-amex-month="${month}"][data-amex-field="${key}"]`);
+    if(el)row[key]=Number(el.value)||0;
+  });
   saveData();
 }
 function tradeRepublicCashBalance(){
@@ -635,6 +599,12 @@ function tradeRepublicCashBalance(){
 
 function renderV6(){
   const wealth=totalWealth();
+
+  const incomeToggle=$("toggleIncomeEdit");
+  if(incomeToggle) incomeToggle.textContent=data.v7.incomeEditMode?"Fertig":"Bearbeiten";
+  const amexToggle=$("toggleAmexEdit");
+  if(amexToggle) amexToggle.textContent=data.v7.amexEditMode?"Fertig":"Bearbeiten";
+
   const validExpenses=amexRows().filter(x=>x.month>="2025-06");
   const avgExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses),0)/validExpenses.length;
   const avgSaving=validExpenses.reduce((s,x)=>s+Number(x.saving||0),0)/validExpenses.length;
@@ -666,14 +636,15 @@ function renderV6(){
   set("taxAllowanceLeft",fmt(Math.max(0,12096-salary2026)));
 
   const ih=$("incomeHistoryBody");
-  if(ih)ih.innerHTML=incomeRows().map(x=>`<tr>
-    <td>${monthLabel(x.month)}</td>
-    ${["salary","bonus","tips","parents","costs"].map(k=>incomeEditMode
-      ? `<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`
-      : `<td>${fmt(x[k]||0)}</td>`).join("")}
-    <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
-    <td>${incomeEditMode?`<button class="save-income" data-month="${x.month}" type="button">Speichern</button>`:""}</td>
-  </tr>`).join("");
+  if(ih)ih.innerHTML=incomeRows().map(x=>{
+    const edit=data.v7.incomeEditMode;
+    return `<tr>
+      <td>${monthLabel(x.month)}</td>
+      ${["salary","bonus","tips","parents","costs"].map(k=>`<td>${edit?`<input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}">`:fmt(x[k]||0)}</td>`).join("")}
+      <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
+      <td>${edit?`<button class="save-income" data-month="${x.month}" type="button">Speichern</button>`:""}</td>
+    </tr>`;
+  }).join("");
 
   set("avgExpenses",fmt(avgExp));
   const avgDailyExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses)/daysInMonthKey(x.month),0)/validExpenses.length;
@@ -683,13 +654,14 @@ function renderV6(){
   set("avgMonthlySaving",fmt(avgSaving));
 
   const eh=$("expenseHistoryBody");
-  if(eh)eh.innerHTML=amexRows().map(x=>`<tr>
-    <td>${monthLabel(x.month)}</td>
-    ${["expenses","incomeDay","passiveDay","saving"].map(k=>amexEditMode
-      ? `<td><input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`
-      : `<td>${x[k]==null?"–":fmt(x[k])}</td>`).join("")}
-    <td>${amexEditMode?`<button class="save-amex" data-month="${x.month}" type="button">Speichern</button>`:""}</td>
-  </tr>`).join("");
+  if(eh)eh.innerHTML=amexRows().map(x=>{
+    const edit=data.v7.amexEditMode;
+    return `<tr>
+      <td>${monthLabel(x.month)}</td>
+      ${["expenses","incomeDay","passiveDay","saving"].map(k=>`<td>${edit?`<input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="${k}" value="${Number(x[k]??0).toFixed(2)}">`:(x[k]==null?"–":fmt(x[k]))}</td>`).join("")}
+      <td>${edit?`<button class="save-amex" data-month="${x.month}" type="button">Speichern</button>`:""}</td>
+    </tr>`;
+  }).join("");
 
   set("fixedMonthlyTotal",fmt(monthlyFixed));
   set("fixedYearlyTotal",fmt(monthlyFixed*12));
@@ -726,24 +698,6 @@ function renderV6(){
     <td><button class="save-fuel" data-id="${x.id}" type="button">Speichern</button> <button class="delete-fuel" data-id="${x.id}" type="button">Löschen</button></td>
   </tr>`).join("");
 
-
-  const currentIncome=currentIncomeRow();
-  const currentAmex=currentAmexRow();
-  const fixedNow=fixedMonthlyTotalV9();
-  const currentSalary=Number(currentIncome?.salary||0);
-  const amexAmount=Math.abs(Number(currentAmex?.expenses||0));
-  const monthBalance=Number(currentIncome?.total||0)-amexAmount;
-  const accountChange=monthlyAccountChange();
-  const passivePerMonth=(Number(data.metrics?.currentDailyInterest||0.17)+Number(data.metrics?.currentDailyDividend||0.05))*30.4375;
-  const breakEven=Math.max(0,fixedNow-passivePerMonth);
-
-  set("dashAccountChange",fmt(accountChange));
-  set("dashCurrentSalary",fmt(currentSalary));
-  set("dashMonthBalance",fmt(monthBalance));
-  set("dashBreakEven",fmt(breakEven));
-  set("dashAmex",fmt(amexAmount));
-  set("dashFixedCosts",fmt(fixedNow));
-
   const milestones=[5000,10000,25000,50000,100000];
   const c=capitalStats();
   const ml=$("milestoneList");
@@ -759,6 +713,30 @@ function renderV6(){
     }
     return `<div class="list-item"><div style="width:100%"><div class="milestone-row"><strong>${fmt(target)}</strong><span>${pct.toFixed(1).replace(".",",")} % · ${eta}</span></div><div class="progress"><div style="width:${pct}%"></div></div></div></div>`;
   }).join("");
+
+
+  const nowMonth = new Date().toISOString().slice(0,7);
+  const currentIncome = incomeRows().find(x=>x.month===nowMonth) || incomeRows().at(-1);
+  const currentAmex = amexRows().find(x=>x.month===nowMonth) || amexRows().at(-1);
+
+  const accountItems = Array.isArray(data.assets) ? data.assets : [];
+  const currentAccountTotal = accountItems.reduce((s,x)=>s+Number(x.balance||0),0);
+  const previousSnapshot = Number(data.v7.previousAccountTotal ?? currentAccountTotal);
+  const accountChange = currentAccountTotal - previousSnapshot;
+
+  set("dashboardAccountChange", fmt(accountChange));
+  set("dashboardCurrentSalary", currentIncome ? fmt(currentIncome.salary||0) : "–");
+  set("dashboardAmex", currentAmex ? fmt(Math.abs(currentAmex.expenses||0)) : "–");
+  set("dashboardFixedCosts", fmt(monthlyFixed));
+
+  const monthlyBalance = currentIncome && currentAmex
+    ? Number(currentIncome.total||0) - Math.abs(Number(currentAmex.expenses||0)) - monthlyFixed
+    : 0;
+  set("dashboardMonthlyBalance", fmt(monthlyBalance));
+
+  const shiftIncome = 70;
+  const breakEvenShifts = shiftIncome > 0 ? monthlyFixed / shiftIncome : 0;
+  set("dashboardBreakEven", `${breakEvenShifts.toFixed(1).replace(".",",")} Schichten`);
 
   const yf=$("yearForecast");
   if(yf){
@@ -777,8 +755,20 @@ function renderV6(){
 
 
 document.addEventListener("click",e=>{
+  if(e.target.closest("#toggleIncomeEdit")){
+    data.v7.incomeEditMode=!data.v7.incomeEditMode;
+    saveData(); return;
+  }
+  if(e.target.closest("#toggleAmexEdit")){
+    data.v7.amexEditMode=!data.v7.amexEditMode;
+    saveData(); return;
+  }
+
   const incomeBtn=e.target.closest(".save-income");
   if(incomeBtn){ saveIncomeRow(incomeBtn.dataset.month); return; }
+
+  const amexBtn=e.target.closest(".save-amex");
+  if(amexBtn){ saveAmexRow(amexBtn.dataset.month); return; }
 
   if(e.target.closest("#addFuelEntry")){
     fuelRows().push({id:uid(),date:todayISO(),amount:0,note:""});
@@ -801,27 +791,5 @@ document.addEventListener("click",e=>{
   if(df){
     data.v7.fuelEntries=fuelRows().filter(x=>x.id!==df.dataset.id);
     saveData(); return;
-  }
-});
-
-document.addEventListener("click",e=>{
-  if(e.target.closest("#toggleIncomeEdit")){
-    incomeEditMode=!incomeEditMode;
-    const btn=document.getElementById("toggleIncomeEdit");
-    if(btn)btn.textContent=incomeEditMode?"Bearbeiten beenden":"Bearbeiten";
-    renderV6();
-    return;
-  }
-  if(e.target.closest("#toggleAmexEdit")){
-    amexEditMode=!amexEditMode;
-    const btn=document.getElementById("toggleAmexEdit");
-    if(btn)btn.textContent=amexEditMode?"Bearbeiten beenden":"Bearbeiten";
-    renderV6();
-    return;
-  }
-  const amexBtn=e.target.closest(".save-amex");
-  if(amexBtn){
-    saveAmexRow(amexBtn.dataset.month);
-    return;
   }
 });

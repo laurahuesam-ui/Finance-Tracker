@@ -34,16 +34,19 @@
 
 <main>
   <section id="dashboard" class="page active">
+  <article class="panel">
+    <h2>Aktueller Monat</h2>
 
-    <div class="stats-grid dashboard-extra-grid">
-      <div class="stat"><span>Veränderung Kontostände</span><strong id="dashAccountChange">–</strong></div>
-      <div class="stat"><span>Gehalt diesen Monat</span><strong id="dashCurrentSalary">–</strong></div>
-      <div class="stat"><span>Monatssaldo</span><strong id="dashMonthBalance">–</strong></div>
-      <div class="stat"><span>Break-even Fixkosten</span><strong id="dashBreakEven">–</strong></div>
-      <div class="stat"><span>Amex-Abrechnung</span><strong id="dashAmex">–</strong></div>
-      <div class="stat"><span>Fixkosten</span><strong id="dashFixedCosts">–</strong></div>
+    <div class="stats-grid dashboard-live-grid">
+      <div class="stat"><span>Veränderung Kontostände</span><strong id="dashboardAccountChange">–</strong></div>
+      <div class="stat"><span>Gehalt diesen Monat</span><strong id="dashboardCurrentSalary">–</strong></div>
+      <div class="stat"><span>Monatssaldo</span><strong id="dashboardMonthlyBalance">–</strong></div>
+      <div class="stat"><span>Break-even Fixkosten</span><strong id="dashboardBreakEven">–</strong></div>
+      <div class="stat"><span>Amex-Abrechnung</span><strong id="dashboardAmex">–</strong></div>
+      <div class="stat"><span>Fixkosten</span><strong id="dashboardFixedCosts">–</strong></div>
     </div>
 
+  </article>
     <div class="grid cards">
       <article class="card hero">
         <span>Gesamtvermögen</span>
@@ -172,7 +175,7 @@
       </form>
     </article>
     <article class="panel">
-      <div class="panel-head"><div class="panel-head"><h2>Einkommenshistorie</h2><button id="toggleIncomeEdit" type="button">Bearbeiten</button></div><input id="incomeMonthFilter" type="month"></div>
+      <div class="panel-head"><div class="panel-head"><div><h2>Einkommenshistorie</h2></div><button id="toggleIncomeEdit" type="button">Bearbeiten</button></div><input id="incomeMonthFilter" type="month"></div>
       <div id="incomeList" class="list"></div>
     </article>
   </section>
@@ -287,7 +290,7 @@
 
 <section id="expenseAnalysis" class="page">
   <article class="panel">
-    <div class="panel-head"><h2>Amex-Kontostand und Sparanalyse</h2><button id="toggleAmexEdit" type="button">Bearbeiten</button></div><p class="muted">Die Monatswerte sind Amex-Abbuchungen; der Juli-Wert ist der bisherige aktuelle Stand.</p>
+    <div class="panel-head"><div><h2>Amex-Kontostand und Sparanalyse</h2></div><button id="toggleAmexEdit" type="button">Bearbeiten</button></div><p class="muted">Die Monatswerte sind Amex-Abbuchungen; der Juli-Wert ist der bisherige aktuelle Stand.</p>
     <div class="stats-grid">
       <div class="stat"><span>Ø Ausgaben</span><strong id="avgExpenses">–</strong></div>
       <div class="stat"><span>Ø Ausgaben/Tag</span><strong id="avgExpensesDaily">–</strong></div>
