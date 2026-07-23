@@ -101,8 +101,8 @@ const passiveCapitalTargetsV6 = [
 ];
 
 
-const STORAGE_KEY = "finanzenPwaV8";
-const APP_VERSION = 8;
+const STORAGE_KEY = "finanzenPwaV9";
+const APP_VERSION = 9;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -172,12 +172,43 @@ const defaultData = {
   metrics: {currentMonthlyDividend:1.65,currentDailyInterest:0.17,currentDailyDividend:0.05,capitalStart:2386.50,capitalCurrent:3936.33,capitalDiff:1549.83,monthlyCapitalIncrease:110.70,capitalGrowthPct:64.94,currentDailyCapitalIncrease:0.23,interestProfit:39.84,stockProfit:45.90,dividendProfit:14.63,totalProfit:54.47},
   settings: { currency: "EUR", seedVersion:7, trackingStart:"2025-06-01", capitalStart:2386.50, lifetimeStart:"2023-05-01", lifetimeCapitalStart:0 }
 };
-let data = loadData();
-if(!localStorage.getItem(STORAGE_KEY)){
+function safeStoredData(key){
   try{
-    const previous=JSON.parse(localStorage.getItem("finanzenPwaV7"));
-    if(previous){ data={...structuredClone(defaultData),...previous}; localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); }
-  }catch{}
+    const raw=localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  }catch{return null;}
+}
+function chooseLongestArray(sources,key,fallback=[]){
+  const candidates=sources.map(s=>s?.[key]).filter(Array.isArray);
+  if(!candidates.length)return structuredClone(fallback);
+  return structuredClone(candidates.sort((a,b)=>b.length-a.length)[0]);
+}
+function chooseBestAssets(sources){
+  const candidates=sources.map(s=>s?.assets).filter(a=>Array.isArray(a)&&a.length);
+  if(!candidates.length)return structuredClone(defaultData.assets);
+  const score=a=>a.length*100+a.reduce((n,x)=>n+(Array.isArray(x.history)?x.history.length:0),0);
+  return structuredClone(candidates.sort((a,b)=>score(b)-score(a))[0]);
+}
+function migrateAllPreviousData(){
+  const keys=["finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4"];
+  const sources=keys.map(safeStoredData).filter(Boolean);
+  if(!sources.length)return structuredClone(defaultData);
+  const newest=sources[0]||{};
+  const merged={...structuredClone(defaultData),...newest};
+  ["balances","incomes","fixedCosts","goals","incomeHistory","amexHistory","fuelEntries","completedPriorityGoals","financeHistory"].forEach(key=>{
+    merged[key]=chooseLongestArray(sources,key,defaultData[key]||[]);
+  });
+  merged.assets=chooseBestAssets(sources);
+  merged.metrics={...structuredClone(defaultData.metrics),...sources.slice().reverse().reduce((a,s)=>({...a,...(s.metrics||{})}),{})};
+  merged.settings={...structuredClone(defaultData.settings),...sources.slice().reverse().reduce((a,s)=>({...a,...(s.settings||{})}),{})};
+  merged.amexPaid=sources.find(s=>s.amexPaid&&Object.keys(s.amexPaid).length)?.amexPaid||{};
+  return merged;
+}
+let data;
+if(localStorage.getItem(STORAGE_KEY)) data=loadData();
+else {
+  data=migrateAllPreviousData();
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
 if(!data.balances)data.balances=[];
 if(!data.financeHistory || !data.financeHistory.length)data.financeHistory=structuredClone(seededHistory);
@@ -578,6 +609,15 @@ $("exportCsv").addEventListener("click",()=>{
   const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(";")).join("\n");
   download(`kontostaende-${todayISO()}.csv`,csv,"text/csv;charset=utf-8");
 });
+const restoreMasterDataBtn=$("restoreMasterDataBtn");
+if(restoreMasterDataBtn)restoreMasterDataBtn.addEventListener("click",()=>{
+  const restored=migrateAllPreviousData();
+  const preserve={incomeHistory:data.incomeHistory,amexHistory:data.amexHistory,fuelEntries:data.fuelEntries,completedPriorityGoals:data.completedPriorityGoals};
+  data={...restored,...Object.fromEntries(Object.entries(preserve).filter(([,v])=>Array.isArray(v)&&v.length))};
+  saveData();
+  toast("Frühere Stammdaten wurden wiederhergestellt");
+});
+
 $("deleteAll").addEventListener("click",()=>{
   if(confirm("Wirklich ALLE Finanzdaten auf diesem Gerät löschen?")){
     localStorage.removeItem(STORAGE_KEY);data=structuredClone(defaultData);saveData();toast("Alle Daten gelöscht");
