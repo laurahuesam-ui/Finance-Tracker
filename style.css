@@ -62,29 +62,3 @@ th:first-child,td:first-child{text-align:left}
 .milestone-row{display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:center}
 .progress{height:10px;background:#e8e8e8;border-radius:999px;overflow:hidden}
 .progress>div{height:100%;background:currentColor}
-
-.inline-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.75rem;align-items:end;margin:1rem 0}
-.inline-form label{display:grid;gap:.35rem}
-.action-small{padding:.4rem .65rem;font-size:.85rem}
-.goal-active{display:grid;gap:.8rem}
-.goal-meta{display:flex;gap:1rem;flex-wrap:wrap}
-details summary{cursor:pointer;padding:.5rem 0}
-.status-current{font-weight:700}
-
-.tabs{
-  display:flex;
-  gap:.45rem;
-  overflow-x:auto;
-  scrollbar-width:thin;
-  padding:.55rem max(.6rem, env(safe-area-inset-left));
-  position:sticky;
-  top:0;
-  z-index:20;
-}
-.tabs .tab{
-  flex:0 0 auto;
-  white-space:nowrap;
-}
-.page{display:none}
-.page.active{display:block}
-button, input, select, textarea{pointer-events:auto}
