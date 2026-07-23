@@ -59,8 +59,8 @@ const passiveCapitalTargetsV6 = [
 ];
 
 
-const STORAGE_KEY = "finanzenPwaV8";
-const LEGACY_STORAGE_KEYS = ["finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3"];
+const STORAGE_KEY = "finanzenPwaV9";
+const LEGACY_STORAGE_KEYS = ["finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3"];
 const APP_VERSION = 4;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
@@ -550,6 +550,10 @@ function daysInMonthKey(ym){
   return new Date(y,m,0).getDate();
 }
 
+
+let incomeEditMode = false;
+let amexEditMode = false;
+
 function ensureV7Data(){
   data.v7 = data.v7 || {};
   if(!Array.isArray(data.v7.incomeHistory)){
@@ -567,6 +571,50 @@ function ensureV7Data(){
 function incomeRows(){ ensureV7Data(); return data.v7.incomeHistory; }
 function amexRows(){ ensureV7Data(); return data.v7.amexHistory; }
 function fuelRows(){ ensureV7Data(); return data.v7.fuelEntries; }
+
+function accountSnapshots(){
+  return Array.isArray(data.accountHistory) ? data.accountHistory : [];
+}
+function currentMonthKey(){
+  return new Date().toISOString().slice(0,7);
+}
+function currentIncomeRow(){
+  const key=currentMonthKey();
+  return incomeRows().find(x=>x.month===key) || incomeRows().slice().sort((a,b)=>b.month.localeCompare(a.month))[0];
+}
+function currentAmexRow(){
+  const key=currentMonthKey();
+  return amexRows().find(x=>x.month===key) || amexRows().slice().sort((a,b)=>b.month.localeCompare(a.month))[0];
+}
+function monthlyAccountChange(){
+  const rows=accountSnapshots().slice().sort((a,b)=>String(a.month||a.date||"").localeCompare(String(b.month||b.date||"")));
+  if(rows.length>=2){
+    const a=rows[rows.length-2], b=rows[rows.length-1];
+    const av=Number(a.total??a.balance??a.value??0);
+    const bv=Number(b.total??b.balance??b.value??0);
+    return bv-av;
+  }
+  const cs=capitalStats();
+  return Number(cs.monthly||0);
+}
+function fixedMonthlyTotalV9(){
+  return fixedCostsV6.reduce((s,x)=>{
+    if(x.frequency==="monthly") return s+x.amount;
+    if(x.frequency==="bimonthly") return s+x.amount/2;
+    if(x.frequency==="twice") return s+x.amount*2/12;
+    return s+x.amount/12;
+  },0);
+}
+function saveAmexRow(month){
+  const row=amexRows().find(x=>x.month===month);
+  if(!row)return;
+  ["expenses","incomeDay","passiveDay","saving"].forEach(key=>{
+    const el=document.querySelector(`[data-amex-month="${month}"][data-amex-field="${key}"]`);
+    if(el) row[key]=Number(el.value)||0;
+  });
+  saveData();
+}
+
 function saveIncomeRow(month){
   const row=incomeRows().find(x=>x.month===month);
   if(!row)return;
@@ -620,9 +668,11 @@ function renderV6(){
   const ih=$("incomeHistoryBody");
   if(ih)ih.innerHTML=incomeRows().map(x=>`<tr>
     <td>${monthLabel(x.month)}</td>
-    ${["salary","bonus","tips","parents","costs"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`).join("")}
+    ${["salary","bonus","tips","parents","costs"].map(k=>incomeEditMode
+      ? `<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`
+      : `<td>${fmt(x[k]||0)}</td>`).join("")}
     <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
-    <td><button class="save-income" data-month="${x.month}" type="button">Speichern</button></td>
+    <td>${incomeEditMode?`<button class="save-income" data-month="${x.month}" type="button">Speichern</button>`:""}</td>
   </tr>`).join("");
 
   set("avgExpenses",fmt(avgExp));
@@ -633,7 +683,13 @@ function renderV6(){
   set("avgMonthlySaving",fmt(avgSaving));
 
   const eh=$("expenseHistoryBody");
-  if(eh)eh.innerHTML=amexRows().map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.expenses)}</td><td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td><td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td><td>${x.saving==null?"–":fmt(x.saving)}</td></tr>`).join("");
+  if(eh)eh.innerHTML=amexRows().map(x=>`<tr>
+    <td>${monthLabel(x.month)}</td>
+    ${["expenses","incomeDay","passiveDay","saving"].map(k=>amexEditMode
+      ? `<td><input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`
+      : `<td>${x[k]==null?"–":fmt(x[k])}</td>`).join("")}
+    <td>${amexEditMode?`<button class="save-amex" data-month="${x.month}" type="button">Speichern</button>`:""}</td>
+  </tr>`).join("");
 
   set("fixedMonthlyTotal",fmt(monthlyFixed));
   set("fixedYearlyTotal",fmt(monthlyFixed*12));
@@ -647,7 +703,7 @@ function renderV6(){
   set("passiveYear",fmt(passiveMonthly*12));
   const pt=$("passiveTargetsBody");
   const trCash=tradeRepublicCashBalance();
-  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${trCash>=capital?'<span class="badge success">erreicht</span>':fmt(capital-trCash)+" fehlen"}</td></tr>`).join("");
+  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${trCash>=capital?fmt(0)+" fehlt":fmt(capital-trCash)+" fehlt"}</td></tr>`).join("");
 
 
   const fuels=fuelRows().slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -669,6 +725,24 @@ function renderV6(){
     <td><input class="inline-input fuel-note" data-id="${x.id}" value="${esc(x.note||"")}"></td>
     <td><button class="save-fuel" data-id="${x.id}" type="button">Speichern</button> <button class="delete-fuel" data-id="${x.id}" type="button">Löschen</button></td>
   </tr>`).join("");
+
+
+  const currentIncome=currentIncomeRow();
+  const currentAmex=currentAmexRow();
+  const fixedNow=fixedMonthlyTotalV9();
+  const currentSalary=Number(currentIncome?.salary||0);
+  const amexAmount=Math.abs(Number(currentAmex?.expenses||0));
+  const monthBalance=Number(currentIncome?.total||0)-amexAmount;
+  const accountChange=monthlyAccountChange();
+  const passivePerMonth=(Number(data.metrics?.currentDailyInterest||0.17)+Number(data.metrics?.currentDailyDividend||0.05))*30.4375;
+  const breakEven=Math.max(0,fixedNow-passivePerMonth);
+
+  set("dashAccountChange",fmt(accountChange));
+  set("dashCurrentSalary",fmt(currentSalary));
+  set("dashMonthBalance",fmt(monthBalance));
+  set("dashBreakEven",fmt(breakEven));
+  set("dashAmex",fmt(amexAmount));
+  set("dashFixedCosts",fmt(fixedNow));
 
   const milestones=[5000,10000,25000,50000,100000];
   const c=capitalStats();
@@ -727,5 +801,27 @@ document.addEventListener("click",e=>{
   if(df){
     data.v7.fuelEntries=fuelRows().filter(x=>x.id!==df.dataset.id);
     saveData(); return;
+  }
+});
+
+document.addEventListener("click",e=>{
+  if(e.target.closest("#toggleIncomeEdit")){
+    incomeEditMode=!incomeEditMode;
+    const btn=document.getElementById("toggleIncomeEdit");
+    if(btn)btn.textContent=incomeEditMode?"Bearbeiten beenden":"Bearbeiten";
+    renderV6();
+    return;
+  }
+  if(e.target.closest("#toggleAmexEdit")){
+    amexEditMode=!amexEditMode;
+    const btn=document.getElementById("toggleAmexEdit");
+    if(btn)btn.textContent=amexEditMode?"Bearbeiten beenden":"Bearbeiten";
+    renderV6();
+    return;
+  }
+  const amexBtn=e.target.closest(".save-amex");
+  if(amexBtn){
+    saveAmexRow(amexBtn.dataset.month);
+    return;
   }
 });

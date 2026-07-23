@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 8</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 9</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -34,6 +34,16 @@
 
 <main>
   <section id="dashboard" class="page active">
+
+    <div class="stats-grid dashboard-extra-grid">
+      <div class="stat"><span>Veränderung Kontostände</span><strong id="dashAccountChange">–</strong></div>
+      <div class="stat"><span>Gehalt diesen Monat</span><strong id="dashCurrentSalary">–</strong></div>
+      <div class="stat"><span>Monatssaldo</span><strong id="dashMonthBalance">–</strong></div>
+      <div class="stat"><span>Break-even Fixkosten</span><strong id="dashBreakEven">–</strong></div>
+      <div class="stat"><span>Amex-Abrechnung</span><strong id="dashAmex">–</strong></div>
+      <div class="stat"><span>Fixkosten</span><strong id="dashFixedCosts">–</strong></div>
+    </div>
+
     <div class="grid cards">
       <article class="card hero">
         <span>Gesamtvermögen</span>
@@ -162,7 +172,7 @@
       </form>
     </article>
     <article class="panel">
-      <div class="panel-head"><h2>Einkommenshistorie</h2><input id="incomeMonthFilter" type="month"></div>
+      <div class="panel-head"><div class="panel-head"><h2>Einkommenshistorie</h2><button id="toggleIncomeEdit" type="button">Bearbeiten</button></div><input id="incomeMonthFilter" type="month"></div>
       <div id="incomeList" class="list"></div>
     </article>
   </section>
@@ -228,7 +238,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 8</span>
+      <span class="badge">Version 9</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
@@ -277,7 +287,7 @@
 
 <section id="expenseAnalysis" class="page">
   <article class="panel">
-    <h2>Amex-Kontostand und Sparanalyse</h2><p class="muted">Die Monatswerte sind Amex-Abbuchungen; der Juli-Wert ist der bisherige aktuelle Stand.</p>
+    <div class="panel-head"><h2>Amex-Kontostand und Sparanalyse</h2><button id="toggleAmexEdit" type="button">Bearbeiten</button></div><p class="muted">Die Monatswerte sind Amex-Abbuchungen; der Juli-Wert ist der bisherige aktuelle Stand.</p>
     <div class="stats-grid">
       <div class="stat"><span>Ø Ausgaben</span><strong id="avgExpenses">–</strong></div>
       <div class="stat"><span>Ø Ausgaben/Tag</span><strong id="avgExpensesDaily">–</strong></div>
@@ -285,7 +295,7 @@
       <div class="stat"><span>Ø Sparrate/Monat</span><strong id="avgMonthlySaving">–</strong></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Monat</th><th>Ausgaben</th><th>Einnahmen/Tag</th><th>Passiv/Tag</th><th>Sparbetrag</th></tr></thead>
+      <thead><tr><th>Monat</th><th>Ausgaben</th><th>Einnahmen/Tag</th><th>Passiv/Tag</th><th>Sparbetrag</th><th></th></tr></thead>
       <tbody id="expenseHistoryBody"></tbody>
     </table></div>
   </article>
