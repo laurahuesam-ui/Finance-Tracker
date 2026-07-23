@@ -62,3 +62,9 @@ th:first-child,td:first-child{text-align:left}
 .milestone-row{display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:center}
 .progress{height:10px;background:#e8e8e8;border-radius:999px;overflow:hidden}
 .progress>div{height:100%;background:currentColor}
+
+.icon-btn{padding:.35rem .55rem;min-width:auto}
+.goal-current{padding:1rem;border:1px solid var(--border,#ddd);border-radius:14px}
+.goal-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.7rem;margin-top:1rem}
+.goal-meta>div{padding:.7rem;background:rgba(127,127,127,.08);border-radius:10px}
+details summary{cursor:pointer;font-weight:700;margin-bottom:1rem}

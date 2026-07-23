@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 6</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 7</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -188,19 +188,25 @@
     </article>
   </section>
 
-  <section id="goals" class="page">
-    <article class="panel">
-      <h2>Sparziel anlegen</h2>
-      <form id="goalForm" class="form-grid">
-        <label>Name<input id="goalName" required placeholder="z. B. Notgroschen"></label>
-        <label>Zielbetrag<input id="goalTarget" type="number" step="0.01" required></label>
-        <label>Aktueller Stand<input id="goalCurrent" type="number" step="0.01" readonly title="Wird automatisch aus dem Gesamtvermögen übernommen"></label>
-        <label>Wunschdatum<input id="goalDate" type="date" required></label>
-        <button type="submit">Sparziel speichern</button>
-      </form>
-    </article>
-    <div id="goalList" class="grid two"></div>
-  </section>
+  
+<section id="goals" class="page">
+  <article class="panel">
+    <div class="panel-head">
+      <div><h2>Aktuelles Sparziel</h2><p class="muted">Es wird immer nur das erste noch nicht erreichte Ziel angezeigt.</p></div>
+      <span class="badge">nach Priorität</span>
+    </div>
+    <div id="priorityGoalCard"></div>
+  </article>
+  <article class="panel">
+    <details>
+      <summary>Gesamte Prioritätenliste</summary>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Prio</th><th>Kategorie</th><th>Ziel</th><th>Min.</th><th>Max.</th><th>Status</th></tr></thead>
+        <tbody id="priorityGoalsBody"></tbody>
+      </table></div>
+    </details>
+  </article>
+</section>
 
   <section id="backup" class="page">
     <article class="panel">
@@ -225,7 +231,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 6</span>
+      <span class="badge">Version 7</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
@@ -246,47 +252,53 @@
   </article>
 </section>
 
+
 <section id="incomeAnalysis" class="page">
   <article class="panel">
-    <h2>Einkommenshistorie</h2>
+    <div class="panel-head">
+      <div><h2>Einkommenshistorie</h2><p class="muted">Jeder Monat kann bearbeitet oder ergänzt werden.</p></div>
+      <button id="addIncomeMonth" type="button">Monat hinzufügen</button>
+    </div>
     <div class="stats-grid">
-      <div class="stat"><span>Steuerfreibetrag</span><strong>12.096,00 €</strong></div>
-      <div class="stat"><span>Erfasstes Gehalt 2025</span><strong id="salary2025">–</strong></div>
-      <div class="stat"><span>Prognose Gehalt 2026</span><strong id="salary2026">–</strong></div>
-      <div class="stat"><span>Verbleibender Freibetrag 2026</span><strong id="taxAllowanceLeft">–</strong></div>
+      <div class="stat"><span>Lohnsteuerfreibetrag</span><strong>12.096,00 €</strong></div>
+      <div class="stat"><span>Gehalt 2025</span><strong id="salary2025">–</strong></div>
+      <div class="stat"><span>Gehalt 2026 inkl. Planung</span><strong id="salary2026">–</strong></div>
+      <div class="stat"><span>Freibetrag 2026 verbleibend</span><strong id="taxAllowanceLeft">–</strong></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Monat</th><th>Gehalt</th><th>Bonus</th><th>Trinkgeld</th><th>Eltern</th><th>Kosten</th><th>Netto gesamt</th></tr></thead>
+      <thead><tr><th>Monat</th><th>Gehalt</th><th>Bonus</th><th>Trinkgeld</th><th>Eltern</th><th>Kosten</th><th>Gesamt</th><th></th></tr></thead>
       <tbody id="incomeHistoryBody"></tbody>
     </table></div>
   </article>
   <article class="panel">
-    <h2>Schicht- und Einkommensplanung</h2>
+    <h2>Schichtplanung</h2>
     <div class="stats-grid">
       <div class="stat"><span>Pro Schicht (5 h)</span><strong>70,00 €</strong></div>
       <div class="stat"><span>12 Schichten/Monat</span><strong>840,00 €</strong></div>
       <div class="stat"><span>Max. 14 Schichten</span><strong>980,00 €</strong></div>
-      <div class="stat"><span>Jahr bei 12/Monat</span><strong>10.080,00 €</strong></div>
-      <div class="stat"><span>Maximal im Jahr</span><strong>11.760,00 €</strong></div>
+      <div class="stat"><span>12 Monate</span><strong>10.080,00 €</strong></div>
+      <div class="stat"><span>Maximum Jahr</span><strong>11.760,00 €</strong></div>
     </div>
   </article>
 </section>
 
+
 <section id="expenseAnalysis" class="page">
   <article class="panel">
-    <h2>Ausgaben- und Sparanalyse</h2>
+    <h2>Amex-Monatssummen</h2>
+    <p class="muted">Die Werte bis Juni 2026 sind abgeschlossene Amex-Abbuchungen. Juli 2026 ist der aktuell offene Amex-Stand.</p>
     <div class="stats-grid">
-      <div class="stat"><span>Ø Ausgaben</span><strong id="avgExpenses">–</strong></div>
-      <div class="stat"><span>Ø Ausgaben/Tag</span><strong id="avgExpensesDaily">–</strong></div>
-      <div class="stat"><span>Ø Einnahmen/Tag</span><strong id="avgIncomeDaily">–</strong></div>
-      <div class="stat"><span>Ø Sparrate/Monat</span><strong id="avgMonthlySaving">–</strong></div>
+      <div class="stat"><span>Ø abgeschlossene Amex-Abbuchung</span><strong id="avgAmexDebit">–</strong></div>
+      <div class="stat"><span>Aktuell offen</span><strong id="currentAmexOpen">–</strong></div>
+      <div class="stat"><span>Höchste Abbuchung</span><strong id="maxAmexDebit">–</strong></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Monat</th><th>Ausgaben</th><th>Einnahmen/Tag</th><th>Passiv/Tag</th><th>Sparbetrag</th></tr></thead>
+      <thead><tr><th>Monat</th><th>Amex-Betrag</th><th>Status</th></tr></thead>
       <tbody id="expenseHistoryBody"></tbody>
     </table></div>
   </article>
 </section>
+
 
 <section id="fixedCostsOverview" class="page">
   <article class="panel">
@@ -294,15 +306,27 @@
     <div class="stats-grid">
       <div class="stat"><span>Regelmäßig pro Monat</span><strong id="fixedMonthlyTotal">–</strong></div>
       <div class="stat"><span>Fixkosten pro Jahr</span><strong id="fixedYearlyTotal">–</strong></div>
-      <div class="stat"><span>Nächste Abbuchungen</span><strong id="nextFixedCount">–</strong></div>
+      <div class="stat"><span>Ø Tanken pro Monat</span><strong id="fuelMonthlyAverage">–</strong></div>
+      <div class="stat"><span>Ø Tankintervall</span><strong id="fuelIntervalAverage">–</strong></div>
     </div>
     <div id="fixedCostListV6" class="list"></div>
+  </article>
+  <article class="panel">
+    <h2>Variable Kosten: Tanken</h2>
+    <p class="muted">Aktueller Ausgangswert: 278,75 €. Mit weiteren Tankvorgängen werden Durchschnitt und Intervall genauer.</p>
+    <form id="fuelForm" class="form-grid">
+      <label>Datum<input id="fuelDate" type="date" required></label>
+      <label>Betrag<input id="fuelAmount" type="number" min="0" step="0.01" required></label>
+      <label class="wide">Notiz<input id="fuelNote" placeholder="optional"></label>
+      <button type="submit">Tankvorgang speichern</button>
+    </form>
+    <div id="fuelList" class="list"></div>
   </article>
 </section>
 
 <section id="passiveIncome" class="page">
   <article class="panel">
-    <h2>Passives Einkommen</h2>
+    <h2>Passives Einkommen</h2><p class="muted">Für die Tageszins-Ziele zählt ausschließlich das Trade-Republic-Tagesgeldkonto.</p>
     <div class="stats-grid">
       <div class="stat"><span>Zinsen pro Tag</span><strong id="passiveInterestDay">–</strong></div>
       <div class="stat"><span>Dividende pro Tag</span><strong id="passiveDividendDay">–</strong></div>

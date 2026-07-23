@@ -1,4 +1,46 @@
 
+const priorityGoalsV7 = [
+[1,"Absicherung","Polster",10000,10000],
+[2,"Bildung","Master",182.10,370],
+[3,"Haus","Dachzustand prüfen und reparieren",1500,5000],
+[4,"Haus","Treppenhaus sanieren",900,3063],
+[5,"Haus","Sanierung Bad Erdgeschoss",5000,10000],
+[6,"Haus","Renovierung Bad Wohnung",3000,7000],
+[7,"Haus","Sanierung Bad Opa",5000,10000],
+[8,"Bank","Kredit Deutsche Bildung",13440,13790],
+[9,"Bank","Raten Vorwerk",529.02,581.97],
+[10,"Bank","Kredit ING",52336.78,52336.78],
+[11,"Bank","Kredit Bulldog",45727.88,45727.88],
+[12,"Bank","Kredit Haus",51436.68,51436.68],
+[13,"Scheune","Wohnung in Scheune sanieren",180000,250000],
+[14,"Altes Haus","Architekten/Bauplaner beauftragen",18000,103500],
+[15,"Altes Haus","Grundsanierung",200000,690000],
+[16,"Altes Haus","Automat",1150,9200],
+[17,"Altes Haus","Laden einrichten",3300,10000],
+[18,"Altes Haus","Ferienwohnung einrichten",12000,25000],
+[19,"Altes Haus","Eventraum einrichten",10000,22000],
+[20,"Altes Haus","Büro einrichten",3200,11200],
+[21,"Haus","Bodenbeläge Zimmer",2500,6000],
+[22,"Haus","Modernisierung Haus Isolation",37000,80000],
+[23,"Haus","Modernisierung Haus Heizung",8000,23000],
+[24,"Scheune","Stall bauen",4200,12900],
+[25,"Scheune","Werkstatt renovieren",4000,4800],
+[26,"Gewölbekeller","Renovieren",13500,22500],
+[27,"Eckhaus","Zurückkaufen",400000,480000],
+[28,"Garten","Gartenhaus renovieren",3000,5000],
+[29,"Haustier","Hund/e",150,400],
+[30,"Haustier","Pferde",11000,24000],
+[31,"Auto","Audi A3",22000,30000],
+[32,"Eltern","Versorgt",650000,1100000],
+[33,"Gnadenhof","Land kaufen & bauen",5913254.39,18394160],
+[34,"Strandhaus","Kaufen",300000,2500000],
+[35,"Herrenhaus","Kaufen",300000,1500000],
+[36,"Herrenhaus","Sanieren",90000,700000],
+[37,"Schloss","Kaufen",300000,4000000],
+[38,"Schloss","Sanieren",480000,4500000]
+].map(([priority,category,name,min,max])=>({priority,category,name,min,max}));
+
+
 const incomeHistoryV6 = [
 ["2025-06",426.53,50,150,100,-35.93,790.60],
 ["2025-07",237.31,50,125,100,-35.93,591.38],
@@ -59,8 +101,8 @@ const passiveCapitalTargetsV6 = [
 ];
 
 
-const STORAGE_KEY = "finanzenPwaV6";
-const APP_VERSION = 4;
+const STORAGE_KEY = "finanzenPwaV7";
+const APP_VERSION = 7;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -80,7 +122,7 @@ const seededHistory = [
   {month:"2026-09",sparkasse:null,sparkasseInterest:0.00,tradeRepublic:null,trInterest:null,dividend:null}
 ].map(x=>({...x,total:Number(x.sparkasseInterest||0)+Number(x.trInterest||0)+Number(x.dividend||0)}));
 const defaultData = {
-  balances: [], incomes: [], fixedCosts: [], goals: [], amexPaid: {},
+  balances: [], incomes: [], fixedCosts: [], goals: [], amexPaid: {}, incomeHistory: [], amexHistory: [], fuelEntries: [], completedPriorityGoals: [],
   assets: [
     {
       id:"seed-sparkasse-giro",
@@ -128,7 +170,7 @@ const defaultData = {
   ],
   financeHistory: seededHistory,
   metrics: {currentMonthlyDividend:1.65,currentDailyInterest:0.17,currentDailyDividend:0.05,capitalStart:2386.50,capitalCurrent:3936.33,capitalDiff:1549.83,monthlyCapitalIncrease:110.70,capitalGrowthPct:64.94,currentDailyCapitalIncrease:0.23,interestProfit:39.84,stockProfit:45.90,dividendProfit:14.63,totalProfit:54.47},
-  settings: { currency: "EUR", seedVersion:5, trackingStart:"2025-06-01", capitalStart:2386.50, lifetimeStart:"2023-05-01", lifetimeCapitalStart:0 }
+  settings: { currency: "EUR", seedVersion:7, trackingStart:"2025-06-01", capitalStart:2386.50, lifetimeStart:"2023-05-01", lifetimeCapitalStart:0 }
 };
 let data = loadData();
 if(!data.balances)data.balances=[];
@@ -157,6 +199,25 @@ if(Number(data.settings.seedVersion||0)<5){
   data.settings.seedVersion=5;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
+
+if(!Array.isArray(data.incomeHistory)||!data.incomeHistory.length){
+  data.incomeHistory=incomeHistoryV6.map(x=>({...x}));
+}
+if(!Array.isArray(data.amexHistory)||!data.amexHistory.length){
+  data.amexHistory=expenseHistoryV6.map(x=>({
+    month:x.month,
+    amount:Math.abs(x.expenses),
+    status:x.month==="2026-07"?"open":"paid"
+  }));
+}
+if(!Array.isArray(data.fuelEntries))data.fuelEntries=[];
+if(!data.fuelEntries.length){
+  data.fuelEntries=[{id:"fuel-start",date:"2026-07-23",amount:278.75,note:"Bisherige Tankkosten – Ausgangswert"}];
+}
+if(!Array.isArray(data.completedPriorityGoals))data.completedPriorityGoals=[];
+data.settings.seedVersion=7;
+localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+
 let deferredPrompt = null;
 
 const $ = id => document.getElementById(id);
@@ -635,3 +696,142 @@ document.addEventListener("click",e=>{
   document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b===btn));
   if(btn.dataset.page==="overview")renderV6();
 });
+
+
+function renderV6(){
+  const wealth=totalWealth();
+  const c=capitalStats();
+  const monthlyFixed=fixedCostsV6.reduce((s,x)=>{
+    if(x.frequency==="monthly")return s+x.amount;
+    if(x.frequency==="bimonthly")return s+x.amount/2;
+    if(x.frequency==="twice")return s+x.amount*2/12;
+    return s+x.amount/12;
+  },0);
+  const interestDay=Number(data.metrics?.currentDailyInterest||0.17);
+  const dividendDay=Number(data.metrics?.currentDailyDividend||0.05);
+  const passiveMonthly=(interestDay+dividendDay)*30.4375;
+  const set=(id,val)=>{const el=$(id);if(el)el.textContent=val};
+
+  set("v6TotalWealth",fmt(wealth));
+  set("v6AvgSaving",fmt(c.monthly)+"/Monat");
+  set("v6SavingRate","aus Vermögensverlauf");
+  set("v6PassiveMonthly",fmt(passiveMonthly));
+  set("v6FixedMonthly",fmt(monthlyFixed));
+  set("v6Coverage",(monthlyFixed?passiveMonthly/monthlyFixed*100:0).toFixed(1).replace(".",",")+" %");
+
+  const incomeRows=data.incomeHistory||[];
+  const salary2025=incomeRows.filter(x=>x.month.startsWith("2025")).reduce((s,x)=>s+Number(x.salary),0);
+  const salary2026=incomeRows.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+Number(x.salary),0);
+  set("salary2025",fmt(salary2025));
+  set("salary2026",fmt(salary2026));
+  set("taxAllowanceLeft",fmt(Math.max(0,12096-salary2026)));
+  const ih=$("incomeHistoryBody");
+  if(ih)ih.innerHTML=incomeRows.slice().sort((a,b)=>a.month.localeCompare(b.month)).map(x=>`<tr>
+    <td>${monthLabel(x.month)}</td><td>${fmt(x.salary)}</td><td>${fmt(x.bonus)}</td><td>${fmt(x.tips)}</td>
+    <td>${fmt(x.parents)}</td><td>${fmt(x.costs)}</td><td><strong>${fmt(x.total)}</strong></td>
+    <td><button class="secondary icon-btn" onclick="editIncomeMonth('${x.month}')">Bearbeiten</button></td></tr>`).join("");
+
+  const paid=(data.amexHistory||[]).filter(x=>x.status==="paid");
+  const open=(data.amexHistory||[]).find(x=>x.status==="open");
+  const avg=paid.length?paid.reduce((s,x)=>s+Number(x.amount),0)/paid.length:0;
+  const max=paid.length?Math.max(...paid.map(x=>Number(x.amount))):0;
+  set("avgAmexDebit",fmt(avg));
+  set("currentAmexOpen",open?fmt(open.amount):fmt(0));
+  set("maxAmexDebit",fmt(max));
+  const eh=$("expenseHistoryBody");
+  if(eh)eh.innerHTML=(data.amexHistory||[]).slice().sort((a,b)=>a.month.localeCompare(b.month)).map(x=>`<tr>
+    <td>${monthLabel(x.month)}</td><td>${fmt(x.amount)}</td>
+    <td>${x.status==="open"?'<span class="badge warn">aktuell offen</span>':'<span class="badge success">abgebucht</span>'}</td></tr>`).join("");
+
+  set("fixedMonthlyTotal",fmt(monthlyFixed));
+  set("fixedYearlyTotal",fmt(monthlyFixed*12));
+  const fl=$("fixedCostListV6");
+  if(fl)fl.innerHTML=fixedCostsV6.map(x=>`<div class="list-item"><div><h3>${esc(x.name)}</h3><p>${esc(x.when)}</p></div><strong>${fmt(x.amount)}</strong></div>`).join("");
+  renderFuelV7();
+
+  set("passiveInterestDay",fmt(interestDay));
+  set("passiveDividendDay",fmt(dividendDay));
+  set("passiveMonth",fmt(passiveMonthly));
+  set("passiveYear",fmt(passiveMonthly*12));
+  const trCash=Number((data.assets||[]).find(a=>a.name==="Trade Republic Tagesgeld")?.balance||0);
+  const pt=$("passiveTargetsBody");
+  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${trCash>=capital?'<span class="badge success">erreicht</span>':fmt(capital-trCash)+" fehlen"}</td></tr>`).join("");
+
+  renderPriorityGoalsV7();
+
+  const milestones=[5000,10000,25000,50000,100000];
+  const ml=$("milestoneList");
+  if(ml)ml.innerHTML=milestones.map(target=>{
+    const pct=Math.min(100,wealth/target*100), remaining=Math.max(0,target-wealth);
+    let eta=remaining<=0?"Erreicht":"–";
+    if(remaining>0&&c.monthly>0){const d=new Date();d.setDate(d.getDate()+remaining/c.monthly*30.4375);eta=d.toLocaleDateString("de-DE")}
+    return `<div class="list-item"><div style="width:100%"><div class="milestone-row"><strong>${fmt(target)}</strong><span>${pct.toFixed(1).replace(".",",")} % · ${eta}</span></div><div class="progress"><div style="width:${pct}%"></div></div></div></div>`;
+  }).join("");
+
+  const yf=$("yearForecast");
+  if(yf){
+    const projectedIncome=incomeRows.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+Number(x.total),0);
+    const projectedEnd=wealth+Math.max(0,c.monthly)*(12-new Date().getMonth()-1);
+    yf.innerHTML=`<div class="stat"><span>Einkommen 2026</span><strong>${fmt(projectedIncome)}</strong></div>
+    <div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(passiveMonthly*12)}</strong></div>
+    <div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(projectedEnd)}</strong></div>`;
+  }
+}
+
+window.editIncomeMonth=function(month){
+  let row=data.incomeHistory.find(x=>x.month===month);
+  if(!row){row={month,salary:0,bonus:0,tips:0,parents:0,costs:0,total:0};data.incomeHistory.push(row)}
+  openModal(`<form id="incomeEditForm"><h2>${monthLabel(month)} bearbeiten</h2>
+    <label>Monat<input id="ieMonth" type="month" value="${row.month}" required></label>
+    <label>Gehalt<input id="ieSalary" type="number" step="0.01" value="${row.salary}" required></label>
+    <label>Bonus<input id="ieBonus" type="number" step="0.01" value="${row.bonus}" required></label>
+    <label>Trinkgeld<input id="ieTips" type="number" step="0.01" value="${row.tips}" required></label>
+    <label>Eltern<input id="ieParents" type="number" step="0.01" value="${row.parents}" required></label>
+    <label>Kosten<input id="ieCosts" type="number" step="0.01" value="${row.costs}" required></label>
+    <div class="button-row"><button type="submit">Speichern</button><button id="ieDelete" type="button" class="danger">Löschen</button></div></form>`);
+  $("incomeEditForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    row.month=$("ieMonth").value;row.salary=Number($("ieSalary").value);row.bonus=Number($("ieBonus").value);
+    row.tips=Number($("ieTips").value);row.parents=Number($("ieParents").value);row.costs=Number($("ieCosts").value);
+    row.total=row.salary+row.bonus+row.tips+row.parents+row.costs;
+    saveData();closeModal();toast("Einkommen gespeichert");
+  });
+  $("ieDelete").addEventListener("click",()=>{data.incomeHistory=data.incomeHistory.filter(x=>x!==row);saveData();closeModal()});
+};
+const addIncomeMonthV7=$("addIncomeMonth");
+if(addIncomeMonthV7)addIncomeMonthV7.addEventListener("click",()=>editIncomeMonth(monthISO()));
+
+function renderFuelV7(){
+  const rows=(data.fuelEntries||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const byMonth={};rows.forEach(x=>byMonth[x.date.slice(0,7)]=(byMonth[x.date.slice(0,7)]||0)+Number(x.amount));
+  const monthVals=Object.values(byMonth);
+  const avg=monthVals.length?monthVals.reduce((s,x)=>s+x,0)/monthVals.length:0;
+  const intervals=[];for(let i=1;i<rows.length;i++)intervals.push((new Date(rows[i].date)-new Date(rows[i-1].date))/86400000);
+  const m=$("fuelMonthlyAverage"),it=$("fuelIntervalAverage");
+  if(m)m.textContent=rows.length?fmt(avg):"Noch keine Daten";
+  if(it)it.textContent=intervals.length?(intervals.reduce((s,x)=>s+x,0)/intervals.length).toFixed(1).replace(".",",")+" Tage":"Noch nicht berechenbar";
+  const list=$("fuelList");if(list)list.innerHTML=rows.slice().reverse().map(x=>`<div class="list-item"><div><h3>${new Date(x.date+"T12:00:00").toLocaleDateString("de-DE")}</h3><p>${esc(x.note||"Tanken")}</p></div><div class="item-actions"><strong>${fmt(x.amount)}</strong><button class="danger" onclick="removeFuelV7('${x.id}')">Löschen</button></div></div>`).join("");
+}
+window.removeFuelV7=id=>{data.fuelEntries=data.fuelEntries.filter(x=>x.id!==id);saveData()};
+const fuelFormV7=$("fuelForm");
+if(fuelFormV7){
+  $("fuelDate").value=todayISO();
+  fuelFormV7.addEventListener("submit",e=>{e.preventDefault();data.fuelEntries.push({id:uid(),date:$("fuelDate").value,amount:Number($("fuelAmount").value),note:$("fuelNote").value});e.target.reset();$("fuelDate").value=todayISO();saveData();toast("Tankvorgang gespeichert")});
+}
+
+function renderPriorityGoalsV7(){
+  const wealth=totalWealth(), completed=new Set(data.completedPriorityGoals||[]);
+  const current=priorityGoalsV7.find(g=>!completed.has(g.priority));
+  const card=$("priorityGoalCard");
+  if(card&&current){
+    const pct=Math.min(100,wealth/current.min*100),remaining=Math.max(0,current.min-wealth),c=capitalStats();
+    let eta="Nicht berechenbar";if(remaining<=0)eta="Zielbetrag erreicht – als erledigt markieren";else if(c.monthly>0){const d=new Date();d.setDate(d.getDate()+remaining/c.monthly*30.4375);eta=d.toLocaleDateString("de-DE")}
+    card.innerHTML=`<div class="goal-current"><span class="badge">Priorität ${current.priority}</span><h3>${esc(current.category)} · ${esc(current.name)}</h3>
+      <p>${fmt(wealth)} von mindestens ${fmt(current.min)}${current.max!==current.min?" · maximal "+fmt(current.max):""}</p>
+      <div class="progress"><div style="width:${pct}%"></div></div>
+      <div class="goal-meta"><div><span>Fortschritt</span><strong>${pct.toFixed(2).replace(".",",")} %</strong></div><div><span>Noch nötig</span><strong>${fmt(remaining)}</strong></div><div><span>Ø Vermögensaufbau</span><strong>${fmt(c.monthly)}/Monat</strong></div><div><span>Prognose</span><strong>${eta}</strong></div></div>
+      ${remaining<=0?`<button style="margin-top:1rem" onclick="completePriorityGoalV7(${current.priority})">Ziel abschließen und nächstes anzeigen</button>`:""}</div>`;
+  }
+  const body=$("priorityGoalsBody");if(body)body.innerHTML=priorityGoalsV7.map(g=>`<tr><td>${g.priority}</td><td>${esc(g.category)}</td><td>${esc(g.name)}</td><td>${fmt(g.min)}</td><td>${fmt(g.max)}</td><td>${completed.has(g.priority)?"Erledigt":g.priority===current?.priority?"Aktuell":"Später"}</td></tr>`).join("");
+}
+window.completePriorityGoalV7=p=>{if(!data.completedPriorityGoals.includes(p))data.completedPriorityGoals.push(p);saveData()};
