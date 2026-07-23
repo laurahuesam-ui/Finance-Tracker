@@ -1,10 +1,11 @@
 
 const STORAGE_KEY = "finanzenPwaV1";
 const defaultData = {
-  expenses: [], incomes: [], fixedCosts: [], assets: [], goals: [],
+  balances: [], incomes: [], fixedCosts: [], assets: [], goals: [],
   amexPaid: {}, settings: { currency: "EUR" }
 };
 let data = loadData();
+if(!data.balances)data.balances=[];
 let deferredPrompt = null;
 
 const $ = id => document.getElementById(id);
@@ -38,11 +39,23 @@ function monthlyAverageFixed(){
   return data.fixedCosts.filter(x=>x.active).reduce((s,x)=>s+Number(x.amount)/({monthly:1,quarterly:3,semiannual:6,annual:12}[x.frequency]||1),0);
 }
 function passiveAnnual(){ return data.assets.reduce((s,a)=>s+(Number(a.balance)||0)*(Number(a.rate)||0)/100,0); }
+function getAccountBalanceChanges(ym){
+  const accounts=[...new Set(data.balances.map(x=>x.account))];
+  let total=0;
+  accounts.forEach(account=>{
+    const rows=data.balances.filter(x=>x.account===account).sort((a,b)=>a.date.localeCompare(b.date));
+    const monthRows=rows.filter(x=>x.date.startsWith(ym));
+    if(!monthRows.length)return;
+    const first=monthRows[0],last=monthRows[monthRows.length-1];
+    const before=rows.filter(x=>x.date<first.date).at(-1);
+    if(account==="Amex") total+=Math.max(0,Number(last.amount)-(before?Number(before.amount):0));
+    else total+=Math.max(0,(before?Number(before.amount):Number(last.amount))-Number(last.amount));
+  });
+  return total;
+}
 function currentMonthExpenseTotal(){
   const ym=monthISO();
-  const vars=data.expenses.filter(x=>x.date.startsWith(ym)).reduce((s,x)=>s+Number(x.amount),0);
-  const fixed=fixedForMonth(ym).reduce((s,x)=>s+Number(x.amount),0);
-  return vars+fixed;
+  return getAccountBalanceChanges(ym)+fixedForMonth(ym).reduce((s,x)=>s+Number(x.amount),0);
 }
 function currentMonthIncomeTotal(){
   const ym=monthISO();
@@ -54,7 +67,7 @@ function monthLabel(ym){
   return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"}).format(new Date(y,m-1,1));
 }
 function renderAll(){
-  renderDashboard();renderExpenses();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();
+  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();
 }
 document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===btn));
@@ -102,23 +115,25 @@ function nextDueDate(item){
 }
 function typeLabel(t){return ({stocks:"Aktien",cash:"Tagesgeldkonto",bank:"Sparkasse Konto",other:"Sonstiges"})[t]||t}
 
-$("expenseForm").addEventListener("submit",e=>{
+$("balanceForm").addEventListener("submit",e=>{
   e.preventDefault();
-  data.expenses.push({id:uid(),date:$("expenseDate").value,amount:Number($("expenseAmount").value),account:$("expenseAccount").value,category:$("expenseCategory").value,note:$("expenseNote").value});
-  e.target.reset();$("expenseDate").value=todayISO();saveData();toast("Ausgabe gespeichert");
+  data.balances.push({id:uid(),date:$("balanceDate").value,account:$("balanceAccount").value,amount:Number($("balanceAmount").value),note:$("balanceNote").value});
+  e.target.reset();$("balanceDate").value=todayISO();saveData();toast("Kontostand gespeichert");
 });
-$("expenseMonthFilter").addEventListener("change",renderExpenses);
-$("expenseAccountFilter").addEventListener("change",renderExpenses);
-function renderExpenses(){
-  const ym=$("expenseMonthFilter").value||monthISO(), account=$("expenseAccountFilter").value;
-  const rows=data.expenses.filter(x=>x.date.startsWith(ym)&&(!account||x.account===account)).sort((a,b)=>b.date.localeCompare(a.date));
-  const total=rows.reduce((s,x)=>s+Number(x.amount),0);
-  $("expenseTotals").textContent=`${rows.length} Einträge · ${fmt(total)}`;
-  $("expenseList").innerHTML=rows.length?rows.map(x=>`
-    <div class="list-item">
-      <div><h3>${esc(x.note||x.category)}</h3><p>${new Date(x.date+"T12:00:00").toLocaleDateString("de-DE")} · ${esc(x.category)} · <span class="badge">${esc(x.account)}</span></p></div>
-      <div class="item-actions"><strong>${fmt(x.amount)}</strong><button class="danger" onclick="removeItem('expenses','${x.id}')">Löschen</button></div>
-    </div>`).join(""):'<div class="empty">Keine Ausgaben für diesen Filter.</div>';
+$("balanceMonthFilter").addEventListener("change",renderBalances);
+$("balanceAccountFilter").addEventListener("change",renderBalances);
+function balanceDelta(row){
+  const rows=data.balances.filter(x=>x.account===row.account).sort((a,b)=>a.date.localeCompare(b.date));
+  const idx=rows.findIndex(x=>x.id===row.id); if(idx<=0)return null;
+  const prev=Number(rows[idx-1].amount),cur=Number(row.amount);
+  return row.account==="Amex"?cur-prev:prev-cur;
+}
+function renderBalances(){
+  const ym=$("balanceMonthFilter").value||monthISO(),account=$("balanceAccountFilter").value;
+  const rows=data.balances.filter(x=>x.date.startsWith(ym)&&(!account||x.account===account)).sort((a,b)=>b.date.localeCompare(a.date));
+  const expenses=rows.map(balanceDelta).filter(x=>x!==null&&x>0).reduce((s,x)=>s+x,0);
+  $("balanceSummary").textContent=`${rows.length} Kontostände · berechnete Ausgaben ${fmt(expenses)}`;
+  $("balanceList").innerHTML=rows.length?rows.map(x=>{const d=balanceDelta(x);const t=d===null?"Erster Stand":d>0?`Ausgaben seit letztem Stand: ${fmt(d)}`:d<0?`Zugang / Ausgleich: ${fmt(Math.abs(d))}`:"Keine Veränderung";return `<div class="list-item"><div><h3>${esc(x.account)}</h3><p>${new Date(x.date+"T12:00:00").toLocaleDateString("de-DE")}${x.note?" · "+esc(x.note):""}</p><p>${t}</p></div><div class="item-actions"><strong>${fmt(x.amount)}</strong><button class="danger" onclick="removeItem('balances','${x.id}')">Löschen</button></div></div>`;}).join(""):'<div class="empty">Keine Kontostände für diesen Filter.</div>';
 }
 
 $("fixedForm").addEventListener("submit",e=>{
@@ -241,14 +256,10 @@ window.openGoalUpdate=id=>{
 };
 
 function renderAmexMonths(){
-  const months=new Set([monthISO()]);
-  data.expenses.filter(x=>x.account==="Amex").forEach(x=>months.add(x.date.slice(0,7)));
-  data.fixedCosts.filter(x=>x.account==="Amex").forEach(x=>months.add(monthISO()));
-  const sorted=[...months].sort().reverse();
-  const previous=$("amexMonthSelect").value;
+  const months=new Set([monthISO()]); data.balances.filter(x=>x.account==="Amex").forEach(x=>months.add(x.date.slice(0,7)));
+  const sorted=[...months].sort().reverse(),previous=$("amexMonthSelect").value;
   $("amexMonthSelect").innerHTML=sorted.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join("");
-  if(sorted.includes(previous))$("amexMonthSelect").value=previous;
-  renderAmexCard();
+  if(sorted.includes(previous))$("amexMonthSelect").value=previous; renderAmexCard();
 }
 $("amexMonthSelect").addEventListener("change",renderAmexCard);
 $("toggleAmexPaid").addEventListener("click",()=>{
@@ -258,10 +269,9 @@ $("toggleAmexPaid").addEventListener("click",()=>{
 });
 function renderAmexCard(){
   const ym=$("amexMonthSelect").value||monthISO();
-  const expenses=data.expenses.filter(x=>x.account==="Amex"&&x.date.startsWith(ym)).reduce((s,x)=>s+Number(x.amount),0);
-  const fixed=fixedForMonth(ym).filter(x=>x.account==="Amex").reduce((s,x)=>s+Number(x.amount),0);
-  const paid=!!data.amexPaid[ym];
-  $("amexMonthTotal").textContent=fmt(expenses+fixed);
+  const rows=data.balances.filter(x=>x.account==="Amex"&&x.date.startsWith(ym)).sort((a,b)=>a.date.localeCompare(b.date));
+  const latest=rows.at(-1),paid=!!data.amexPaid[ym];
+  $("amexMonthTotal").textContent=latest?fmt(latest.amount):fmt(0);
   $("amexStatus").innerHTML=paid?'<span class="badge success">abgebucht</span>':'<span class="badge warn">noch offen · ungefähr am 10. des Folgemonats</span>';
   $("toggleAmexPaid").textContent=paid?"Abbuchung zurücksetzen":"Als abgebucht markieren";
 }
@@ -283,7 +293,7 @@ $("importBackup").addEventListener("change",async e=>{
   try{
     const parsed=JSON.parse(await file.text());
     const incoming=parsed.data||parsed;
-    if(!incoming.expenses||!incoming.assets)throw new Error("Ungültiges Backup");
+    if(!incoming.assets)throw new Error("Ungültiges Backup");
     if(confirm("Aktuelle Daten durch dieses Backup ersetzen?")){
       data={...structuredClone(defaultData),...incoming};saveData();toast("Backup importiert");
     }
@@ -291,9 +301,9 @@ $("importBackup").addEventListener("change",async e=>{
   e.target.value="";
 });
 $("exportCsv").addEventListener("click",()=>{
-  const rows=[["Datum","Betrag","Zahlungsart","Kategorie","Beschreibung"],...data.expenses.map(x=>[x.date,x.amount,x.account,x.category,x.note||""])];
+  const rows=[["Datum","Konto","Kontostand","Notiz","Veränderung"],...data.balances.map(x=>[x.date,x.account,x.amount,x.note||"",balanceDelta(x)??""])];
   const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(";")).join("\n");
-  download(`ausgaben-${todayISO()}.csv`,csv,"text/csv;charset=utf-8");
+  download(`kontostaende-${todayISO()}.csv`,csv,"text/csv;charset=utf-8");
 });
 $("deleteAll").addEventListener("click",()=>{
   if(confirm("Wirklich ALLE Finanzdaten auf diesem Gerät löschen?")){
@@ -308,9 +318,9 @@ window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPro
 $("installBtn").addEventListener("click",async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$("installBtn").classList.add("hidden")});
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");
 
-$("expenseDate").value=todayISO();
+$("balanceDate").value=todayISO();
 $("incomeDate").value=todayISO();
-$("expenseMonthFilter").value=monthISO();
+$("balanceMonthFilter").value=monthISO();
 $("incomeMonthFilter").value=monthISO();
 $("fixedStartMonth").value=monthISO();
 renderAll();

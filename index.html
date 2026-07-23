@@ -39,9 +39,9 @@
         <small id="wealthChange">Noch keine Historie</small>
       </article>
       <article class="card">
-        <span>Ausgaben diesen Monat</span>
+        <span>Veränderung Kontostände</span>
         <strong id="monthExpenses">0,00 €</strong>
-        <small>inklusive fälliger Fixkosten</small>
+        <small>aus Kontoständen + fälligen Fixkosten</small>
       </article>
       <article class="card">
         <span>Gehalt diesen Monat</span>
@@ -94,38 +94,19 @@
 
   <section id="expenses" class="page">
     <article class="panel">
-      <h2>Ausgabe erfassen</h2>
-      <form id="expenseForm" class="form-grid">
-        <label>Datum<input id="expenseDate" type="date" required></label>
-        <label>Betrag<input id="expenseAmount" type="number" min="0" step="0.01" required></label>
-        <label>Zahlungsart
-          <select id="expenseAccount" required>
-            <option>Amex</option>
-            <option>Sparkasse</option>
-          </select>
-        </label>
-        <label>Kategorie
-          <select id="expenseCategory">
-            <option>Lebensmittel</option><option>Tanken</option><option>Freizeit</option>
-            <option>Kleidung</option><option>Gesundheit</option><option>Haushalt</option>
-            <option>Mobilität</option><option>Sonstiges</option>
-          </select>
-        </label>
-        <label class="wide">Beschreibung<input id="expenseNote" type="text" placeholder="z. B. Tanken"></label>
-        <button type="submit">Ausgabe speichern</button>
+      <h2>Neuen Kontostand eintragen</h2>
+      <p class="muted">Trage nur den aktuellen Stand ein. Die Veränderung seit dem letzten Stand wird automatisch berechnet.</p>
+      <form id="balanceForm" class="form-grid">
+        <label>Datum<input id="balanceDate" type="date" required></label>
+        <label>Konto<select id="balanceAccount" required><option>Amex</option><option>Sparkasse</option></select></label>
+        <label>Aktueller Stand<input id="balanceAmount" type="number" step="0.01" required></label>
+        <label class="wide">Notiz<input id="balanceNote" type="text" placeholder="optional"></label>
+        <button type="submit">Kontostand speichern</button>
       </form>
     </article>
-
     <article class="panel">
-      <div class="panel-head">
-        <h2>Ausgaben</h2>
-        <div class="filters">
-          <input id="expenseMonthFilter" type="month">
-          <select id="expenseAccountFilter"><option value="">Alle Zahlungsarten</option><option>Amex</option><option>Sparkasse</option></select>
-        </div>
-      </div>
-      <div id="expenseTotals" class="summary-line"></div>
-      <div id="expenseList" class="list"></div>
+      <div class="panel-head"><h2>Kontostände und Veränderungen</h2><div class="filters"><input id="balanceMonthFilter" type="month"><select id="balanceAccountFilter"><option value="">Alle Konten</option><option>Amex</option><option>Sparkasse</option></select></div></div>
+      <div id="balanceSummary" class="summary-line"></div><div id="balanceList" class="list"></div>
     </article>
   </section>
 
@@ -212,7 +193,7 @@
       <div class="button-row">
         <button id="exportBackup">Backup als JSON</button>
         <label class="file-button">Backup importieren<input id="importBackup" type="file" accept=".json,application/json"></label>
-        <button id="exportCsv" class="secondary">Ausgaben als CSV</button>
+        <button id="exportCsv" class="secondary">Kontostände als CSV</button>
       </div>
       <hr>
       <h3>Alle Daten löschen</h3>
