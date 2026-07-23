@@ -1,56 +1,5 @@
 
-const defaultIncomeHistoryV7 = [
-["2025-06",426.53,50,150,100,-35.93,790.60],
-["2025-07",237.31,50,125,100,-35.93,591.38],
-["2025-08",599.89,50,200,100,-35.93,1013.96],
-["2025-09",617.17,50,200,100,-60.93,1006.24],
-["2025-10",667.81,50,250,100,-137.08,1030.73],
-["2025-11",719.60,50,225,100,-920.42,274.18],
-["2025-12",761.84,50,250,100,-181.42,1065.42],
-["2026-01",735.94,50,225,100,-187.42,923.52],
-["2026-02",506.80,50,125,100,-191.70,590.10],
-["2026-03",595.92,50,225,100,-247.20,723.72],
-["2026-04",920.26,50,300,100,-303.70,1066.56],
-["2026-05",1014.08,50,300,100,-215.70,1248.38],
-["2026-06",514.92,50,300,100,-215.70,749.22],
-["2026-07",679.50,50,300,100,-215.70,913.80],
-["2026-08",910,50,300,100,-215.70,1144.30],
-["2026-09",840,50,300,100,-215.70,1074.30],
-["2026-10",840,50,300,100,-215.70,1074.30],
-["2026-11",840,50,300,100,-215.70,1074.30],
-["2026-12",840,50,300,100,-215.70,1074.30]
-].map(([month,salary,bonus,tips,parents,costs,total])=>({month,salary,bonus,tips,parents,costs,total}));
-
-const defaultAmexHistoryV7 = [
-["2025-05",-942.84,null,null,null],
-["2025-06",-332.81,25.92,0.109726776,455.5898333],
-["2025-07",-485.92,19.39,0.090273224,116.0507527],
-["2025-08",-556.42,33.24,0.084808743,469.1011828],
-["2025-09",-379.02,32.99,0.083278689,623.443],
-["2025-10",-354.97,33.79,0.128196721,685.3953226],
-["2025-11",-368.61,8.99,0.13136612,-96.56683333],
-["2025-12",-1426.30,34.93,0.156830601,-333.091828],
-["2026-01",-633.60,30.28,0.143934426,304.5293548],
-["2026-02",-509.36,19.35,0.130819672,39.25142857],
-["2026-03",-602.85,23.73,0.173114754,72.32410714],
-["2026-04",-363.47,34.97,0.166229508,675.7073214],
-["2026-05",-781.81,40.93,0.337704918,407.0655357],
-["2026-06",-275.20,24.56,0.224590164,456.2985714],
-["2026-07",-642.97,29.96,0.214754098,219.9719643]
-].map(([month,expenses,incomeDay,passiveDay,saving])=>({month,expenses,incomeDay,passiveDay,saving}));
-
-const fixedCostsV6 = [
-{name:"Netflix",amount:9.99,frequency:"monthly",when:"Ende des Monats"},
-{name:"Telekom",amount:19.95,frequency:"monthly",when:"Ende des Monats"},
-{name:"Spotify",amount:12.99,frequency:"monthly",when:"Anfang des Monats"},
-{name:"Versicherung",amount:148.77,frequency:"monthly",when:"Mitte des Monats"},
-{name:"Cheerleading",amount:24.00,frequency:"monthly",when:"Anfang des Monats"},
-{name:"FSV",amount:31.50,frequency:"twice",when:"April & Oktober"},
-{name:"HanseMerkur",amount:25.00,frequency:"yearly",when:"Mitte September"},
-{name:"Cheerleading Jahresbeitrag",amount:59.00,frequency:"yearly",when:"April"},
-{name:"Reitverein",amount:50.00,frequency:"yearly",when:"März"},
-{name:"Friseur",amount:25.00,frequency:"bimonthly",when:"alle 2 Monate"}
-];
+const defaultIncomeHistoryV7 = masterIncomeHistoryV13.map(r=>({month:r[0],salary:r[1],bonus:r[2],tips:r[3],parents:r[4],costs:r[5],total:r[6]}));
 
 
 const defaultFixedCostsV12 = fixedCostsV6.map((x,i)=>({
@@ -78,7 +27,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 12;
+const APP_VERSION = 13;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -97,8 +46,17 @@ const seededHistory = [
   {month:"2026-08",sparkasse:null,sparkasseInterest:0.00,tradeRepublic:null,trInterest:null,dividend:null},
   {month:"2026-09",sparkasse:null,sparkasseInterest:0.00,tradeRepublic:null,trInterest:null,dividend:null}
 ].map(x=>({...x,total:Number(x.sparkasseInterest||0)+Number(x.trInterest||0)+Number(x.dividend||0)}));
+
+const AUTHORITATIVE_MASTER_VERSION = 13;
+const masterCapitalHistoryV13 = [["2025-06", 1500.0, 1.81, 881.35, 1.52, 0.02, 3.35], ["2025-07", 1520.0, 1.01, 811.25, 1.37, 0.37, 2.75], ["2025-08", 1525.0, 1.02, 812.62, 1.36, 0.21, 2.59], ["2025-09", 1530.0, 1.02, 895.09, 1.42, 0.1, 2.54], ["2025-10", 1500.0, 1.0, 1297.71, 1.81, 1.1, 3.91], ["2025-11", 1150.0, 0.77, 1999.73, 3.03, 0.21, 4.01], ["2025-12", 1460.0, 0.97, 2227.86, 2.71, 1.1, 4.78], ["2026-01", 885.0, 0.6, 2231.61, 3.79, 0.0, 4.39], ["2026-02", 465.0, 0.35, 2235.61, 3.43, 0.21, 3.99], ["2026-03", 665.0, 0.5, 2169.92, 3.72, 1.06, 5.28], ["2026-04", 475.0, 0.32, 2174.81, 3.58, 1.17, 5.07], ["2026-05", 635.0, 0.42, 2655.5, 4.27, 5.61, 10.3], ["2026-06", 5.0, 0.11, 2562.05, 4.46, 2.28, 6.85], ["2026-07", 600.0, 0.45, 2567.7, 4.91, 1.19, 6.55], ["2026-08", null, 0.0, null, null, null, null], ["2026-09", null, 0.0, null, null, null, null]];
+const masterIncomeHistoryV13 = [["2025-06", 426.53, 50, 150, 100, -35.93, 790.6], ["2025-07", 237.31, 50, 125, 100, -35.93, 591.38], ["2025-08", 599.89, 50, 200, 100, -35.93, 1013.96], ["2025-09", 617.17, 50, 200, 100, -60.93, 1006.24], ["2025-10", 667.81, 50, 250, 100, -137.08, 1030.73], ["2025-11", 719.6, 50, 225, 100, -920.42, 274.18], ["2025-12", 761.84, 50, 250, 100, -181.42, 1065.42], ["2026-01", 735.94, 50, 225, 100, -187.42, 923.52], ["2026-02", 506.8, 50, 125, 100, -191.7, 590.1], ["2026-03", 595.92, 50, 225, 100, -247.2, 723.72], ["2026-04", 920.26, 50, 300, 100, -303.7, 1066.56], ["2026-05", 1014.08, 50, 300, 100, -215.7, 1248.38], ["2026-06", 514.92, 50, 300, 100, -215.7, 749.22], ["2026-07", 679.5, 50, 300, 100, -215.7, 913.8], ["2026-08", 910.0, 50, 300, 100, -215.7, 1144.3], ["2026-09", 840.0, 50, 300, 100, -215.7, 1074.3], ["2026-10", 840.0, 50, 300, 100, -215.7, 1074.3], ["2026-11", 840.0, 50, 300, 100, -215.7, 1074.3], ["2026-12", 840.0, 50, 300, 100, -215.7, 1074.3]];
+const masterAmexHistoryV13 = [["2025-05", -942.84, null, null, null, null, null, null], ["2025-06", -332.81, -637.825, -11.09366667, 25.92, 0.109726776, 14.94, 455.5898333], ["2025-07", -485.92, -561.8725, -15.67483871, 19.39, 0.090273224, 3.8, 116.0507527], ["2025-08", -556.42, -559.14625, -17.94903226, 33.24, 0.084808743, 15.38, 469.1011828], ["2025-09", -379.02, -469.083125, -12.634, 32.99, 0.083278689, 20.44, 623.443], ["2025-10", -354.97, -412.0265625, -11.45064516, 33.79, 0.128196721, 22.47, 685.3953226], ["2025-11", -368.61, -390.3182813, -12.287, 8.99, 0.13136612, -3.17, -96.56683333], ["2025-12", -1426.3, -908.3091406, -46.00967742, 34.93, 0.156830601, -10.92, -333.091828], ["2026-01", -633.6, -770.9545703, -20.43870968, 30.28, 0.143934426, 9.98, 304.5293548], ["2026-02", -509.36, -640.1572852, -18.19142857, 19.35, 0.130819672, 1.29, 39.25142857], ["2026-03", -602.85, -621.5036426, -21.53035714, 23.73, 0.173114754, 2.37, 72.32410714], ["2026-04", -363.47, -492.4868213, -12.98107143, 34.97, 0.166229508, 22.15, 675.7073214], ["2026-05", -781.81, -637.1484106, -27.92178571, 40.93, 0.337704918, 13.35, 407.0655357], ["2026-06", -275.2, -456.1742053, -9.828571429, 24.56, 0.224590164, 14.96, 456.2985714], ["2026-07", -642.97, -549.5721027, -22.96321429, 29.96, 0.214754098, 7.21, 219.9719643]];
+const masterFixedCostsV13 = [{"id": "fc-netflix", "name": "Netflix", "amount": -9.99, "when": "Ende des Monats", "frequency": "monthly", "active": true}, {"id": "fc-telekom", "name": "Telekom", "amount": -19.95, "when": "Ende des Monats", "frequency": "monthly", "active": true}, {"id": "fc-spotify", "name": "Spotify", "amount": -12.99, "when": "Anfang des Monats", "frequency": "monthly", "active": true}, {"id": "fc-versicherung", "name": "Versicherung", "amount": -148.77, "when": "Mitte des Monats", "frequency": "monthly", "active": true}, {"id": "fc-cheer-month", "name": "Cheerleading", "amount": -24.0, "when": "Anfang des Monats", "frequency": "monthly", "active": true}, {"id": "fc-fsv", "name": "FSV", "amount": -31.5, "when": "April & Oktober", "frequency": "semiannual", "active": true}, {"id": "fc-hansemerkur", "name": "HanseMerkur", "amount": -25.0, "when": "Mitte September", "frequency": "annual", "active": true}, {"id": "fc-cheer-annual", "name": "Cheerleading Sonderbeitrag", "amount": -59.0, "when": "April", "frequency": "annual", "active": true}, {"id": "fc-reitverein", "name": "Reitverein", "amount": -50.0, "when": "März", "frequency": "annual", "active": true}, {"id": "fc-friseur", "name": "Friseur", "amount": -25.0, "when": "alle 2 Monate", "frequency": "bimonthly", "active": true}];
+const masterCapitalMetricsV13 = {"monthlyDividend": 1.65, "dailyInterest": 0.18, "stockValue": 768.63, "netWorth": 3936.33, "interestProfit": 39.84, "dailyDividend": 0.05, "stockProfit": 45.9, "dividendProfit": 14.63, "totalProfit": 54.47, "initialCapital": 2386.5, "capitalIncreasePct": 64.94, "capitalDifference": 1549.83, "monthlyPassive": 110.7, "dailyPassive": 0.23};
+const requiredCapitalTableV13 = [[0.16, 2595.56], [0.17, 2757.78], [0.18, 2920.0], [0.19, 3082.22], [0.2, 3244.44], [0.21, 3406.67], [0.22, 3568.89], [0.23, 3731.11], [0.24, 3893.33], [0.25, 4055.56], [0.26, 4217.78], [0.27, 4380.0], [0.28, 4542.22], [0.29, 4704.44], [0.3, 4866.67]];
+
 const defaultData = {
-  balances: [], incomes: [], fixedCosts: structuredClone(defaultFixedCostsV12), goals: [], amexPaid: {},
+  balances: [], incomes: [], fixedCosts: structuredClone(masterFixedCostsV13), goals: [], amexPaid: {}, capitalHistory: [], capitalMetrics: structuredClone(masterCapitalMetricsV13), requiredCapitalTable: structuredClone(requiredCapitalTableV13),
   assets: [
     {
       id:"seed-sparkasse-giro",
@@ -321,51 +279,64 @@ function loadData(){
   }
 }
 
-function guaranteeMasterData(){
-  data.assets = mergeArraysPreservingData([
-    structuredClone(defaultData.assets),
-    Array.isArray(data.assets) ? data.assets : []
-  ]);
 
-  data.fixedCosts = mergeArraysPreservingData([
-    structuredClone(defaultFixedCostsV12),
-    Array.isArray(data.fixedCosts) ? data.fixedCosts : []
-  ]);
-
-  // Alte, gleichnamige Fixkosten ohne stabile ID mit den Stammdaten verbinden.
-  const byName=new Map();
-  for(const item of data.fixedCosts){
-    const key=String(item.name||"").trim().toLowerCase();
-    if(!key) continue;
-    if(!byName.has(key)){
-      byName.set(key,item);
-    }else{
-      const first=byName.get(key);
-      Object.assign(first,mergeObjectsPreservingData(item,first));
-      const idx=data.fixedCosts.indexOf(item);
-      if(idx>=0)data.fixedCosts.splice(idx,1);
-    }
+function mergeByMonthAuthoritative(masterRows, existingRows){
+  const map=new Map();
+  for(const row of masterRows) map.set(row.month,structuredClone(row));
+  for(const row of (existingRows||[])){
+    if(!row || !row.month) continue;
+    const base=map.get(row.month)||{};
+    map.set(row.month,mergeObjectsPreservingData(base,row));
   }
-
-  data.financeHistory = mergeArraysPreservingData([
-    structuredClone(seededHistory),
-    Array.isArray(data.financeHistory) ? data.financeHistory : []
-  ]).sort((a,b)=>String(a.month||a.date).localeCompare(String(b.month||b.date)));
-
-  if(!data.metrics || !Object.keys(data.metrics).length){
-    data.metrics=structuredClone(defaultData.metrics);
-  }else{
-    data.metrics=mergeObjectsPreservingData(structuredClone(defaultData.metrics),data.metrics);
-  }
-
-  data.settings=mergeObjectsPreservingData(
-    structuredClone(defaultData.settings),
-    isPlainObject(data.settings)?data.settings:{}
-  );
-
-  ensureV7Data();
+  return [...map.values()].sort((a,b)=>String(a.month).localeCompare(String(b.month)));
 }
 
+function guaranteeMasterData(){
+  data.settings=isPlainObject(data.settings)?data.settings:{};
+
+  const masterIncome=masterIncomeHistoryV13.map(r=>({
+    month:r[0],salary:r[1],bonus:r[2],tips:r[3],parents:r[4],costs:r[5],total:r[6]
+  }));
+  const masterAmex=masterAmexHistoryV13.map(r=>({
+    month:r[0],expenses:r[1],average:r[2],expenseDay:r[3],incomeDay:r[4],
+    passiveDay:r[5],netDay:r[6],saving:r[7]
+  }));
+  const masterCapital=masterCapitalHistoryV13.map(r=>({
+    month:r[0],deposit:r[1],depositDay:r[2],capital:r[3],interest:r[4],dividend:r[5],totalPassive:r[6]
+  }));
+
+  data.assets=mergeArraysPreservingData([
+    structuredClone(defaultData.assets),
+    Array.isArray(data.assets)?data.assets:[]
+  ]);
+
+  data.fixedCosts=mergeArraysPreservingData([
+    structuredClone(masterFixedCostsV13),
+    Array.isArray(data.fixedCosts)?data.fixedCosts:[]
+  ]);
+
+  data.v7=data.v7||{};
+  data.v7.incomeHistory=mergeByMonthAuthoritative(masterIncome,data.v7.incomeHistory);
+  data.v7.amexHistory=mergeByMonthAuthoritative(masterAmex,data.v7.amexHistory);
+
+  data.capitalHistory=mergeByMonthAuthoritative(masterCapital,data.capitalHistory);
+  data.capitalMetrics=mergeObjectsPreservingData(
+    structuredClone(masterCapitalMetricsV13),
+    isPlainObject(data.capitalMetrics)?data.capitalMetrics:{}
+  );
+  data.requiredCapitalTable=Array.isArray(data.requiredCapitalTable)&&data.requiredCapitalTable.length
+    ? data.requiredCapitalTable
+    : structuredClone(requiredCapitalTableV13);
+
+  // Current assets from user's stated current values
+  const stock=data.assets.find(a=>String(a.name||"").toLowerCase().includes("aktien"));
+  if(stock && (!Number.isFinite(Number(stock.value)) || Number(stock.value)===0)) stock.value=768.63;
+
+  const tr=data.assets.find(a=>String(a.name||"").toLowerCase().includes("trade republic"));
+  if(tr && (!Number.isFinite(Number(tr.value)) || Number(tr.value)===0)) tr.value=3167.70;
+
+  data.settings.masterDataVersion=AUTHORITATIVE_MASTER_VERSION;
+}
 function saveData(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); renderAll(); }
 function toast(msg){ $("toast").textContent=msg;$("toast").classList.remove("hidden");setTimeout(()=>$("toast").classList.add("hidden"),2200); }
 function daysInMonth(y,m){ return new Date(y,m,0).getDate(); }
@@ -805,15 +776,18 @@ function renderAmexRowV9(x){
     return `<tr>
       <td>${monthLabel(x.month)}</td>
       <td>${fmt(x.expenses)}</td>
+      <td>${x.average==null?"–":fmt(x.average)}</td>
+      <td>${x.expenseDay==null?"–":fmt(x.expenseDay)}</td>
       <td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td>
       <td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td>
+      <td>${x.netDay==null?"–":fmt(x.netDay)}</td>
       <td>${x.saving==null?"–":fmt(x.saving)}</td>
       <td><button class="edit-amex" data-month="${x.month}" type="button">Bearbeiten</button></td>
     </tr>`;
   }
   return `<tr>
     <td>${monthLabel(x.month)}</td>
-    ${["expenses","incomeDay","passiveDay","saving"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="${k}" value="${x[k]==null?"":Number(x[k]).toFixed(2)}"></td>`).join("")}
+    ${["expenses","average","expenseDay","incomeDay","passiveDay","netDay","saving"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="${k}" value="${x[k]==null?"":Number(x[k]).toFixed(2)}"></td>`).join("")}
     <td><button class="save-amex" data-month="${x.month}" type="button">Speichern</button> <button class="cancel-amex" type="button">Abbrechen</button></td>
   </tr>`;
 }
@@ -821,7 +795,7 @@ function renderAmexRowV9(x){
 function saveAmexRow(month){
   const row=amexRows().find(x=>x.month===month);
   if(!row)return;
-  ["expenses","incomeDay","passiveDay","saving"].forEach(key=>{
+  ["expenses","average","expenseDay","incomeDay","passiveDay","netDay","saving"].forEach(key=>{
     const el=document.querySelector(`[data-amex-month="${month}"][data-amex-field="${key}"]`);
     row[key]=el && el.value!=="" ? Number(el.value) : null;
   });
@@ -832,6 +806,45 @@ function saveAmexRow(month){
 const priorityGoalsV10 = [[1, "Absicherung", "Polster", 10000, 10000, null, null, null, null, 39.36, 39.36, 3936.33], [2, "Bildung", "Master", 182.1, 370, null, null, null, null, 0, 0, null], [3, "Haus", "Dachzustand prüfen und reparieren", 1500, 5000, null, null, null, null, 0, 0, null], [4, "Haus", "Treppenhaus sanieren", 900, 3063, null, null, null, null, 0, 0, null], [5, "Haus", "Sanierung Bad Erdgeschoss", 5000, 10000, null, null, null, null, 0, 0, null], [6, "Haus", "Renovierung Bad Wohnung", 3000, 7000, null, null, null, null, 0, 0, null], [7, "Haus", "Sanierung Bad Opa", 5000, 10000, null, null, null, null, 0, 0, null], [8, "Bank", "Kredit Deutsche Bildung", 13440, 13790, null, null, null, null, 8.3, 0, null], [9, "Bank", "Raten Vorwerk", 581.97, 529.02, null, null, null, null, 0, 0, null], [10, "Bank", "Kredit ING", 52336.78, 52336.78, 7080, 7080, 590, 590, 0, 0, null], [11, "Bank", "Kredit Bulldog", 45727.88, 45727.88, 7017.12, 7017.12, 584.76, 584.76, 0, 0, null], [12, "Bank", "Kredit Haus", 51436.68, 51436.68, 10277.64, 10277.64, 856.47, 856.47, 0, 0, null], [13, "Scheune", "Wohnung in Scheune sanieren", 180000, 250000, null, null, null, null, 0, 0, null], [14, "Altes Haus", "Architekten/Bauplaner beauftragen", 18000, 103500, null, null, null, null, 0, 0, null], [15, "Altes Haus", "Grundsanierung", 200000, 690000, 16800, 22200, 1400, 1850, 0, 0, null], [16, "Altes Haus", "Automat", 1150, 9200, 534, 7620, 44.5, 635, 0, 0, null], [17, "Altes Haus", "Laden einrichten", 3300, 10000, null, null, null, null, 0, 0, null], [18, "Altes Haus", "Ferienwohnung einrichten", 12000, 25000, null, null, null, null, 0, 0, null], [19, "Altes Haus", "Eventraum einrichten", 10000, 22000, null, null, null, null, 0, 0, null], [20, "Altes Haus", "Büro einrichten", 3200, 11200, null, null, null, null, 0, 0, null], [null, "Haus", "Bodenbeläge Zimmer", 2500, 6000, null, null, null, null, 0, 0, null], [null, "Haus", "Modernisierung Haus Isolation", 37000, 80000, null, null, null, null, 0, 0, null], [null, "Haus", "Modernisierung Haus Heizung", 8000, 23000, 2400, 3600, 200, 300, 0, 0, null], [null, "Scheune", "Stall bauen", 4200, 12900, null, null, null, null, 0, 0, null], [null, "Scheune", "Werkstatt renovieren", 4000, 4800, null, null, null, null, 0, 0, null], [null, "Gewölbekeller", "renovieren", 13500, 22500, null, null, null, null, 0, 0, null], [null, "Eckhaus", "zurückkaufen", 400000, 480000, null, null, null, null, 0, 0, null], [null, "Garten", "Gartenhaus renovieren", 3000, 5000, null, null, null, null, 0, 0, null], [null, "Haustier", "Hund/e", 150, 400, 600, 1800, 50, 150, 0, 0, null], [null, "Haustier", "Pferde", 11000, 24000, 9600, 13200, 800, 1100, 0, 0, null], [null, "Auto", "Audi A3", 22000, 30000, 2640, 3600, 220, 300, 0, 0, null], [null, "Eltern", "Versorgt", 650000, 1100000, null, null, null, null, 0, 0, null], [null, "Gnadenhof", "Land kaufen & bauen", 5913254.39, 18394160, 1218590, 2768939, 101549.17, 230744.92, 0, 0, null], [null, "Strandhaus", "kaufen", 300000, 2500000, null, null, null, null, 0, 0, null], [null, "Herrenhaus", "kaufen", 300000, 1500000, null, null, null, null, 0, 0, null], [null, "Herrenhaus", "sanieren", 90000, 700000, null, null, null, null, 0, 0, null], [null, "Schloss", "kaufen", 300000, 4000000, null, null, null, null, 0, 0, null], [null, "Schloss", "sanieren", 480000, 4500000, 30000, 135000, 2500, 11250, 0, 0, null]];
 
 function renderV6(){
+
+  const cmb=$("capitalMasterBody");
+  if(cmb){
+    cmb.innerHTML=(data.capitalHistory||[]).map(x=>`<tr>
+      <td>${monthLabel(x.month)}</td>
+      <td>${x.deposit==null?"–":fmt(x.deposit)}</td>
+      <td>${x.depositDay==null?"–":fmt(x.depositDay)}</td>
+      <td>${x.capital==null?"–":fmt(x.capital)}</td>
+      <td>${x.interest==null?"–":fmt(x.interest)}</td>
+      <td>${x.dividend==null?"–":fmt(x.dividend)}</td>
+      <td>${x.totalPassive==null?"–":fmt(x.totalPassive)}</td>
+    </tr>`).join("");
+  }
+  const cmc=$("capitalMetricCards");
+  if(cmc){
+    const m=data.capitalMetrics||{};
+    const items=[
+      ["Aktueller Vermögenswert",fmt(m.netWorth||0)],
+      ["Aktueller Aktienwert",fmt(m.stockValue||0)],
+      ["Zinsen pro Tag",fmt(m.dailyInterest||0)],
+      ["Dividende pro Monat",fmt(m.monthlyDividend||0)],
+      ["Dividende pro Tag",fmt(m.dailyDividend||0)],
+      ["Gewinn Zinsen",fmt(m.interestProfit||0)],
+      ["Gewinn Aktien",fmt(m.stockProfit||0)],
+      ["Gewinn Dividende",fmt(m.dividendProfit||0)],
+      ["Gewinn gesamt",fmt(m.totalProfit||0)],
+      ["Kapital t=0",fmt(m.initialCapital||0)],
+      ["Kapitalsteigerung",Number(m.capitalIncreasePct||0).toFixed(2).replace(".",",")+" %"],
+      ["Kapitaldifferenz",fmt(m.capitalDifference||0)],
+      ["Passiv pro Monat",fmt(m.monthlyPassive||0)],
+      ["Aktuell pro Tag",fmt(m.dailyPassive||0)]
+    ];
+    cmc.innerHTML=items.map(([k,v])=>`<div class="stat-card"><span>${k}</span><strong>${v}</strong></div>`).join("");
+  }
+  const rcb=$("requiredCapitalBody");
+  if(rcb){
+    rcb.innerHTML=(data.requiredCapitalTable||[]).map(r=>`<tr><td>${Number(r[0]*100).toFixed(0)} Cent</td><td>${fmt(r[1])}</td></tr>`).join("");
+  }
+
   const wealth=totalWealth();
   const validExpenses=amexRows().filter(x=>x.month>="2025-06");
   const avgExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses),0)/validExpenses.length;
