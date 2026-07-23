@@ -1,46 +1,4 @@
 
-const priorityGoalsV7 = [
-[1,"Absicherung","Polster",10000,10000],
-[2,"Bildung","Master",182.10,370],
-[3,"Haus","Dachzustand prüfen und reparieren",1500,5000],
-[4,"Haus","Treppenhaus sanieren",900,3063],
-[5,"Haus","Sanierung Bad Erdgeschoss",5000,10000],
-[6,"Haus","Renovierung Bad Wohnung",3000,7000],
-[7,"Haus","Sanierung Bad Opa",5000,10000],
-[8,"Bank","Kredit Deutsche Bildung",13440,13790],
-[9,"Bank","Raten Vorwerk",529.02,581.97],
-[10,"Bank","Kredit ING",52336.78,52336.78],
-[11,"Bank","Kredit Bulldog",45727.88,45727.88],
-[12,"Bank","Kredit Haus",51436.68,51436.68],
-[13,"Scheune","Wohnung in Scheune sanieren",180000,250000],
-[14,"Altes Haus","Architekten/Bauplaner beauftragen",18000,103500],
-[15,"Altes Haus","Grundsanierung",200000,690000],
-[16,"Altes Haus","Automat",1150,9200],
-[17,"Altes Haus","Laden einrichten",3300,10000],
-[18,"Altes Haus","Ferienwohnung einrichten",12000,25000],
-[19,"Altes Haus","Eventraum einrichten",10000,22000],
-[20,"Altes Haus","Büro einrichten",3200,11200],
-[21,"Haus","Bodenbeläge Zimmer",2500,6000],
-[22,"Haus","Modernisierung Haus Isolation",37000,80000],
-[23,"Haus","Modernisierung Haus Heizung",8000,23000],
-[24,"Scheune","Stall bauen",4200,12900],
-[25,"Scheune","Werkstatt renovieren",4000,4800],
-[26,"Gewölbekeller","Renovieren",13500,22500],
-[27,"Eckhaus","Zurückkaufen",400000,480000],
-[28,"Garten","Gartenhaus renovieren",3000,5000],
-[29,"Haustier","Hund/e",150,400],
-[30,"Haustier","Pferde",11000,24000],
-[31,"Auto","Audi A3",22000,30000],
-[32,"Eltern","Versorgt",650000,1100000],
-[33,"Gnadenhof","Land kaufen & bauen",5913254.39,18394160],
-[34,"Strandhaus","Kaufen",300000,2500000],
-[35,"Herrenhaus","Kaufen",300000,1500000],
-[36,"Herrenhaus","Sanieren",90000,700000],
-[37,"Schloss","Kaufen",300000,4000000],
-[38,"Schloss","Sanieren",480000,4500000]
-].map(([priority,category,name,min,max])=>({priority,category,name,min,max}));
-
-
 const incomeHistoryV6 = [
 ["2025-06",426.53,50,150,100,-35.93,790.60],
 ["2025-07",237.31,50,125,100,-35.93,591.38],
@@ -101,8 +59,8 @@ const passiveCapitalTargetsV6 = [
 ];
 
 
-const STORAGE_KEY = "finanzenPwaV9";
-const APP_VERSION = 9;
+const STORAGE_KEY = "finanzenPwaV6";
+const APP_VERSION = 4;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -121,8 +79,9 @@ const seededHistory = [
   {month:"2026-08",sparkasse:null,sparkasseInterest:0.00,tradeRepublic:null,trInterest:null,dividend:null},
   {month:"2026-09",sparkasse:null,sparkasseInterest:0.00,tradeRepublic:null,trInterest:null,dividend:null}
 ].map(x=>({...x,total:Number(x.sparkasseInterest||0)+Number(x.trInterest||0)+Number(x.dividend||0)}));
+const priorityGoalSeedV7 = [{"priority": 1, "category": "Absicherung", "subcategory": "Polster", "oneTimeMin": 10000, "oneTimeMax": 10000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 3936.33, "completed": false}, {"priority": 2, "category": "Bildung", "subcategory": "Master", "oneTimeMin": 182.1, "oneTimeMax": 370, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 3, "category": "Haus", "subcategory": "Dachzustand prüfen und reparieren", "oneTimeMin": 1500, "oneTimeMax": 5000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 4, "category": "Haus", "subcategory": "Treppenhaus sanieren", "oneTimeMin": 900, "oneTimeMax": 3063, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 5, "category": "Haus", "subcategory": "Sanierung Bad Erdgeschoss", "oneTimeMin": 5000, "oneTimeMax": 10000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 6, "category": "Haus", "subcategory": "Renovierung Bad Wohnung", "oneTimeMin": 3000, "oneTimeMax": 7000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 7, "category": "Haus", "subcategory": "Sanierung Bad Opa", "oneTimeMin": 5000, "oneTimeMax": 10000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 8, "category": "Bank", "subcategory": "Kredit Deutsche Bildung", "oneTimeMin": 13440, "oneTimeMax": 13790, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 9, "category": "Bank", "subcategory": "Raten Vorwerk", "oneTimeMin": 581.97, "oneTimeMax": 529.02, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 10, "category": "Bank", "subcategory": "Kredit ING", "oneTimeMin": 52336.78, "oneTimeMax": 52336.78, "runningYearMin": 7080, "runningYearMax": 7080, "runningMonthMin": 590, "runningMonthMax": 590, "available": 0, "completed": false}, {"priority": 11, "category": "Bank", "subcategory": "Kredit Bulldog", "oneTimeMin": 45727.88, "oneTimeMax": 45727.88, "runningYearMin": 7017.12, "runningYearMax": 7017.12, "runningMonthMin": 584.76, "runningMonthMax": 584.76, "available": 0, "completed": false}, {"priority": 12, "category": "Bank", "subcategory": "Kredit Haus", "oneTimeMin": 51436.68, "oneTimeMax": 51436.68, "runningYearMin": 10277.64, "runningYearMax": 10277.64, "runningMonthMin": 856.47, "runningMonthMax": 856.47, "available": 0, "completed": false}, {"priority": 13, "category": "Scheune", "subcategory": "Wohnung in Scheune sanieren", "oneTimeMin": 180000, "oneTimeMax": 250000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 14, "category": "Altes Haus", "subcategory": "Architekten/Bauplaner beauftragen", "oneTimeMin": 18000, "oneTimeMax": 103500, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 15, "category": "Altes Haus", "subcategory": "Grundsanierung", "oneTimeMin": 200000, "oneTimeMax": 690000, "runningYearMin": 16800, "runningYearMax": 22200, "runningMonthMin": 1400, "runningMonthMax": 1850, "available": 0, "completed": false}, {"priority": 16, "category": "Altes Haus", "subcategory": "Automat", "oneTimeMin": 1150, "oneTimeMax": 9200, "runningYearMin": 534, "runningYearMax": 7620, "runningMonthMin": 44.5, "runningMonthMax": 635, "available": 0, "completed": false}, {"priority": 17, "category": "Altes Haus", "subcategory": "Laden einrichten", "oneTimeMin": 3300, "oneTimeMax": 10000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 18, "category": "Altes Haus", "subcategory": "Ferienwohnung einrichten", "oneTimeMin": 12000, "oneTimeMax": 25000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 19, "category": "Altes Haus", "subcategory": "Eventraum einrichten", "oneTimeMin": 10000, "oneTimeMax": 22000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": 20, "category": "Altes Haus", "subcategory": "Büro einrichten", "oneTimeMin": 3200, "oneTimeMax": 11200, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Haus", "subcategory": "Bodenbeläge Zimmer", "oneTimeMin": 2500, "oneTimeMax": 6000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Haus", "subcategory": "Modernisierung Haus Isolation", "oneTimeMin": 37000, "oneTimeMax": 80000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Haus", "subcategory": "Modernisierung Haus Heizung", "oneTimeMin": 8000, "oneTimeMax": 23000, "runningYearMin": 2400, "runningYearMax": 3600, "runningMonthMin": 200, "runningMonthMax": 300, "available": 0, "completed": false}, {"priority": null, "category": "Scheune", "subcategory": "Stall bauen", "oneTimeMin": 4200, "oneTimeMax": 12900, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Scheune", "subcategory": "Werkstatt renovieren", "oneTimeMin": 4000, "oneTimeMax": 4800, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Gewölbekeller", "subcategory": "renovieren", "oneTimeMin": 13500, "oneTimeMax": 22500, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Eckhaus", "subcategory": "zurückkaufen", "oneTimeMin": 400000, "oneTimeMax": 480000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Garten", "subcategory": "Gartenhaus renovieren", "oneTimeMin": 3000, "oneTimeMax": 5000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Haustier", "subcategory": "Hund/e", "oneTimeMin": 150, "oneTimeMax": 400, "runningYearMin": 600, "runningYearMax": 1800, "runningMonthMin": 50, "runningMonthMax": 150, "available": 0, "completed": false}, {"priority": null, "category": "Haustier", "subcategory": "Pferde", "oneTimeMin": 11000, "oneTimeMax": 24000, "runningYearMin": 9600, "runningYearMax": 13200, "runningMonthMin": 800, "runningMonthMax": 1100, "available": 0, "completed": false}, {"priority": null, "category": "Auto", "subcategory": "Audi A3", "oneTimeMin": 22000, "oneTimeMax": 30000, "runningYearMin": 2640, "runningYearMax": 3600, "runningMonthMin": 220, "runningMonthMax": 300, "available": 0, "completed": false}, {"priority": null, "category": "Eltern", "subcategory": "Versorgt", "oneTimeMin": 650000, "oneTimeMax": 1100000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Gnadenhof", "subcategory": "Land kaufen & bauen", "oneTimeMin": 5913254.39, "oneTimeMax": 18394160, "runningYearMin": 1218590, "runningYearMax": 2768939, "runningMonthMin": 101549.17, "runningMonthMax": 230744.92, "available": 0, "completed": false}, {"priority": null, "category": "Strandhaus", "subcategory": "kaufen", "oneTimeMin": 300000, "oneTimeMax": 2500000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Herrenhaus", "subcategory": "kaufen", "oneTimeMin": 300000, "oneTimeMax": 1500000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Herrenhaus", "subcategory": "sanieren", "oneTimeMin": 90000, "oneTimeMax": 700000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Schloss", "subcategory": "kaufen", "oneTimeMin": 300000, "oneTimeMax": 4000000, "runningYearMin": null, "runningYearMax": null, "runningMonthMin": null, "runningMonthMax": null, "available": 0, "completed": false}, {"priority": null, "category": "Schloss", "subcategory": "sanieren", "oneTimeMin": 480000, "oneTimeMax": 4500000, "runningYearMin": 30000, "runningYearMax": 135000, "runningMonthMin": 2500, "runningMonthMax": 11250, "available": 0, "completed": false}];
 const defaultData = {
-  balances: [], incomes: [], fixedCosts: [], goals: [], amexPaid: {}, incomeHistory: [], amexHistory: [], fuelEntries: [], completedPriorityGoals: [],
+  balances: [], incomes: [], fixedCosts: [], goals: [], amexPaid: {}, incomeHistoryV7: [], amexHistoryV7: [], fuelEntries: [], priorityGoalsV7: [],
   assets: [
     {
       id:"seed-sparkasse-giro",
@@ -172,44 +131,7 @@ const defaultData = {
   metrics: {currentMonthlyDividend:1.65,currentDailyInterest:0.17,currentDailyDividend:0.05,capitalStart:2386.50,capitalCurrent:3936.33,capitalDiff:1549.83,monthlyCapitalIncrease:110.70,capitalGrowthPct:64.94,currentDailyCapitalIncrease:0.23,interestProfit:39.84,stockProfit:45.90,dividendProfit:14.63,totalProfit:54.47},
   settings: { currency: "EUR", seedVersion:7, trackingStart:"2025-06-01", capitalStart:2386.50, lifetimeStart:"2023-05-01", lifetimeCapitalStart:0 }
 };
-function safeStoredData(key){
-  try{
-    const raw=localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  }catch{return null;}
-}
-function chooseLongestArray(sources,key,fallback=[]){
-  const candidates=sources.map(s=>s?.[key]).filter(Array.isArray);
-  if(!candidates.length)return structuredClone(fallback);
-  return structuredClone(candidates.sort((a,b)=>b.length-a.length)[0]);
-}
-function chooseBestAssets(sources){
-  const candidates=sources.map(s=>s?.assets).filter(a=>Array.isArray(a)&&a.length);
-  if(!candidates.length)return structuredClone(defaultData.assets);
-  const score=a=>a.length*100+a.reduce((n,x)=>n+(Array.isArray(x.history)?x.history.length:0),0);
-  return structuredClone(candidates.sort((a,b)=>score(b)-score(a))[0]);
-}
-function migrateAllPreviousData(){
-  const keys=["finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4"];
-  const sources=keys.map(safeStoredData).filter(Boolean);
-  if(!sources.length)return structuredClone(defaultData);
-  const newest=sources[0]||{};
-  const merged={...structuredClone(defaultData),...newest};
-  ["balances","incomes","fixedCosts","goals","incomeHistory","amexHistory","fuelEntries","completedPriorityGoals","financeHistory"].forEach(key=>{
-    merged[key]=chooseLongestArray(sources,key,defaultData[key]||[]);
-  });
-  merged.assets=chooseBestAssets(sources);
-  merged.metrics={...structuredClone(defaultData.metrics),...sources.slice().reverse().reduce((a,s)=>({...a,...(s.metrics||{})}),{})};
-  merged.settings={...structuredClone(defaultData.settings),...sources.slice().reverse().reduce((a,s)=>({...a,...(s.settings||{})}),{})};
-  merged.amexPaid=sources.find(s=>s.amexPaid&&Object.keys(s.amexPaid).length)?.amexPaid||{};
-  return merged;
-}
-let data;
-if(localStorage.getItem(STORAGE_KEY)) data=loadData();
-else {
-  data=migrateAllPreviousData();
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
-}
+let data = loadData();
 if(!data.balances)data.balances=[];
 if(!data.financeHistory || !data.financeHistory.length)data.financeHistory=structuredClone(seededHistory);
 if(!data.metrics)data.metrics=structuredClone(defaultData.metrics);
@@ -237,21 +159,22 @@ if(Number(data.settings.seedVersion||0)<5){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
 
-if(!Array.isArray(data.incomeHistory)||!data.incomeHistory.length){
-  data.incomeHistory=incomeHistoryV6.map(x=>({...x}));
+// Version-7-Datenmigration: Ergänzt nur neue Felder und überschreibt niemals vorhandene Stammdaten.
+if(!Array.isArray(data.incomeHistoryV7) || !data.incomeHistoryV7.length){
+  data.incomeHistoryV7=incomeHistoryV6.map(x=>({...x}));
 }
-if(!Array.isArray(data.amexHistory)||!data.amexHistory.length){
-  data.amexHistory=expenseHistoryV6.map(x=>({
-    month:x.month,
-    amount:Math.abs(x.expenses),
-    status:x.month==="2026-07"?"open":"paid"
-  }));
+if(!Array.isArray(data.amexHistoryV7) || !data.amexHistoryV7.length){
+  data.amexHistoryV7=expenseHistoryV6.map(x=>({...x,status:x.month==="2026-07"?"Laufender Stand":"Abgebucht"}));
 }
-if(!Array.isArray(data.fuelEntries))data.fuelEntries=[];
+if(!Array.isArray(data.fuelEntries)){
+  data.fuelEntries=[];
+}
 if(!data.fuelEntries.length){
-  data.fuelEntries=[{id:"fuel-start",date:"2026-07-23",amount:278.75,note:"Bisherige Tankkosten – Ausgangswert"}];
+  data.fuelEntries.push({id:"fuel-seed-total",date:"2026-07-23",amount:278.75,note:"Bisheriger erfasster Stand",aggregate:true});
 }
-if(!Array.isArray(data.completedPriorityGoals))data.completedPriorityGoals=[];
+if(!Array.isArray(data.priorityGoalsV7) || !data.priorityGoalsV7.length){
+  data.priorityGoalsV7=structuredClone(priorityGoalSeedV7);
+}
 data.settings.seedVersion=7;
 localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 
@@ -342,7 +265,7 @@ function monthLabel(ym){
   return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"}).format(new Date(y,m-1,1));
 }
 function renderAll(){
-  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderAmexMonths();renderV6();renderFinanceHistory();
+  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
 }
 document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===btn));
@@ -358,8 +281,8 @@ function renderDashboard(){
   $("monthExpenses").textContent=fmt(expenses);
   $("monthIncome").textContent=fmt(income);
   $("monthBalance").textContent=`Monatssaldo: ${fmt(income-expenses)}`;
-  if($("passiveMonth"))$("passiveMonth").textContent=`${fmt(passive/12)}/Monat`;
-  if($("passiveYear"))$("passiveYear").textContent=`${fmt(passive)}/Jahr`;
+  $("passiveMonth").textContent=`${fmt(passive/12)}/Monat`;
+  $("passiveYear").textContent=`${fmt(passive)}/Jahr`;
   const fixed=monthlyAverageFixed();
   const pct=fixed?Math.min(100,(passive/12)/fixed*100):0;
   $("passiveProgress").style.width=`${pct}%`;
@@ -440,7 +363,7 @@ $("fixedForm").addEventListener("submit",e=>{
   e.preventDefault();
   data.fixedCosts.push({id:uid(),name:$("fixedName").value,amount:Number($("fixedAmount").value),day:Number($("fixedDay").value),frequency:$("fixedFrequency").value,startMonth:$("fixedStartMonth").value,account:$("fixedAccount").value,active:true});
   e.target.reset();$("fixedDay").value=1;$("fixedStartMonth").value=monthISO();
-if($("goalCurrent"))$("goalCurrent").value=totalWealth().toFixed(2);saveData();toast("Fixkosten gespeichert");
+$("goalCurrent").value=totalWealth().toFixed(2);saveData();toast("Fixkosten gespeichert");
 });
 function renderFixed(){
   $("fixedMonthlyAverage").textContent=`Ø ${fmt(monthlyAverageFixed())}/Monat`;
@@ -512,7 +435,7 @@ $("goalForm").addEventListener("submit",e=>{
 });
 function renderGoals(){
   const c=capitalStats();
-  if($("goalCurrent"))$("goalCurrent").value=totalWealth().toFixed(2);
+  $("goalCurrent").value=totalWealth().toFixed(2);
   $("goalList").innerHTML=data.goals.length?data.goals.map(g=>{
     const target=Number(g.target);
     const current=g.linkedToWealth!==false?totalWealth():Number(g.current);
@@ -609,15 +532,6 @@ $("exportCsv").addEventListener("click",()=>{
   const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(";")).join("\n");
   download(`kontostaende-${todayISO()}.csv`,csv,"text/csv;charset=utf-8");
 });
-const restoreMasterDataBtn=$("restoreMasterDataBtn");
-if(restoreMasterDataBtn)restoreMasterDataBtn.addEventListener("click",()=>{
-  const restored=migrateAllPreviousData();
-  const preserve={incomeHistory:data.incomeHistory,amexHistory:data.amexHistory,fuelEntries:data.fuelEntries,completedPriorityGoals:data.completedPriorityGoals};
-  data={...restored,...Object.fromEntries(Object.entries(preserve).filter(([,v])=>Array.isArray(v)&&v.length))};
-  saveData();
-  toast("Frühere Stammdaten wurden wiederhergestellt");
-});
-
 $("deleteAll").addEventListener("click",()=>{
   if(confirm("Wirklich ALLE Finanzdaten auf diesem Gerät löschen?")){
     localStorage.removeItem(STORAGE_KEY);data=structuredClone(defaultData);saveData();toast("Alle Daten gelöscht");
@@ -636,7 +550,7 @@ $("incomeDate").value=todayISO();
 $("balanceMonthFilter").value=monthISO();
 $("incomeMonthFilter").value=monthISO();
 $("fixedStartMonth").value=monthISO();
-if($("goalCurrent"))$("goalCurrent").value=totalWealth().toFixed(2);
+$("goalCurrent").value=totalWealth().toFixed(2);
 renderAll();
 
 
@@ -644,11 +558,13 @@ function daysInMonthKey(ym){
   const [y,m]=ym.split("-").map(Number);
   return new Date(y,m,0).getDate();
 }
-
-
 function renderV6(){
   const wealth=totalWealth();
-  const c=capitalStats();
+  const validExpenses=data.amexHistoryV7.filter(x=>x.month>="2025-06");
+  const avgExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses),0)/validExpenses.length;
+  const avgSaving=validExpenses.reduce((s,x)=>s+Number(x.saving||0),0)/validExpenses.length;
+  const avgIncome=data.incomeHistoryV7.reduce((s,x)=>s+x.total,0)/incomeHistoryV6.length;
+  const savingRate=avgIncome ? avgSaving/avgIncome*100 : 0;
   const monthlyFixed=fixedCostsV6.reduce((s,x)=>{
     if(x.frequency==="monthly")return s+x.amount;
     if(x.frequency==="bimonthly")return s+x.amount/2;
@@ -658,128 +574,176 @@ function renderV6(){
   const interestDay=Number(data.metrics?.currentDailyInterest||0.17);
   const dividendDay=Number(data.metrics?.currentDailyDividend||0.05);
   const passiveMonthly=(interestDay+dividendDay)*30.4375;
-  const set=(id,val)=>{const el=$(id);if(el)el.textContent=val};
+  const coverage=monthlyFixed?passiveMonthly/monthlyFixed*100:0;
 
+  const set=(id,val)=>{const el=$(id);if(el)el.textContent=val};
   set("v6TotalWealth",fmt(wealth));
-  set("v6AvgSaving",fmt(c.monthly)+"/Monat");
-  set("v6SavingRate","aus Vermögensverlauf");
+  set("v6AvgSaving",fmt(avgSaving)+"/Monat");
+  set("v6SavingRate",savingRate.toFixed(1).replace(".",",")+" %");
   set("v6PassiveMonthly",fmt(passiveMonthly));
   set("v6FixedMonthly",fmt(monthlyFixed));
-  set("v6Coverage",(monthlyFixed?passiveMonthly/monthlyFixed*100:0).toFixed(1).replace(".",",")+" %");
+  set("v6Coverage",coverage.toFixed(1).replace(".",",")+" %");
 
-  const incomeRows=data.incomeHistory||[];
-  const salary2025=incomeRows.filter(x=>x.month.startsWith("2025")).reduce((s,x)=>s+Number(x.salary),0);
-  const salary2026=incomeRows.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+Number(x.salary),0);
+  const salary2025=data.incomeHistoryV7.filter(x=>x.month.startsWith("2025")).reduce((s,x)=>s+x.salary,0);
+  const salary2026=data.incomeHistoryV7.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.salary,0);
   set("salary2025",fmt(salary2025));
   set("salary2026",fmt(salary2026));
   set("taxAllowanceLeft",fmt(Math.max(0,12096-salary2026)));
-  const ih=$("incomeHistoryBody");
-  if(ih)ih.innerHTML=incomeRows.slice().sort((a,b)=>a.month.localeCompare(b.month)).map(x=>`<tr>
-    <td>${monthLabel(x.month)}</td><td>${fmt(x.salary)}</td><td>${fmt(x.bonus)}</td><td>${fmt(x.tips)}</td>
-    <td>${fmt(x.parents)}</td><td>${fmt(x.costs)}</td><td><strong>${fmt(x.total)}</strong></td>
-    <td><button class="secondary icon-btn" onclick="editIncomeMonth('${x.month}')">Bearbeiten</button></td></tr>`).join("");
 
-  const paid=(data.amexHistory||[]).filter(x=>x.status==="paid");
-  const open=(data.amexHistory||[]).find(x=>x.status==="open");
-  const avg=paid.length?paid.reduce((s,x)=>s+Number(x.amount),0)/paid.length:0;
-  const max=paid.length?Math.max(...paid.map(x=>Number(x.amount))):0;
-  set("avgAmexDebit",fmt(avg));
-  set("currentAmexOpen",open?fmt(open.amount):fmt(0));
-  set("maxAmexDebit",fmt(max));
+  const ih=$("incomeHistoryBody");
+  if(ih)ih.innerHTML=data.incomeHistoryV7.map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.salary)}</td><td>${fmt(x.bonus)}</td><td>${fmt(x.tips)}</td><td>${fmt(x.parents)}</td><td>${fmt(x.costs)}</td><td><strong>${fmt(x.total)}</strong></td><td><button class="action-small edit-income-v7" data-month="${x.month}">Bearbeiten</button></td></tr>`).join("");
+
+  set("avgExpenses",fmt(avgExp));
+  const avgDailyExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses)/daysInMonthKey(x.month),0)/validExpenses.length;
+  const avgDailyIncome=validExpenses.filter(x=>x.incomeDay).reduce((s,x)=>s+x.incomeDay,0)/validExpenses.filter(x=>x.incomeDay).length;
+  set("avgExpensesDaily",fmt(avgDailyExp));
+  set("avgIncomeDaily",fmt(avgDailyIncome));
+  set("avgMonthlySaving",fmt(avgSaving));
+
   const eh=$("expenseHistoryBody");
-  if(eh)eh.innerHTML=(data.amexHistory||[]).slice().sort((a,b)=>a.month.localeCompare(b.month)).map(x=>`<tr>
-    <td>${monthLabel(x.month)}</td><td>${fmt(x.amount)}</td>
-    <td>${x.status==="open"?'<span class="badge warn">aktuell offen</span>':'<span class="badge success">abgebucht</span>'}</td></tr>`).join("");
+  if(eh)eh.innerHTML=data.amexHistoryV7.map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.expenses)}</td><td>${esc(x.status||"Abgebucht")}</td><td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td><td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td><td>${x.saving==null?"–":fmt(x.saving)}</td></tr>`).join("");
 
   set("fixedMonthlyTotal",fmt(monthlyFixed));
   set("fixedYearlyTotal",fmt(monthlyFixed*12));
+  set("nextFixedCount",String(fixedCostsV6.length));
   const fl=$("fixedCostListV6");
   if(fl)fl.innerHTML=fixedCostsV6.map(x=>`<div class="list-item"><div><h3>${esc(x.name)}</h3><p>${esc(x.when)}</p></div><strong>${fmt(x.amount)}</strong></div>`).join("");
-  renderFuelV7();
 
   set("passiveInterestDay",fmt(interestDay));
   set("passiveDividendDay",fmt(dividendDay));
-  set("passiveMonthV8",fmt(passiveMonthly));
-  set("passiveYearV8",fmt(passiveMonthly*12));
-  const trCash=Number((data.assets||[]).find(a=>a.name==="Trade Republic Tagesgeld")?.balance||0);
+  set("passiveMonth",fmt(passiveMonthly));
+  set("passiveYear",fmt(passiveMonthly*12));
   const pt=$("passiveTargetsBody");
+  const trCash=Number((data.assets||[]).find(a=>a.name==="Trade Republic Tagesgeld")?.balance||0);
   if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${trCash>=capital?'<span class="badge success">erreicht</span>':fmt(capital-trCash)+" fehlen"}</td></tr>`).join("");
 
-  renderPriorityGoalsV7();
-
-  const milestones=[5000,10000,25000,50000,100000];
-  const ml=$("milestoneList");
-  if(ml)ml.innerHTML=milestones.map(target=>{
-    const pct=Math.min(100,wealth/target*100), remaining=Math.max(0,target-wealth);
-    let eta=remaining<=0?"Erreicht":"–";
-    if(remaining>0&&c.monthly>0){const d=new Date();d.setDate(d.getDate()+remaining/c.monthly*30.4375);eta=d.toLocaleDateString("de-DE")}
-    return `<div class="list-item"><div style="width:100%"><div class="milestone-row"><strong>${fmt(target)}</strong><span>${pct.toFixed(1).replace(".",",")} % · ${eta}</span></div><div class="progress"><div style="width:${pct}%"></div></div></div></div>`;
+  // Priorisierte Sparziele: Es wird nur das erste unerreichte Ziel angezeigt.
+  const goals=(data.priorityGoalsV7||[]);
+  const firstGoal=goals.find(g=>!g.completed && Number(g.available||0)<Number(g.oneTimeMin||0)) || goals.find(g=>!g.completed);
+  const active=$("activePriorityGoal");
+  if(active && firstGoal){
+    if(firstGoal.priority===1 && firstGoal.category==="Absicherung"){
+      firstGoal.available=wealth;
+      if(wealth>=Number(firstGoal.oneTimeMin)) firstGoal.completed=true;
+    }
+    const target=Number(firstGoal.oneTimeMin||0);
+    const available=Number(firstGoal.available||0);
+    const pct=target?Math.min(100,available/target*100):0;
+    const remaining=Math.max(0,target-available);
+    const c=capitalStats();
+    let eta="Keine Prognose";
+    if(remaining<=0) eta="Erreicht";
+    else if(c.monthly>0){
+      const d=new Date();
+      d.setDate(d.getDate()+remaining/c.monthly*30.4375);
+      eta=d.toLocaleDateString("de-DE");
+    }
+    active.innerHTML=`<div class="goal-active">
+      <div><span class="badge">Priorität ${firstGoal.priority??"–"}</span> <strong>${esc(firstGoal.category)} – ${esc(firstGoal.subcategory)}</strong></div>
+      <div class="progress"><div style="width:${pct}%"></div></div>
+      <div class="goal-meta"><span>${fmt(available)} verfügbar</span><span>${fmt(remaining)} fehlen</span><span>Ziel min. ${fmt(target)}</span><span>Prognose: ${eta}</span></div>
+      <button class="action-small" id="editActiveGoalV7">Verfügbaren Betrag bearbeiten</button>
+    </div>`;
+  }
+  const pgb=$("priorityGoalsBody");
+  if(pgb) pgb.innerHTML=goals.map((g,i)=>{
+    const current=firstGoal===g;
+    const status=g.completed?"Erreicht":current?"Aktuell":"Später";
+    return `<tr class="${current?"status-current":""}"><td>${g.priority??"–"}</td><td>${esc(g.category)}</td><td>${esc(g.subcategory)}</td><td>${fmt(g.oneTimeMin)}</td><td>${fmt(g.oneTimeMax)}</td><td>${g.runningMonthMin==null?"–":fmt(g.runningMonthMin)}</td><td>${g.runningMonthMax==null?"–":fmt(g.runningMonthMax)}</td><td>${status}</td></tr>`;
   }).join("");
 
+  renderFuelV7();
   const yf=$("yearForecast");
   if(yf){
-    const projectedIncome=incomeRows.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+Number(x.total),0);
-    const projectedEnd=wealth+Math.max(0,c.monthly)*(12-new Date().getMonth()-1);
-    yf.innerHTML=`<div class="stat"><span>Einkommen 2026</span><strong>${fmt(projectedIncome)}</strong></div>
-    <div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(passiveMonthly*12)}</strong></div>
-    <div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(projectedEnd)}</strong></div>`;
+    const projectedIncome=data.incomeHistoryV7.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.total,0);
+    const projectedExpenses=avgExp*12;
+    const projectedPassive=passiveMonthly*12;
+    const projectedEnd=wealth+Math.max(0,avgSaving)*(12-new Date().getMonth()-1);
+    yf.innerHTML=`
+      <div class="stat"><span>Einkommen 2026</span><strong>${fmt(projectedIncome)}</strong></div>
+      <div class="stat"><span>Ausgaben hochgerechnet</span><strong>${fmt(projectedExpenses)}</strong></div>
+      <div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(projectedPassive)}</strong></div>
+      <div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(projectedEnd)}</strong></div>`;
   }
 }
 
-window.editIncomeMonth=function(month){
-  let row=data.incomeHistory.find(x=>x.month===month);
-  if(!row){row={month,salary:0,bonus:0,tips:0,parents:0,costs:0,total:0};data.incomeHistory.push(row)}
-  openModal(`<form id="incomeEditForm"><h2>${monthLabel(month)} bearbeiten</h2>
-    <label>Monat<input id="ieMonth" type="month" value="${row.month}" required></label>
-    <label>Gehalt<input id="ieSalary" type="number" step="0.01" value="${row.salary}" required></label>
-    <label>Bonus<input id="ieBonus" type="number" step="0.01" value="${row.bonus}" required></label>
-    <label>Trinkgeld<input id="ieTips" type="number" step="0.01" value="${row.tips}" required></label>
-    <label>Eltern<input id="ieParents" type="number" step="0.01" value="${row.parents}" required></label>
-    <label>Kosten<input id="ieCosts" type="number" step="0.01" value="${row.costs}" required></label>
-    <div class="button-row"><button type="submit">Speichern</button><button id="ieDelete" type="button" class="danger">Löschen</button></div></form>`);
-  $("incomeEditForm").addEventListener("submit",e=>{
-    e.preventDefault();
-    row.month=$("ieMonth").value;row.salary=Number($("ieSalary").value);row.bonus=Number($("ieBonus").value);
-    row.tips=Number($("ieTips").value);row.parents=Number($("ieParents").value);row.costs=Number($("ieCosts").value);
-    row.total=row.salary+row.bonus+row.tips+row.parents+row.costs;
-    saveData();closeModal();toast("Einkommen gespeichert");
-  });
-  $("ieDelete").addEventListener("click",()=>{data.incomeHistory=data.incomeHistory.filter(x=>x!==row);saveData();closeModal()});
-};
-const addIncomeMonthV7=$("addIncomeMonth");
-if(addIncomeMonthV7)addIncomeMonthV7.addEventListener("click",()=>editIncomeMonth(monthISO()));
 
+document.addEventListener("click",e=>{
+  const btn=e.target.closest("[data-page]");
+  if(!btn)return;
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  const target=document.getElementById(btn.dataset.page);
+  if(target)target.classList.add("active");
+  document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b===btn));
+  if(btn.dataset.page==="overview")renderV6();
+});
+
+
+function parseMoneyPrompt(label,current){
+  const raw=prompt(label,String(Number(current||0)).replace(".",","));
+  if(raw===null)return null;
+  const value=Number(raw.replace(/\./g,"").replace(",","."));
+  return Number.isFinite(value)?value:null;
+}
+document.addEventListener("click",e=>{
+  const edit=e.target.closest(".edit-income-v7");
+  if(edit){
+    const row=data.incomeHistoryV7.find(x=>x.month===edit.dataset.month);
+    if(!row)return;
+    const salary=parseMoneyPrompt("Gehalt",row.salary); if(salary===null)return;
+    const bonus=parseMoneyPrompt("Bonus",row.bonus); if(bonus===null)return;
+    const tips=parseMoneyPrompt("Trinkgeld",row.tips); if(tips===null)return;
+    const parents=parseMoneyPrompt("Eltern",row.parents); if(parents===null)return;
+    const costs=parseMoneyPrompt("Kosten (negativ eingeben)",row.costs); if(costs===null)return;
+    Object.assign(row,{salary,bonus,tips,parents,costs,total:salary+bonus+tips+parents+costs});
+    saveData(); toast("Monatseinkommen aktualisiert");
+  }
+  if(e.target.id==="editActiveGoalV7"){
+    const goal=(data.priorityGoalsV7||[]).find(g=>!g.completed && Number(g.available||0)<Number(g.oneTimeMin||0)) || (data.priorityGoalsV7||[]).find(g=>!g.completed);
+    if(!goal)return;
+    const value=parseMoneyPrompt("Verfügbarer Betrag für dieses Ziel",goal.available);
+    if(value===null)return;
+    goal.available=value;
+    if(value>=Number(goal.oneTimeMin||0))goal.completed=true;
+    saveData();toast("Sparziel aktualisiert");
+  }
+  const del=e.target.closest("[data-delete-fuel]");
+  if(del){
+    data.fuelEntries=data.fuelEntries.filter(x=>x.id!==del.dataset.deleteFuel);
+    saveData();toast("Tankvorgang gelöscht");
+  }
+});
 function renderFuelV7(){
-  const rows=(data.fuelEntries||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
-  const byMonth={};rows.forEach(x=>byMonth[x.date.slice(0,7)]=(byMonth[x.date.slice(0,7)]||0)+Number(x.amount));
-  const monthVals=Object.values(byMonth);
-  const avg=monthVals.length?monthVals.reduce((s,x)=>s+x,0)/monthVals.length:0;
-  const intervals=[];for(let i=1;i<rows.length;i++)intervals.push((new Date(rows[i].date)-new Date(rows[i-1].date))/86400000);
-  const m=$("fuelMonthlyAverage"),it=$("fuelIntervalAverage");
-  if(m)m.textContent=rows.length?fmt(avg):"Noch keine Daten";
-  if(it)it.textContent=intervals.length?(intervals.reduce((s,x)=>s+x,0)/intervals.length).toFixed(1).replace(".",",")+" Tage":"Noch nicht berechenbar";
-  const list=$("fuelList");if(list)list.innerHTML=rows.slice().reverse().map(x=>`<div class="list-item"><div><h3>${new Date(x.date+"T12:00:00").toLocaleDateString("de-DE")}</h3><p>${esc(x.note||"Tanken")}</p></div><div class="item-actions"><strong>${fmt(x.amount)}</strong><button class="danger" onclick="removeFuelV7('${x.id}')">Löschen</button></div></div>`).join("");
-}
-window.removeFuelV7=id=>{data.fuelEntries=data.fuelEntries.filter(x=>x.id!==id);saveData()};
-const fuelFormV7=$("fuelForm");
-if(fuelFormV7){
-  $("fuelDate").value=todayISO();
-  fuelFormV7.addEventListener("submit",e=>{e.preventDefault();data.fuelEntries.push({id:uid(),date:$("fuelDate").value,amount:Number($("fuelAmount").value),note:$("fuelNote").value});e.target.reset();$("fuelDate").value=todayISO();saveData();toast("Tankvorgang gespeichert")});
-}
-
-function renderPriorityGoalsV7(){
-  const wealth=totalWealth(), completed=new Set(data.completedPriorityGoals||[]);
-  const current=priorityGoalsV7.find(g=>!completed.has(g.priority));
-  const card=$("priorityGoalCard");
-  if(card&&current){
-    const pct=Math.min(100,wealth/current.min*100),remaining=Math.max(0,current.min-wealth),c=capitalStats();
-    let eta="Nicht berechenbar";if(remaining<=0)eta="Zielbetrag erreicht – als erledigt markieren";else if(c.monthly>0){const d=new Date();d.setDate(d.getDate()+remaining/c.monthly*30.4375);eta=d.toLocaleDateString("de-DE")}
-    card.innerHTML=`<div class="goal-current"><span class="badge">Priorität ${current.priority}</span><h3>${esc(current.category)} · ${esc(current.name)}</h3>
-      <p>${fmt(wealth)} von mindestens ${fmt(current.min)}${current.max!==current.min?" · maximal "+fmt(current.max):""}</p>
-      <div class="progress"><div style="width:${pct}%"></div></div>
-      <div class="goal-meta"><div><span>Fortschritt</span><strong>${pct.toFixed(2).replace(".",",")} %</strong></div><div><span>Noch nötig</span><strong>${fmt(remaining)}</strong></div><div><span>Ø Vermögensaufbau</span><strong>${fmt(c.monthly)}/Monat</strong></div><div><span>Prognose</span><strong>${eta}</strong></div></div>
-      ${remaining<=0?`<button style="margin-top:1rem" onclick="completePriorityGoalV7(${current.priority})">Ziel abschließen und nächstes anzeigen</button>`:""}</div>`;
+  const entries=(data.fuelEntries||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+  const total=entries.reduce((s,x)=>s+Number(x.amount||0),0);
+  const individual=entries.filter(x=>!x.aggregate);
+  const set=(id,v)=>{const el=$(id);if(el)el.textContent=v};
+  set("fuelTotal",fmt(total));
+  if(individual.length>=2){
+    const avg=individual.reduce((s,x)=>s+Number(x.amount||0),0)/individual.length;
+    const intervals=[];
+    for(let i=1;i<individual.length;i++){
+      intervals.push((new Date(individual[i].date)-new Date(individual[i-1].date))/86400000);
+    }
+    const avgDays=intervals.reduce((s,x)=>s+x,0)/intervals.length;
+    set("fuelAverage",fmt(avg));
+    set("fuelInterval",avgDays.toFixed(1).replace(".",",")+" Tage");
+    set("fuelMonthly",fmt(avg*(30.4375/avgDays)));
+  }else{
+    set("fuelAverage","Noch nicht genug Daten");
+    set("fuelInterval","Noch nicht genug Daten");
+    set("fuelMonthly","Noch nicht genug Daten");
   }
-  const body=$("priorityGoalsBody");if(body)body.innerHTML=priorityGoalsV7.map(g=>`<tr><td>${g.priority}</td><td>${esc(g.category)}</td><td>${esc(g.name)}</td><td>${fmt(g.min)}</td><td>${fmt(g.max)}</td><td>${completed.has(g.priority)?"Erledigt":g.priority===current?.priority?"Aktuell":"Später"}</td></tr>`).join("");
+  const list=$("fuelList");
+  if(list)list.innerHTML=entries.slice().reverse().map(x=>`<div class="list-item"><div><strong>${new Date(x.date+"T12:00:00").toLocaleDateString("de-DE")}</strong><p>${esc(x.note||"Tankvorgang")}${x.aggregate?" · Startwert":""}</p></div><div><strong>${fmt(x.amount)}</strong>${x.aggregate?"":` <button class="action-small" data-delete-fuel="${x.id}">Löschen</button>`}</div></div>`).join("");
 }
-window.completePriorityGoalV7=p=>{if(!data.completedPriorityGoals.includes(p))data.completedPriorityGoals.push(p);saveData()};
+const fuelForm=$("fuelForm");
+if(fuelForm){
+  $("fuelDate").value=todayISO();
+  fuelForm.addEventListener("submit",e=>{
+    e.preventDefault();
+    data.fuelEntries.push({id:uid(),date:$("fuelDate").value,amount:Number($("fuelAmount").value),note:$("fuelNote").value.trim(),aggregate:false});
+    $("fuelAmount").value="";$("fuelNote").value="";
+    saveData();toast("Tankvorgang gespeichert");
+  });
+}
