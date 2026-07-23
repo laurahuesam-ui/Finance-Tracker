@@ -61,7 +61,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 4;
+const APP_VERSION = 11;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -141,20 +141,15 @@ if(!data.settings.lifetimeStart)data.settings.lifetimeStart="2023-05-01";
 if(data.settings.lifetimeCapitalStart===undefined)data.settings.lifetimeCapitalStart=0;
 if(data.settings.capitalStart===undefined)data.settings.capitalStart=2386.50;
 if(Number(data.settings.seedVersion||0)<5){
-  const oldSparkasse=(data.assets||[]).find(a=>a.name==="Sparkasse");
-  data.assets=(data.assets||[]).filter(a=>a.name!=="Sparkasse");
   const required=structuredClone(defaultData.assets);
-  const existingNames=new Set(data.assets.map(a=>a.name));
-  required.forEach(a=>{if(!existingNames.has(a.name))data.assets.push(a);});
-  if(oldSparkasse){
-    const tg1=data.assets.find(a=>a.name==="Sparkasse Tagesgeld 1");
-    if(tg1 && oldSparkasse.history?.length){
-      tg1.history=oldSparkasse.history.map(h=>({...h}));
-      tg1.balance=590;
-      tg1.history.push({date:"2026-07-23",balance:590});
+  const existingIds=new Set((data.assets||[]).map(a=>a.id));
+  const existingNames=new Set((data.assets||[]).map(a=>a.name));
+  data.assets=data.assets||[];
+  required.forEach(a=>{
+    if(!existingIds.has(a.id) && !existingNames.has(a.name)){
+      data.assets.push(a);
     }
-  }
-  (data.goals||[]).forEach(g=>g.linkedToWealth=true);
+  });
   data.settings.seedVersion=5;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
@@ -170,57 +165,158 @@ const monthISO = d => {
 };
 const uid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random();
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
-function deepMerge(base, incoming){
-  if(Array.isArray(base)) return Array.isArray(incoming) ? incoming : base;
-  if(base && typeof base==="object"){
-    const out={...base};
-    if(incoming && typeof incoming==="object"){
-      for(const [k,v] of Object.entries(incoming)){
-        out[k]=k in out ? deepMerge(out[k],v) : v;
-      }
-    }
-    return out;
-  }
-  return incoming!==undefined ? incoming : base;
+
+function isPlainObject(v){
+  return v && typeof v==="object" && !Array.isArray(v);
 }
 
-function candidateScore(obj){
-  if(!obj || typeof obj!=="object") return 0;
-  let score=0;
-  for(const key of ["accounts","assets","goals","fixedCosts","income","expenses","transactions","v7"]){
-    const v=obj[key];
-    if(Array.isArray(v)) score+=v.length*10;
-    else if(v && typeof v==="object") score+=Object.keys(v).length*5;
+function itemIdentity(item){
+  if(!item || typeof item!=="object") return JSON.stringify(item);
+  return String(
+    item.id ??
+    item.month ??
+    item.date ??
+    item.name ??
+    item.account ??
+    item.title ??
+    item.label ??
+    JSON.stringify(item)
+  );
+}
+
+function mergeArraysPreservingData(arrays){
+  const result=[];
+  const index=new Map();
+
+  for(const arr of arrays){
+    if(!Array.isArray(arr)) continue;
+    for(const item of arr){
+      if(!isPlainObject(item)){
+        const raw=JSON.stringify(item);
+        if(!index.has(raw)){
+          index.set(raw,result.length);
+          result.push(item);
+        }
+        continue;
+      }
+
+      const key=itemIdentity(item);
+      if(!index.has(key)){
+        index.set(key,result.length);
+        result.push(structuredClone(item));
+      }else{
+        const pos=index.get(key);
+        result[pos]=mergeObjectsPreservingData(result[pos],item);
+      }
+    }
   }
-  return score;
+  return result;
+}
+
+function meaningful(v){
+  if(v===null || v===undefined || v==="") return false;
+  if(Array.isArray(v)) return v.length>0;
+  if(isPlainObject(v)) return Object.keys(v).length>0;
+  return true;
+}
+
+function mergeObjectsPreservingData(base, incoming){
+  if(Array.isArray(base) || Array.isArray(incoming)){
+    return mergeArraysPreservingData([base,incoming]);
+  }
+  if(!isPlainObject(base)) return meaningful(incoming) ? structuredClone(incoming) : base;
+  if(!isPlainObject(incoming)) return meaningful(base) ? structuredClone(base) : incoming;
+
+  const out=structuredClone(base);
+  for(const [key,value] of Object.entries(incoming)){
+    if(Array.isArray(value)){
+      out[key]=mergeArraysPreservingData([out[key],value]);
+    }else if(isPlainObject(value)){
+      out[key]=mergeObjectsPreservingData(isPlainObject(out[key])?out[key]:{},value);
+    }else if(meaningful(value) || !meaningful(out[key])){
+      out[key]=value;
+    }
+  }
+  return out;
+}
+
+function looksLikeFinanceData(obj){
+  if(!isPlainObject(obj)) return false;
+  const keys=[
+    "balances","incomes","fixedCosts","goals","assets","financeHistory",
+    "metrics","settings","amexPaid","transactions","v7"
+  ];
+  return keys.some(k=>k in obj);
+}
+
+function loadAllStoredCandidates(){
+  const candidates=[];
+  const seen=new Set();
+
+  const known=[
+    STORAGE_KEY,
+    ...LEGACY_STORAGE_KEYS,
+    "finanzenPwaV2","finanzenPwaV1",
+    "finanzen-pwa","finanzen_pwa","financeTrackerData",
+    "financeTracker","finanzTracker","finanzdaten"
+  ];
+
+  for(const key of known){
+    if(!key || seen.has(key)) continue;
+    seen.add(key);
+    try{
+      const parsed=JSON.parse(localStorage.getItem(key));
+      if(looksLikeFinanceData(parsed)) candidates.push({key,data:parsed});
+    }catch{}
+  }
+
+  for(let i=0;i<localStorage.length;i++){
+    const key=localStorage.key(i);
+    if(!key || seen.has(key)) continue;
+    seen.add(key);
+    try{
+      const parsed=JSON.parse(localStorage.getItem(key));
+      if(looksLikeFinanceData(parsed)) candidates.push({key,data:parsed});
+    }catch{}
+  }
+
+  return candidates;
 }
 
 function loadData(){
   try{
-    const direct=JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if(direct) return deepMerge(structuredClone(defaultData),direct);
+    const candidates=loadAllStoredCandidates();
 
-    const candidates=[];
-    for(const key of LEGACY_STORAGE_KEYS){
+    // Mit den Standard-Stammdaten beginnen und anschließend ALLE gefundenen
+    // Speicherstände zusammenführen. Ein leerer neuer Speicherstand kann
+    // dadurch keinen älteren vollständigen Datensatz mehr verdrängen.
+    let merged=structuredClone(defaultData);
+
+    // Ältere Versionen zuerst, aktueller dauerhafter Schlüssel zuletzt.
+    const ordered=candidates.sort((a,b)=>{
+      if(a.key===STORAGE_KEY) return 1;
+      if(b.key===STORAGE_KEY) return -1;
+      return String(a.key).localeCompare(String(b.key),undefined,{numeric:true});
+    });
+
+    for(const candidate of ordered){
+      merged=mergeObjectsPreservingData(merged,candidate.data);
+    }
+
+    // Speicherkopie vor der Migration sichern.
+    if(candidates.length){
       try{
-        const parsed=JSON.parse(localStorage.getItem(key));
-        if(parsed) candidates.push({key,data:parsed,score:candidateScore(parsed)});
+        localStorage.setItem(
+          "finanzenPwaMigrationBackup",
+          JSON.stringify({
+            createdAt:new Date().toISOString(),
+            sources:candidates.map(x=>x.key),
+            data:merged
+          })
+        );
       }catch{}
     }
-    for(let i=0;i<localStorage.length;i++){
-      const key=localStorage.key(i);
-      if(!key || key===STORAGE_KEY || LEGACY_STORAGE_KEYS.includes(key)) continue;
-      try{
-        const parsed=JSON.parse(localStorage.getItem(key));
-        if(parsed && typeof parsed==="object"){
-          const score=candidateScore(parsed);
-          if(score>0) candidates.push({key,data:parsed,score});
-        }
-      }catch{}
-    }
-    candidates.sort((a,b)=>b.score-a.score);
-    const chosen=candidates[0]?.data;
-    const merged=chosen ? deepMerge(structuredClone(defaultData),chosen) : structuredClone(defaultData);
+
     localStorage.setItem(STORAGE_KEY,JSON.stringify(merged));
     return merged;
   }catch{
@@ -593,16 +689,23 @@ function daysInMonthKey(ym){
 
 function ensureV7Data(){
   data.v7 = data.v7 || {};
-  if(!Array.isArray(data.v7.incomeHistory)){
-    data.v7.incomeHistory = structuredClone(defaultIncomeHistoryV7);
-  }else{
-    const existing = new Set(data.v7.incomeHistory.map(x=>x.month));
-    defaultIncomeHistoryV7.forEach(x=>{ if(!existing.has(x.month)) data.v7.incomeHistory.push(structuredClone(x)); });
-    data.v7.incomeHistory.sort((a,b)=>a.month.localeCompare(b.month));
-  }
-  if(!Array.isArray(data.v7.amexHistory)) data.v7.amexHistory = structuredClone(defaultAmexHistoryV7);
-  if(!Array.isArray(data.v7.fuelEntries)){
-    data.v7.fuelEntries = [{id:"fuel-initial",date:"2026-07-01",amount:278.75,note:"Bisheriger Stand"}];
+
+  const storedIncome = Array.isArray(data.v7.incomeHistory) ? data.v7.incomeHistory : [];
+  data.v7.incomeHistory = mergeArraysPreservingData([
+    structuredClone(defaultIncomeHistoryV7),
+    storedIncome
+  ]).sort((a,b)=>String(a.month).localeCompare(String(b.month)));
+
+  const storedAmex = Array.isArray(data.v7.amexHistory) ? data.v7.amexHistory : [];
+  data.v7.amexHistory = mergeArraysPreservingData([
+    structuredClone(defaultAmexHistoryV7),
+    storedAmex
+  ]).sort((a,b)=>String(a.month).localeCompare(String(b.month)));
+
+  if(!Array.isArray(data.v7.fuelEntries) || !data.v7.fuelEntries.length){
+    data.v7.fuelEntries = [
+      {id:"fuel-initial",date:"2026-07-01",amount:278.75,note:"Bisheriger Stand"}
+    ];
   }
 }
 function incomeRows(){ ensureV7Data(); return data.v7.incomeHistory; }
