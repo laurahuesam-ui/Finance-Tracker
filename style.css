@@ -62,3 +62,7 @@ th:first-child,td:first-child{text-align:left}
 .milestone-row{display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:center}
 .progress{height:10px;background:#e8e8e8;border-radius:999px;overflow:hidden}
 .progress>div{height:100%;background:currentColor}
+
+.inline-input{width:100%;min-width:82px;padding:.45rem;border:1px solid var(--border,#d5d9e0);border-radius:.5rem;background:var(--surface,#fff);color:inherit}
+.tabs{overflow-x:auto}
+.tabs .tab{white-space:nowrap}

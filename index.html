@@ -14,19 +14,25 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 6</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 7</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
 </header>
 
 <nav class="tabs" aria-label="Bereiche">
-<button data-page="overview">Übersicht</button>
-<button data-page="incomeAnalysis">Einkommen</button>
-<button data-page="expenseAnalysis">Ausgaben</button>
-<button data-page="fixedCostsOverview">Fixkosten</button>
-<button data-page="passiveIncome">Passiv</button>
-<button data-page="goals">Sparziele</button>
+  <button class="tab active" data-page="dashboard">Dashboard</button>
+  <button class="tab" data-page="overview">Übersicht</button>
+  <button class="tab" data-page="expenses">Kontostände</button>
+  <button class="tab" data-page="expenseAnalysis">Amex</button>
+  <button class="tab" data-page="fixed">Fixkosten erfassen</button>
+  <button class="tab" data-page="fixedCostsOverview">Fixkostenübersicht</button>
+  <button class="tab" data-page="income">Einkommen erfassen</button>
+  <button class="tab" data-page="incomeAnalysis">Einkommensübersicht</button>
+  <button class="tab" data-page="assets">Vermögen</button>
+  <button class="tab" data-page="passiveIncome">Passiv</button>
+  <button class="tab" data-page="goals">Sparziele</button>
+  <button class="tab" data-page="backup">Backup</button>
 </nav>
 
 <main>
@@ -225,7 +231,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 6</span>
+      <span class="badge">Version 7</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
@@ -256,7 +262,7 @@
       <div class="stat"><span>Verbleibender Freibetrag 2026</span><strong id="taxAllowanceLeft">–</strong></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Monat</th><th>Gehalt</th><th>Bonus</th><th>Trinkgeld</th><th>Eltern</th><th>Kosten</th><th>Netto gesamt</th></tr></thead>
+      <thead><tr><th>Monat</th><th>Gehalt</th><th>Bonus</th><th>Trinkgeld</th><th>Eltern</th><th>Kosten</th><th>Netto gesamt</th><th></th></tr></thead>
       <tbody id="incomeHistoryBody"></tbody>
     </table></div>
   </article>
@@ -274,7 +280,7 @@
 
 <section id="expenseAnalysis" class="page">
   <article class="panel">
-    <h2>Ausgaben- und Sparanalyse</h2>
+    <h2>Amex-Abbuchungen und Sparanalyse</h2><p class="muted">Die Monatswerte sind Amex-Abbuchungen; der Juli-Wert ist der bisherige aktuelle Stand.</p>
     <div class="stats-grid">
       <div class="stat"><span>Ø Ausgaben</span><strong id="avgExpenses">–</strong></div>
       <div class="stat"><span>Ø Ausgaben/Tag</span><strong id="avgExpensesDaily">–</strong></div>
@@ -286,6 +292,25 @@
       <tbody id="expenseHistoryBody"></tbody>
     </table></div>
   </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <div><h2>Variable Kosten – Tanken</h2>
+      <p class="muted">Jeden Tankvorgang einzeln speichern. Durchschnittswerte erscheinen, sobald ausreichend Daten vorhanden sind.</p></div>
+      <button id="addFuelEntry" type="button">Tankvorgang hinzufügen</button>
+    </div>
+    <div class="stats-grid">
+      <div class="stat"><span>Gesamt erfasst</span><strong id="fuelCurrentTotal">–</strong></div>
+      <div class="stat"><span>Ø Tankvorgang</span><strong id="fuelAvgEntry">–</strong></div>
+      <div class="stat"><span>Ø pro Monat</span><strong id="fuelAvgMonth">–</strong></div>
+      <div class="stat"><span>Ø Abstand</span><strong id="fuelAvgGap">–</strong></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Datum</th><th>Betrag</th><th>Notiz</th><th></th></tr></thead>
+      <tbody id="fuelEntriesBody"></tbody>
+    </table></div>
+  </article>
+
 </section>
 
 <section id="fixedCostsOverview" class="page">
@@ -302,7 +327,7 @@
 
 <section id="passiveIncome" class="page">
   <article class="panel">
-    <h2>Passives Einkommen</h2>
+    <h2>Passives Einkommen</h2><p class="muted">Für die Tageszins-Ziele zählt ausschließlich das Trade-Republic-Tagesgeldkonto.</p>
     <div class="stats-grid">
       <div class="stat"><span>Zinsen pro Tag</span><strong id="passiveInterestDay">–</strong></div>
       <div class="stat"><span>Dividende pro Tag</span><strong id="passiveDividendDay">–</strong></div>

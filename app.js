@@ -1,5 +1,5 @@
 
-const incomeHistoryV6 = [
+const defaultIncomeHistoryV7 = [
 ["2025-06",426.53,50,150,100,-35.93,790.60],
 ["2025-07",237.31,50,125,100,-35.93,591.38],
 ["2025-08",599.89,50,200,100,-35.93,1013.96],
@@ -21,7 +21,7 @@ const incomeHistoryV6 = [
 ["2026-12",840,50,300,100,-215.70,1074.30]
 ].map(([month,salary,bonus,tips,parents,costs,total])=>({month,salary,bonus,tips,parents,costs,total}));
 
-const expenseHistoryV6 = [
+const defaultAmexHistoryV7 = [
 ["2025-05",-942.84,null,null,null],
 ["2025-06",-332.81,25.92,0.109726776,455.5898333],
 ["2025-07",-485.92,19.39,0.090273224,116.0507527],
@@ -59,7 +59,8 @@ const passiveCapitalTargetsV6 = [
 ];
 
 
-const STORAGE_KEY = "finanzenPwaV6";
+const STORAGE_KEY = "finanzenPwaV7";
+const LEGACY_STORAGE_KEYS = ["finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3"];
 const APP_VERSION = 4;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
@@ -157,6 +158,7 @@ if(Number(data.settings.seedVersion||0)<5){
   data.settings.seedVersion=5;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
+ensureV7Data();
 let deferredPrompt = null;
 
 const $ = id => document.getElementById(id);
@@ -170,7 +172,17 @@ const uid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
 function loadData(){
   try{
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    let saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if(!saved){
+      for(const key of LEGACY_STORAGE_KEYS){
+        const candidate = JSON.parse(localStorage.getItem(key));
+        if(candidate){
+          saved = candidate;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(candidate));
+          break;
+        }
+      }
+    }
     return saved ? {...structuredClone(defaultData),...saved} : structuredClone(defaultData);
   }catch{return structuredClone(defaultData)}
 }
@@ -537,12 +549,48 @@ function daysInMonthKey(ym){
   const [y,m]=ym.split("-").map(Number);
   return new Date(y,m,0).getDate();
 }
+
+function ensureV7Data(){
+  data.v7 = data.v7 || {};
+  if(!Array.isArray(data.v7.incomeHistory)){
+    data.v7.incomeHistory = structuredClone(defaultIncomeHistoryV7);
+  }else{
+    const existing = new Set(data.v7.incomeHistory.map(x=>x.month));
+    defaultIncomeHistoryV7.forEach(x=>{ if(!existing.has(x.month)) data.v7.incomeHistory.push(structuredClone(x)); });
+    data.v7.incomeHistory.sort((a,b)=>a.month.localeCompare(b.month));
+  }
+  if(!Array.isArray(data.v7.amexHistory)) data.v7.amexHistory = structuredClone(defaultAmexHistoryV7);
+  if(!Array.isArray(data.v7.fuelEntries)){
+    data.v7.fuelEntries = [{id:"fuel-initial",date:"2026-07-01",amount:278.75,note:"Bisheriger Stand"}];
+  }
+}
+function incomeRows(){ ensureV7Data(); return data.v7.incomeHistory; }
+function amexRows(){ ensureV7Data(); return data.v7.amexHistory; }
+function fuelRows(){ ensureV7Data(); return data.v7.fuelEntries; }
+function saveIncomeRow(month){
+  const row=incomeRows().find(x=>x.month===month);
+  if(!row)return;
+  ["salary","bonus","tips","parents","costs"].forEach(key=>{
+    const el=document.querySelector(`[data-income-month="${month}"][data-income-field="${key}"]`);
+    if(el)row[key]=Number(el.value)||0;
+  });
+  row.total=row.salary+row.bonus+row.tips+row.parents+row.costs;
+  saveData();
+}
+function tradeRepublicCashBalance(){
+  const asset=(data.assets||[]).find(a=>{
+    const n=String(a.name||"").toLowerCase();
+    return n.includes("trade republic") && (n.includes("tagesgeld")||a.type==="cash");
+  });
+  return Number(asset?.balance||0);
+}
+
 function renderV6(){
   const wealth=totalWealth();
-  const validExpenses=expenseHistoryV6.filter(x=>x.month>="2025-06");
+  const validExpenses=amexRows().filter(x=>x.month>="2025-06");
   const avgExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses),0)/validExpenses.length;
   const avgSaving=validExpenses.reduce((s,x)=>s+Number(x.saving||0),0)/validExpenses.length;
-  const avgIncome=incomeHistoryV6.reduce((s,x)=>s+x.total,0)/incomeHistoryV6.length;
+  const avgIncome=incomeRows().reduce((s,x)=>s+x.total,0)/incomeRows().length;
   const savingRate=avgIncome ? avgSaving/avgIncome*100 : 0;
   const monthlyFixed=fixedCostsV6.reduce((s,x)=>{
     if(x.frequency==="monthly")return s+x.amount;
@@ -563,14 +611,19 @@ function renderV6(){
   set("v6FixedMonthly",fmt(monthlyFixed));
   set("v6Coverage",coverage.toFixed(1).replace(".",",")+" %");
 
-  const salary2025=incomeHistoryV6.filter(x=>x.month.startsWith("2025")).reduce((s,x)=>s+x.salary,0);
-  const salary2026=incomeHistoryV6.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.salary,0);
+  const salary2025=incomeRows().filter(x=>x.month.startsWith("2025")).reduce((s,x)=>s+x.salary,0);
+  const salary2026=incomeRows().filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.salary,0);
   set("salary2025",fmt(salary2025));
   set("salary2026",fmt(salary2026));
   set("taxAllowanceLeft",fmt(Math.max(0,12096-salary2026)));
 
   const ih=$("incomeHistoryBody");
-  if(ih)ih.innerHTML=incomeHistoryV6.map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.salary)}</td><td>${fmt(x.bonus)}</td><td>${fmt(x.tips)}</td><td>${fmt(x.parents)}</td><td>${fmt(x.costs)}</td><td><strong>${fmt(x.total)}</strong></td></tr>`).join("");
+  if(ih)ih.innerHTML=incomeRows().map(x=>`<tr>
+    <td>${monthLabel(x.month)}</td>
+    ${["salary","bonus","tips","parents","costs"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`).join("")}
+    <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
+    <td><button class="save-income" data-month="${x.month}" type="button">Speichern</button></td>
+  </tr>`).join("");
 
   set("avgExpenses",fmt(avgExp));
   const avgDailyExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses)/daysInMonthKey(x.month),0)/validExpenses.length;
@@ -580,7 +633,7 @@ function renderV6(){
   set("avgMonthlySaving",fmt(avgSaving));
 
   const eh=$("expenseHistoryBody");
-  if(eh)eh.innerHTML=expenseHistoryV6.map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.expenses)}</td><td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td><td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td><td>${x.saving==null?"–":fmt(x.saving)}</td></tr>`).join("");
+  if(eh)eh.innerHTML=amexRows().map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.expenses)}</td><td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td><td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td><td>${x.saving==null?"–":fmt(x.saving)}</td></tr>`).join("");
 
   set("fixedMonthlyTotal",fmt(monthlyFixed));
   set("fixedYearlyTotal",fmt(monthlyFixed*12));
@@ -593,7 +646,29 @@ function renderV6(){
   set("passiveMonth",fmt(passiveMonthly));
   set("passiveYear",fmt(passiveMonthly*12));
   const pt=$("passiveTargetsBody");
-  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${wealth>=capital?'<span class="badge success">erreicht</span>':fmt(capital-wealth)+" fehlen"}</td></tr>`).join("");
+  const trCash=tradeRepublicCashBalance();
+  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${trCash>=capital?'<span class="badge success">erreicht</span>':fmt(capital-trCash)+" auf TR-Tagesgeld fehlen"}</td></tr>`).join("");
+
+
+  const fuels=fuelRows().slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const fuelTotal=fuels.reduce((s,x)=>s+Number(x.amount||0),0);
+  const months=[...new Set(fuels.map(x=>String(x.date).slice(0,7)))];
+  const gaps=[];
+  for(let i=1;i<fuels.length;i++){
+    const gap=(new Date(fuels[i].date)-new Date(fuels[i-1].date))/86400000;
+    if(Number.isFinite(gap)&&gap>=0)gaps.push(gap);
+  }
+  set("fuelCurrentTotal",fmt(fuelTotal));
+  set("fuelAvgEntry",fuels.length>=2?fmt(fuelTotal/fuels.length):"Noch zu wenig Daten");
+  set("fuelAvgMonth",months.length>=2?fmt(fuelTotal/months.length):"Noch zu wenig Daten");
+  set("fuelAvgGap",gaps.length?(gaps.reduce((s,x)=>s+x,0)/gaps.length).toFixed(1).replace(".",",")+" Tage":"Noch zu wenig Daten");
+  const fb=$("fuelEntriesBody");
+  if(fb)fb.innerHTML=fuels.map(x=>`<tr>
+    <td><input class="inline-input fuel-date" data-id="${x.id}" type="date" value="${x.date||""}"></td>
+    <td><input class="inline-input fuel-amount" data-id="${x.id}" type="number" step="0.01" value="${Number(x.amount||0).toFixed(2)}"></td>
+    <td><input class="inline-input fuel-note" data-id="${x.id}" value="${esc(x.note||"")}"></td>
+    <td><button class="save-fuel" data-id="${x.id}" type="button">Speichern</button> <button class="delete-fuel" data-id="${x.id}" type="button">Löschen</button></td>
+  </tr>`).join("");
 
   const milestones=[5000,10000,25000,50000,100000];
   const c=capitalStats();
@@ -613,7 +688,7 @@ function renderV6(){
 
   const yf=$("yearForecast");
   if(yf){
-    const projectedIncome=incomeHistoryV6.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.total,0);
+    const projectedIncome=incomeRows().filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.total,0);
     const projectedExpenses=avgExp*12;
     const projectedPassive=passiveMonthly*12;
     const projectedEnd=wealth+Math.max(0,avgSaving)*(12-new Date().getMonth()-1);
@@ -626,12 +701,31 @@ function renderV6(){
 }
 
 
+
 document.addEventListener("click",e=>{
-  const btn=e.target.closest("[data-page]");
-  if(!btn)return;
-  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-  const target=document.getElementById(btn.dataset.page);
-  if(target)target.classList.add("active");
-  document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b===btn));
-  if(btn.dataset.page==="overview")renderV6();
+  const incomeBtn=e.target.closest(".save-income");
+  if(incomeBtn){ saveIncomeRow(incomeBtn.dataset.month); return; }
+
+  if(e.target.closest("#addFuelEntry")){
+    fuelRows().push({id:uid(),date:todayISO(),amount:0,note:""});
+    saveData(); return;
+  }
+
+  const sf=e.target.closest(".save-fuel");
+  if(sf){
+    const row=fuelRows().find(x=>x.id===sf.dataset.id);
+    if(row){
+      row.date=document.querySelector(`.fuel-date[data-id="${row.id}"]`)?.value||row.date;
+      row.amount=Number(document.querySelector(`.fuel-amount[data-id="${row.id}"]`)?.value)||0;
+      row.note=document.querySelector(`.fuel-note[data-id="${row.id}"]`)?.value||"";
+      saveData();
+    }
+    return;
+  }
+
+  const df=e.target.closest(".delete-fuel");
+  if(df){
+    data.v7.fuelEntries=fuelRows().filter(x=>x.id!==df.dataset.id);
+    saveData(); return;
+  }
 });
