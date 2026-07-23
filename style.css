@@ -67,4 +67,4 @@ th:first-child,td:first-child{text-align:left}
 .tabs{overflow-x:auto}
 .tabs .tab{white-space:nowrap}
 
-.dashboard-live-grid{margin-top:.5rem}
+.edit-income,.edit-amex,.save-income,.save-amex,.cancel-income,.cancel-amex{white-space:nowrap}
