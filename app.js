@@ -101,8 +101,8 @@ const passiveCapitalTargetsV6 = [
 ];
 
 
-const STORAGE_KEY = "finanzenPwaV7";
-const APP_VERSION = 7;
+const STORAGE_KEY = "finanzenPwaV8";
+const APP_VERSION = 8;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -173,6 +173,12 @@ const defaultData = {
   settings: { currency: "EUR", seedVersion:7, trackingStart:"2025-06-01", capitalStart:2386.50, lifetimeStart:"2023-05-01", lifetimeCapitalStart:0 }
 };
 let data = loadData();
+if(!localStorage.getItem(STORAGE_KEY)){
+  try{
+    const previous=JSON.parse(localStorage.getItem("finanzenPwaV7"));
+    if(previous){ data={...structuredClone(defaultData),...previous}; localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); }
+  }catch{}
+}
 if(!data.balances)data.balances=[];
 if(!data.financeHistory || !data.financeHistory.length)data.financeHistory=structuredClone(seededHistory);
 if(!data.metrics)data.metrics=structuredClone(defaultData.metrics);
@@ -305,7 +311,7 @@ function monthLabel(ym){
   return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"}).format(new Date(y,m-1,1));
 }
 function renderAll(){
-  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
+  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderAmexMonths();renderV6();renderFinanceHistory();
 }
 document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===btn));
@@ -321,8 +327,8 @@ function renderDashboard(){
   $("monthExpenses").textContent=fmt(expenses);
   $("monthIncome").textContent=fmt(income);
   $("monthBalance").textContent=`Monatssaldo: ${fmt(income-expenses)}`;
-  $("passiveMonth").textContent=`${fmt(passive/12)}/Monat`;
-  $("passiveYear").textContent=`${fmt(passive)}/Jahr`;
+  if($("passiveMonth"))$("passiveMonth").textContent=`${fmt(passive/12)}/Monat`;
+  if($("passiveYear"))$("passiveYear").textContent=`${fmt(passive)}/Jahr`;
   const fixed=monthlyAverageFixed();
   const pct=fixed?Math.min(100,(passive/12)/fixed*100):0;
   $("passiveProgress").style.width=`${pct}%`;
@@ -403,7 +409,7 @@ $("fixedForm").addEventListener("submit",e=>{
   e.preventDefault();
   data.fixedCosts.push({id:uid(),name:$("fixedName").value,amount:Number($("fixedAmount").value),day:Number($("fixedDay").value),frequency:$("fixedFrequency").value,startMonth:$("fixedStartMonth").value,account:$("fixedAccount").value,active:true});
   e.target.reset();$("fixedDay").value=1;$("fixedStartMonth").value=monthISO();
-$("goalCurrent").value=totalWealth().toFixed(2);saveData();toast("Fixkosten gespeichert");
+if($("goalCurrent"))$("goalCurrent").value=totalWealth().toFixed(2);saveData();toast("Fixkosten gespeichert");
 });
 function renderFixed(){
   $("fixedMonthlyAverage").textContent=`Ø ${fmt(monthlyAverageFixed())}/Monat`;
@@ -475,7 +481,7 @@ $("goalForm").addEventListener("submit",e=>{
 });
 function renderGoals(){
   const c=capitalStats();
-  $("goalCurrent").value=totalWealth().toFixed(2);
+  if($("goalCurrent"))$("goalCurrent").value=totalWealth().toFixed(2);
   $("goalList").innerHTML=data.goals.length?data.goals.map(g=>{
     const target=Number(g.target);
     const current=g.linkedToWealth!==false?totalWealth():Number(g.current);
@@ -590,7 +596,7 @@ $("incomeDate").value=todayISO();
 $("balanceMonthFilter").value=monthISO();
 $("incomeMonthFilter").value=monthISO();
 $("fixedStartMonth").value=monthISO();
-$("goalCurrent").value=totalWealth().toFixed(2);
+if($("goalCurrent"))$("goalCurrent").value=totalWealth().toFixed(2);
 renderAll();
 
 
@@ -598,104 +604,6 @@ function daysInMonthKey(ym){
   const [y,m]=ym.split("-").map(Number);
   return new Date(y,m,0).getDate();
 }
-function renderV6(){
-  const wealth=totalWealth();
-  const validExpenses=expenseHistoryV6.filter(x=>x.month>="2025-06");
-  const avgExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses),0)/validExpenses.length;
-  const avgSaving=validExpenses.reduce((s,x)=>s+Number(x.saving||0),0)/validExpenses.length;
-  const avgIncome=incomeHistoryV6.reduce((s,x)=>s+x.total,0)/incomeHistoryV6.length;
-  const savingRate=avgIncome ? avgSaving/avgIncome*100 : 0;
-  const monthlyFixed=fixedCostsV6.reduce((s,x)=>{
-    if(x.frequency==="monthly")return s+x.amount;
-    if(x.frequency==="bimonthly")return s+x.amount/2;
-    if(x.frequency==="twice")return s+x.amount*2/12;
-    return s+x.amount/12;
-  },0);
-  const interestDay=Number(data.metrics?.currentDailyInterest||0.17);
-  const dividendDay=Number(data.metrics?.currentDailyDividend||0.05);
-  const passiveMonthly=(interestDay+dividendDay)*30.4375;
-  const coverage=monthlyFixed?passiveMonthly/monthlyFixed*100:0;
-
-  const set=(id,val)=>{const el=$(id);if(el)el.textContent=val};
-  set("v6TotalWealth",fmt(wealth));
-  set("v6AvgSaving",fmt(avgSaving)+"/Monat");
-  set("v6SavingRate",savingRate.toFixed(1).replace(".",",")+" %");
-  set("v6PassiveMonthly",fmt(passiveMonthly));
-  set("v6FixedMonthly",fmt(monthlyFixed));
-  set("v6Coverage",coverage.toFixed(1).replace(".",",")+" %");
-
-  const salary2025=incomeHistoryV6.filter(x=>x.month.startsWith("2025")).reduce((s,x)=>s+x.salary,0);
-  const salary2026=incomeHistoryV6.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.salary,0);
-  set("salary2025",fmt(salary2025));
-  set("salary2026",fmt(salary2026));
-  set("taxAllowanceLeft",fmt(Math.max(0,12096-salary2026)));
-
-  const ih=$("incomeHistoryBody");
-  if(ih)ih.innerHTML=incomeHistoryV6.map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.salary)}</td><td>${fmt(x.bonus)}</td><td>${fmt(x.tips)}</td><td>${fmt(x.parents)}</td><td>${fmt(x.costs)}</td><td><strong>${fmt(x.total)}</strong></td></tr>`).join("");
-
-  set("avgExpenses",fmt(avgExp));
-  const avgDailyExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses)/daysInMonthKey(x.month),0)/validExpenses.length;
-  const avgDailyIncome=validExpenses.filter(x=>x.incomeDay).reduce((s,x)=>s+x.incomeDay,0)/validExpenses.filter(x=>x.incomeDay).length;
-  set("avgExpensesDaily",fmt(avgDailyExp));
-  set("avgIncomeDaily",fmt(avgDailyIncome));
-  set("avgMonthlySaving",fmt(avgSaving));
-
-  const eh=$("expenseHistoryBody");
-  if(eh)eh.innerHTML=expenseHistoryV6.map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.expenses)}</td><td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td><td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td><td>${x.saving==null?"–":fmt(x.saving)}</td></tr>`).join("");
-
-  set("fixedMonthlyTotal",fmt(monthlyFixed));
-  set("fixedYearlyTotal",fmt(monthlyFixed*12));
-  set("nextFixedCount",String(fixedCostsV6.length));
-  const fl=$("fixedCostListV6");
-  if(fl)fl.innerHTML=fixedCostsV6.map(x=>`<div class="list-item"><div><h3>${esc(x.name)}</h3><p>${esc(x.when)}</p></div><strong>${fmt(x.amount)}</strong></div>`).join("");
-
-  set("passiveInterestDay",fmt(interestDay));
-  set("passiveDividendDay",fmt(dividendDay));
-  set("passiveMonth",fmt(passiveMonthly));
-  set("passiveYear",fmt(passiveMonthly*12));
-  const pt=$("passiveTargetsBody");
-  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${wealth>=capital?'<span class="badge success">erreicht</span>':fmt(capital-wealth)+" fehlen"}</td></tr>`).join("");
-
-  const milestones=[5000,10000,25000,50000,100000];
-  const c=capitalStats();
-  const ml=$("milestoneList");
-  if(ml)ml.innerHTML=milestones.map(target=>{
-    const pct=Math.min(100,wealth/target*100);
-    const remaining=Math.max(0,target-wealth);
-    let eta="–";
-    if(remaining<=0)eta="Erreicht";
-    else if(c.monthly>0){
-      const d=new Date();
-      d.setDate(d.getDate()+remaining/c.monthly*30.4375);
-      eta=d.toLocaleDateString("de-DE");
-    }
-    return `<div class="list-item"><div style="width:100%"><div class="milestone-row"><strong>${fmt(target)}</strong><span>${pct.toFixed(1).replace(".",",")} % · ${eta}</span></div><div class="progress"><div style="width:${pct}%"></div></div></div></div>`;
-  }).join("");
-
-  const yf=$("yearForecast");
-  if(yf){
-    const projectedIncome=incomeHistoryV6.filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.total,0);
-    const projectedExpenses=avgExp*12;
-    const projectedPassive=passiveMonthly*12;
-    const projectedEnd=wealth+Math.max(0,avgSaving)*(12-new Date().getMonth()-1);
-    yf.innerHTML=`
-      <div class="stat"><span>Einkommen 2026</span><strong>${fmt(projectedIncome)}</strong></div>
-      <div class="stat"><span>Ausgaben hochgerechnet</span><strong>${fmt(projectedExpenses)}</strong></div>
-      <div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(projectedPassive)}</strong></div>
-      <div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(projectedEnd)}</strong></div>`;
-  }
-}
-
-
-document.addEventListener("click",e=>{
-  const btn=e.target.closest("[data-page]");
-  if(!btn)return;
-  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-  const target=document.getElementById(btn.dataset.page);
-  if(target)target.classList.add("active");
-  document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b===btn));
-  if(btn.dataset.page==="overview")renderV6();
-});
 
 
 function renderV6(){
@@ -751,8 +659,8 @@ function renderV6(){
 
   set("passiveInterestDay",fmt(interestDay));
   set("passiveDividendDay",fmt(dividendDay));
-  set("passiveMonth",fmt(passiveMonthly));
-  set("passiveYear",fmt(passiveMonthly*12));
+  set("passiveMonthV8",fmt(passiveMonthly));
+  set("passiveYearV8",fmt(passiveMonthly*12));
   const trCash=Number((data.assets||[]).find(a=>a.name==="Trade Republic Tagesgeld")?.balance||0);
   const pt=$("passiveTargetsBody");
   if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${trCash>=capital?'<span class="badge success">erreicht</span>':fmt(capital-trCash)+" fehlen"}</td></tr>`).join("");
