@@ -1,11 +1,102 @@
 
-const STORAGE_KEY = "finanzenPwaV1";
+const STORAGE_KEY = "finanzenPwaV4";
+const APP_VERSION = 4;
+const seededHistory = [
+  {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
+  {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
+  {month:"2025-08",sparkasse:1525.00,sparkasseInterest:1.02,tradeRepublic:812.62,trInterest:1.36,dividend:0.21},
+  {month:"2025-09",sparkasse:1530.00,sparkasseInterest:1.02,tradeRepublic:895.09,trInterest:1.42,dividend:0.10},
+  {month:"2025-10",sparkasse:1500.00,sparkasseInterest:1.00,tradeRepublic:1297.71,trInterest:1.81,dividend:1.10},
+  {month:"2025-11",sparkasse:1150.00,sparkasseInterest:0.77,tradeRepublic:1999.73,trInterest:3.03,dividend:0.21},
+  {month:"2025-12",sparkasse:1460.00,sparkasseInterest:0.97,tradeRepublic:2227.86,trInterest:2.71,dividend:1.10},
+  {month:"2026-01",sparkasse:885.00,sparkasseInterest:0.60,tradeRepublic:2231.61,trInterest:3.79,dividend:0.00},
+  {month:"2026-02",sparkasse:465.00,sparkasseInterest:0.35,tradeRepublic:2235.61,trInterest:3.43,dividend:0.21},
+  {month:"2026-03",sparkasse:665.00,sparkasseInterest:0.50,tradeRepublic:2169.92,trInterest:3.72,dividend:1.06},
+  {month:"2026-04",sparkasse:475.00,sparkasseInterest:0.32,tradeRepublic:2174.81,trInterest:3.58,dividend:1.17},
+  {month:"2026-05",sparkasse:635.00,sparkasseInterest:0.42,tradeRepublic:2655.50,trInterest:4.27,dividend:5.61},
+  {month:"2026-06",sparkasse:5.00,sparkasseInterest:0.11,tradeRepublic:2562.05,trInterest:4.46,dividend:2.28},
+  {month:"2026-07",sparkasse:600.00,sparkasseInterest:0.40,tradeRepublic:2567.70,trInterest:4.91,dividend:1.19},
+  {month:"2026-08",sparkasse:null,sparkasseInterest:0.00,tradeRepublic:null,trInterest:null,dividend:null},
+  {month:"2026-09",sparkasse:null,sparkasseInterest:0.00,tradeRepublic:null,trInterest:null,dividend:null}
+].map(x=>({...x,total:Number(x.sparkasseInterest||0)+Number(x.trInterest||0)+Number(x.dividend||0)}));
 const defaultData = {
-  balances: [], incomes: [], fixedCosts: [], assets: [], goals: [],
-  amexPaid: {}, settings: { currency: "EUR" }
+  balances: [], incomes: [], fixedCosts: [], goals: [], amexPaid: {},
+  assets: [
+    {
+      id:"seed-sparkasse-giro",
+      name:"Sparkasse Girokonto",
+      type:"bank",
+      balance:0.00,
+      rate:0,
+      history:[{date:"2026-07-23",balance:0.00}]
+    },
+    {
+      id:"seed-sparkasse-tg1",
+      name:"Sparkasse Tagesgeld 1",
+      type:"cash",
+      balance:590.00,
+      rate:0,
+      history:seededHistory.filter(x=>x.sparkasse!==null).map(x=>({
+        date:x.month+"-28",
+        balance:x.month==="2026-07"?590.00:x.sparkasse
+      }))
+    },
+    {
+      id:"seed-sparkasse-tg2",
+      name:"Sparkasse Tagesgeld 2",
+      type:"cash",
+      balance:10.00,
+      rate:0,
+      history:[{date:"2026-07-23",balance:10.00}]
+    },
+    {
+      id:"seed-tr-cash",
+      name:"Trade Republic Tagesgeld",
+      type:"cash",
+      balance:2567.70,
+      rate:2.42,
+      history:seededHistory.filter(x=>x.tradeRepublic!==null).map(x=>({date:x.month+"-28",balance:x.tradeRepublic}))
+    },
+    {
+      id:"seed-stocks",
+      name:"Trade Republic Aktien",
+      type:"stocks",
+      balance:768.63,
+      rate:2.58,
+      history:[{date:"2026-07-23",balance:768.63}]
+    }
+  ],
+  financeHistory: seededHistory,
+  metrics: {currentMonthlyDividend:1.65,currentDailyInterest:0.17,currentDailyDividend:0.05,capitalStart:2386.50,capitalCurrent:3936.33,capitalDiff:1549.83,monthlyCapitalIncrease:110.70,capitalGrowthPct:64.94,currentDailyCapitalIncrease:0.23,interestProfit:39.84,stockProfit:45.90,dividendProfit:14.63,totalProfit:54.47},
+  settings: { currency: "EUR", seedVersion:5, trackingStart:"2025-06-01", capitalStart:2386.50, lifetimeStart:"2023-05-01", lifetimeCapitalStart:0 }
 };
 let data = loadData();
 if(!data.balances)data.balances=[];
+if(!data.financeHistory || !data.financeHistory.length)data.financeHistory=structuredClone(seededHistory);
+if(!data.metrics)data.metrics=structuredClone(defaultData.metrics);
+if(!data.settings)data.settings={currency:"EUR"};
+if(!data.settings.trackingStart)data.settings.trackingStart="2025-06-01";
+if(!data.settings.lifetimeStart)data.settings.lifetimeStart="2023-05-01";
+if(data.settings.lifetimeCapitalStart===undefined)data.settings.lifetimeCapitalStart=0;
+if(data.settings.capitalStart===undefined)data.settings.capitalStart=2386.50;
+if(Number(data.settings.seedVersion||0)<5){
+  const oldSparkasse=(data.assets||[]).find(a=>a.name==="Sparkasse");
+  data.assets=(data.assets||[]).filter(a=>a.name!=="Sparkasse");
+  const required=structuredClone(defaultData.assets);
+  const existingNames=new Set(data.assets.map(a=>a.name));
+  required.forEach(a=>{if(!existingNames.has(a.name))data.assets.push(a);});
+  if(oldSparkasse){
+    const tg1=data.assets.find(a=>a.name==="Sparkasse Tagesgeld 1");
+    if(tg1 && oldSparkasse.history?.length){
+      tg1.history=oldSparkasse.history.map(h=>({...h}));
+      tg1.balance=590;
+      tg1.history.push({date:"2026-07-23",balance:590});
+    }
+  }
+  (data.goals||[]).forEach(g=>g.linkedToWealth=true);
+  data.settings.seedVersion=5;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+}
 let deferredPrompt = null;
 
 const $ = id => document.getElementById(id);
@@ -62,12 +153,38 @@ function currentMonthIncomeTotal(){
   return data.incomes.filter(x=>x.date.startsWith(ym)).reduce((s,x)=>s+Number(x.amount),0);
 }
 function totalWealth(){return data.assets.reduce((s,a)=>s+Number(a.balance||0),0)}
+function monthsBetween(startDate,endDate){
+  return Math.max(0.03,(endDate-startDate)/(1000*60*60*24*30.4375));
+}
+function capitalStats(){
+  const start=new Date((data.settings?.trackingStart||"2025-06-01")+"T12:00:00");
+  const end=new Date();
+  const capitalStart=Number(data.settings?.capitalStart??2386.50);
+  const current=totalWealth();
+  const diff=current-capitalStart;
+  const months=monthsBetween(start,end);
+  const monthly=diff/months;
+  const pct=capitalStart ? diff/capitalStart*100 : 0;
+  const daily=diff/Math.max(1,(end-start)/(1000*60*60*24));
+  return {start,current,diff,months,monthly,pct,daily};
+}
+function lifetimeCapitalStats(){
+  const start=new Date((data.settings?.lifetimeStart||"2023-05-01")+"T12:00:00");
+  const end=new Date();
+  const capitalStart=Number(data.settings?.lifetimeCapitalStart??0);
+  const current=totalWealth();
+  const diff=current-capitalStart;
+  const months=monthsBetween(start,end);
+  const monthly=diff/months;
+  const daily=diff/Math.max(1,(end-start)/(1000*60*60*24));
+  return {start,current,diff,months,monthly,daily};
+}
 function monthLabel(ym){
   const [y,m]=ym.split("-").map(Number);
   return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"}).format(new Date(y,m-1,1));
 }
 function renderAll(){
-  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();
+  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderFinanceHistory();
 }
 document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===btn));
@@ -99,6 +216,18 @@ function renderDashboard(){
   const next=[...data.fixedCosts].filter(x=>x.active).map(x=>({...x,next:nextDueDate(x)})).sort((a,b)=>a.next-b.next).slice(0,6);
   $("nextFixedCosts").innerHTML=next.length?next.map(x=>`
     <div class="list-item"><div><h3>${esc(x.name)}</h3><p>${x.next.toLocaleDateString("de-DE")} · ${esc(x.account)}</p></div><strong>${fmt(x.amount)}</strong></div>`).join(""):'<div class="empty">Keine Fixkosten angelegt.</div>';
+  const m=data.metrics||{};
+  const c=capitalStats();
+  $("interestProfit").textContent=fmt(m.interestProfit);
+  $("dailyInterest").textContent=`aktuell ${fmt(m.currentDailyInterest)}/Tag`;
+  $("dividendProfit").textContent=fmt(m.dividendProfit);
+  $("monthlyDividend").textContent=`aktuell ${fmt(m.currentMonthlyDividend)}/Monat · ${fmt(m.currentDailyDividend)}/Tag`;
+  $("stockProfit").textContent=fmt(m.stockProfit);
+  $("capitalGrowth").textContent=`${c.pct.toFixed(2).replace(".",",")} %`;
+  $("capitalDelta").textContent=`${c.diff>=0?"+":""}${fmt(c.diff)} seit Juni 2025 · Ø ${fmt(c.monthly)}/Monat · ${fmt(c.daily)}/Tag`;
+  const lifetime=lifetimeCapitalStats();
+  const lifetimeEl=$("lifetimeCapitalDelta");
+  if(lifetimeEl) lifetimeEl.textContent=`Langfristig seit Mai 2023: ${fmt(lifetime.current)} aufgebaut · rechnerisch Ø ${fmt(lifetime.monthly)}/Monat. Für Prognosen wird weiterhin nur die dokumentierte Historie ab Juni 2025 verwendet.`;
 }
 function nextDueDate(item){
   let d=new Date(); d.setHours(12,0,0,0);
@@ -136,10 +265,24 @@ function renderBalances(){
   $("balanceList").innerHTML=rows.length?rows.map(x=>{const d=balanceDelta(x);const t=d===null?"Erster Stand":d>0?`Ausgaben seit letztem Stand: ${fmt(d)}`:d<0?`Zugang / Ausgleich: ${fmt(Math.abs(d))}`:"Keine Veränderung";return `<div class="list-item"><div><h3>${esc(x.account)}</h3><p>${new Date(x.date+"T12:00:00").toLocaleDateString("de-DE")}${x.note?" · "+esc(x.note):""}</p><p>${t}</p></div><div class="item-actions"><strong>${fmt(x.amount)}</strong><button class="danger" onclick="removeItem('balances','${x.id}')">Löschen</button></div></div>`;}).join(""):'<div class="empty">Keine Kontostände für diesen Filter.</div>';
 }
 
+function renderFinanceHistory(){
+  const rows=data.financeHistory||[];
+  $("financeHistoryBody").innerHTML=rows.map(x=>{
+    const future=x.sparkasse===null&&x.tradeRepublic===null;
+    return `<tr class="${future?"future-row":""}"><td>${monthLabel(x.month)}</td><td>${x.sparkasse===null?"–":fmt(x.sparkasse)}</td><td>${fmt(x.sparkasseInterest)}</td><td>${x.tradeRepublic===null?"–":fmt(x.tradeRepublic)}</td><td>${x.trInterest===null?"–":fmt(x.trInterest)}</td><td>${x.dividend===null?"–":fmt(x.dividend)}</td><td class="positive">${fmt(x.total)}</td></tr>`;
+  }).join("");
+  $("historyTotalProfit").textContent=`Gewinn gesamt: ${fmt(data.metrics?.totalProfit||0)}`;
+  const currentCapital=Number(data.assets.find(a=>a.name==="Trade Republic Tagesgeld")?.balance||0);
+  const targets=[];
+  for(let cents=16;cents<=30;cents++)targets.push({daily:cents/100,capital:cents*162.222222});
+  $("interestTargetsBody").innerHTML=targets.map(x=>`<tr><td>${Math.round(x.daily*100)} Cent</td><td>${fmt(x.capital)}</td><td>${currentCapital>=x.capital?'<span class="badge success">erreicht</span>':fmt(x.capital-currentCapital)+" fehlen"}</td></tr>`).join("");
+}
+
 $("fixedForm").addEventListener("submit",e=>{
   e.preventDefault();
   data.fixedCosts.push({id:uid(),name:$("fixedName").value,amount:Number($("fixedAmount").value),day:Number($("fixedDay").value),frequency:$("fixedFrequency").value,startMonth:$("fixedStartMonth").value,account:$("fixedAccount").value,active:true});
-  e.target.reset();$("fixedDay").value=1;$("fixedStartMonth").value=monthISO();saveData();toast("Fixkosten gespeichert");
+  e.target.reset();$("fixedDay").value=1;$("fixedStartMonth").value=monthISO();
+$("goalCurrent").value=totalWealth().toFixed(2);saveData();toast("Fixkosten gespeichert");
 });
 function renderFixed(){
   $("fixedMonthlyAverage").textContent=`Ø ${fmt(monthlyAverageFixed())}/Monat`;
@@ -205,35 +348,38 @@ window.openAssetUpdate=id=>{
 
 $("goalForm").addEventListener("submit",e=>{
   e.preventDefault();
-  const cur=Number($("goalCurrent").value);
-  data.goals.push({id:uid(),name:$("goalName").value,target:Number($("goalTarget").value),current:cur,targetDate:$("goalDate").value,history:[{date:todayISO(),value:cur}]});
+  const cur=totalWealth();
+  data.goals.push({id:uid(),name:$("goalName").value,target:Number($("goalTarget").value),current:cur,targetDate:$("goalDate").value,linkedToWealth:true,history:[{date:todayISO(),value:cur}]});
   e.target.reset();saveData();toast("Sparziel gespeichert");
 });
 function renderGoals(){
+  const c=capitalStats();
+  $("goalCurrent").value=totalWealth().toFixed(2);
   $("goalList").innerHTML=data.goals.length?data.goals.map(g=>{
-    const target=Number(g.target), current=Number(g.current), remaining=target-current;
+    const target=Number(g.target);
+    const current=g.linkedToWealth!==false?totalWealth():Number(g.current);
+    g.current=current;
+    const remaining=target-current;
     const pct=target===0?(current===0?100:0):Math.max(0,Math.min(100,current/target*100));
     const monthsLeft=Math.max(.03,(new Date(g.targetDate+"T12:00:00")-new Date())/(1000*60*60*24*30.4375));
     const required=remaining/monthsLeft;
-    const hist=[...(g.history||[])].sort((a,b)=>a.date.localeCompare(b.date));
-    let avg=null, estimated=null;
-    if(hist.length>=2){
-      const first=hist[0],last=hist[hist.length-1];
-      const months=Math.max(.03,(new Date(last.date+"T12:00:00")-new Date(first.date+"T12:00:00"))/(1000*60*60*24*30.4375));
-      avg=(Number(last.value)-Number(first.value))/months;
-      if(avg>0&&remaining>0){estimated=new Date();estimated.setDate(estimated.getDate()+remaining/avg*30.4375)}
+    const avg=c.monthly;
+    let estimated=null;
+    if(avg>0&&remaining>0){
+      estimated=new Date();
+      estimated.setDate(estimated.getDate()+remaining/avg*30.4375);
     }
     return `<article class="panel goal-card">
-      <div class="goal-top"><div><h2>${esc(g.name)}</h2><p class="muted">${fmt(current)} von ${fmt(target)}</p></div><strong>${pct.toFixed(1).replace(".",",")} %</strong></div>
+      <div class="goal-top"><div><h2>${esc(g.name)}</h2><p class="muted">${fmt(current)} von ${fmt(target)} · automatisch aus Gesamtvermögen</p></div><strong>${pct.toFixed(1).replace(".",",")} %</strong></div>
       <div class="progress"><div style="width:${pct}%"></div></div>
       <div class="goal-stats">
         <div class="stat"><span>Wunschdatum</span><strong>${new Date(g.targetDate+"T12:00:00").toLocaleDateString("de-DE")}</strong></div>
-        <div class="stat"><span>Nötig pro Monat</span><strong>${fmt(required)}</strong></div>
-        <div class="stat"><span>Aus Historie</span><strong>${avg===null?"Noch nicht berechenbar":fmt(avg)+"/Monat"}</strong></div>
-        <div class="stat"><span>Geschätztes Ziel</span><strong>${estimated?estimated.toLocaleDateString("de-DE"):remaining<=0?"Erreicht":"Noch nicht berechenbar"}</strong></div>
+        <div class="stat"><span>Nötig pro Monat</span><strong>${remaining<=0?"Erreicht":fmt(required)}</strong></div>
+        <div class="stat"><span>Ø dokumentiert seit Juni 2025</span><strong>${fmt(avg)}/Monat</strong></div>
+        <div class="stat"><span>Geschätztes Ziel</span><strong>${estimated?estimated.toLocaleDateString("de-DE"):remaining<=0?"Erreicht":"Bei aktuellem Verlauf nicht berechenbar"}</strong></div>
       </div>
       <div class="button-row" style="margin-top:.9rem">
-        <button onclick="openGoalUpdate('${g.id}')">Fortschritt eintragen</button>
+        <button class="secondary" onclick="openGoalUpdate('${g.id}')">Wunschdatum ändern</button>
         <button class="danger" onclick="removeItem('goals','${g.id}')">Löschen</button>
       </div>
     </article>`;
@@ -244,12 +390,12 @@ window.openGoalUpdate=id=>{
   openModal(`<h2>${esc(g.name)} aktualisieren</h2>
     <form id="goalUpdateForm" class="form-grid">
       <label>Datum<input id="goalUpdateDate" type="date" value="${todayISO()}" required></label>
-      <label>Aktueller Stand<input id="goalUpdateValue" type="number" step="0.01" value="${g.current}" required></label>
+      <label>Aktueller Stand<input type="text" value="${fmt(totalWealth())}" readonly></label>
       <label>Wunschdatum<input id="goalUpdateTargetDate" type="date" value="${g.targetDate}" required></label>
       <button type="submit">Speichern</button>
     </form>`);
   $("goalUpdateForm").addEventListener("submit",e=>{
-    e.preventDefault();g.current=Number($("goalUpdateValue").value);g.targetDate=$("goalUpdateTargetDate").value;
+    e.preventDefault();g.current=totalWealth();g.linkedToWealth=true;g.targetDate=$("goalUpdateTargetDate").value;
     g.history=g.history||[];g.history.push({date:$("goalUpdateDate").value,value:g.current});
     closeModal();saveData();toast("Sparziel aktualisiert");
   });
@@ -286,7 +432,7 @@ $("closeModal").addEventListener("click",closeModal);
 $("modal").addEventListener("click",e=>{if(e.target===$("modal"))closeModal()});
 
 $("exportBackup").addEventListener("click",()=>{
-  download(`finanzen-backup-${todayISO()}.json`,JSON.stringify({version:1,exportedAt:new Date().toISOString(),data},null,2),"application/json");
+  download(`finanzen-backup-${todayISO()}.json`,JSON.stringify({version:APP_VERSION,exportedAt:new Date().toISOString(),data},null,2),"application/json");
 });
 $("importBackup").addEventListener("change",async e=>{
   const file=e.target.files[0];if(!file)return;
@@ -323,4 +469,5 @@ $("incomeDate").value=todayISO();
 $("balanceMonthFilter").value=monthISO();
 $("incomeMonthFilter").value=monthISO();
 $("fixedStartMonth").value=monthISO();
+$("goalCurrent").value=totalWealth().toFixed(2);
 renderAll();

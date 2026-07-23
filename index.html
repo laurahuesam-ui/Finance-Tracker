@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <h1>Finanzen</h1>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 5</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -90,6 +90,23 @@
         <div id="nextFixedCosts" class="list"></div>
       </article>
     </div>
+
+    <div class="grid cards finance-kpis">
+      <article class="card"><span>Gewinn Zinsen</span><strong id="interestProfit">39,84 €</strong><small id="dailyInterest">aktuell 0,17 €/Tag</small></article>
+      <article class="card"><span>Gewinn Dividenden</span><strong id="dividendProfit">14,63 €</strong><small id="monthlyDividend">aktuell 1,65 €/Monat</small></article>
+      <article class="card"><span>Gewinn Aktien</span><strong id="stockProfit">45,90 €</strong><small>aktueller Aktienwert: 768,63 €</small></article>
+      <article class="card"><span>Kapitalsteigerung</span><strong id="capitalGrowth">64,94 %</strong><small id="capitalDelta">+1.549,83 € seit Beginn</small></article>
+    </div>
+
+    <article class="panel">
+      <div class="panel-head"><h2>Vermögens- und Ertragshistorie</h2><strong id="historyTotalProfit"></strong></div>
+      <div class="table-wrap"><table class="history-table"><thead><tr><th>Monat</th><th>Sparkasse</th><th>Zinsen Sparkasse</th><th>Trade Republic</th><th>Zinsen TR</th><th>Dividende TR</th><th>Insgesamt</th></tr></thead><tbody id="financeHistoryBody"></tbody></table></div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-head"><h2>Zinsziele pro Tag</h2><span class="muted">je 0,01 € täglich rund 162,22 € mehr Kapital</span></div>
+      <div class="table-wrap"><table class="history-table"><thead><tr><th>Tageszinsen</th><th>Benötigtes Kapital</th><th>Status</th></tr></thead><tbody id="interestTargetsBody"></tbody></table></div>
+    </article>
   </section>
 
   <section id="expenses" class="page">
@@ -178,7 +195,7 @@
       <form id="goalForm" class="form-grid">
         <label>Name<input id="goalName" required placeholder="z. B. Notgroschen"></label>
         <label>Zielbetrag<input id="goalTarget" type="number" step="0.01" required></label>
-        <label>Aktueller Stand<input id="goalCurrent" type="number" step="0.01" required></label>
+        <label>Aktueller Stand<input id="goalCurrent" type="number" step="0.01" readonly title="Wird automatisch aus dem Gesamtvermögen übernommen"></label>
         <label>Wunschdatum<input id="goalDate" type="date" required></label>
         <button type="submit">Sparziel speichern</button>
       </form>
