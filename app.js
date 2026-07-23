@@ -59,8 +59,8 @@ const passiveCapitalTargetsV6 = [
 ];
 
 
-const STORAGE_KEY = "finanzenPwaV8";
-const LEGACY_STORAGE_KEYS = ["finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3"];
+const STORAGE_KEY = "finanzenPwa";
+const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
 const APP_VERSION = 4;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
@@ -170,21 +170,62 @@ const monthISO = d => {
 };
 const uid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now()+"-"+Math.random();
 const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
-function loadData(){
-  try{
-    let saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if(!saved){
-      for(const key of LEGACY_STORAGE_KEYS){
-        const candidate = JSON.parse(localStorage.getItem(key));
-        if(candidate){
-          saved = candidate;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(candidate));
-          break;
-        }
+function deepMerge(base, incoming){
+  if(Array.isArray(base)) return Array.isArray(incoming) ? incoming : base;
+  if(base && typeof base==="object"){
+    const out={...base};
+    if(incoming && typeof incoming==="object"){
+      for(const [k,v] of Object.entries(incoming)){
+        out[k]=k in out ? deepMerge(out[k],v) : v;
       }
     }
-    return saved ? {...structuredClone(defaultData),...saved} : structuredClone(defaultData);
-  }catch{return structuredClone(defaultData)}
+    return out;
+  }
+  return incoming!==undefined ? incoming : base;
+}
+
+function candidateScore(obj){
+  if(!obj || typeof obj!=="object") return 0;
+  let score=0;
+  for(const key of ["accounts","assets","goals","fixedCosts","income","expenses","transactions","v7"]){
+    const v=obj[key];
+    if(Array.isArray(v)) score+=v.length*10;
+    else if(v && typeof v==="object") score+=Object.keys(v).length*5;
+  }
+  return score;
+}
+
+function loadData(){
+  try{
+    const direct=JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if(direct) return deepMerge(structuredClone(defaultData),direct);
+
+    const candidates=[];
+    for(const key of LEGACY_STORAGE_KEYS){
+      try{
+        const parsed=JSON.parse(localStorage.getItem(key));
+        if(parsed) candidates.push({key,data:parsed,score:candidateScore(parsed)});
+      }catch{}
+    }
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(!key || key===STORAGE_KEY || LEGACY_STORAGE_KEYS.includes(key)) continue;
+      try{
+        const parsed=JSON.parse(localStorage.getItem(key));
+        if(parsed && typeof parsed==="object"){
+          const score=candidateScore(parsed);
+          if(score>0) candidates.push({key,data:parsed,score});
+        }
+      }catch{}
+    }
+    candidates.sort((a,b)=>b.score-a.score);
+    const chosen=candidates[0]?.data;
+    const merged=chosen ? deepMerge(structuredClone(defaultData),chosen) : structuredClone(defaultData);
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(merged));
+    return merged;
+  }catch{
+    return structuredClone(defaultData);
+  }
 }
 function saveData(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); renderAll(); }
 function toast(msg){ $("toast").textContent=msg;$("toast").classList.remove("hidden");setTimeout(()=>$("toast").classList.add("hidden"),2200); }
@@ -575,6 +616,7 @@ function saveIncomeRow(month){
     if(el)row[key]=Number(el.value)||0;
   });
   row.total=row.salary+row.bonus+row.tips+row.parents+row.costs;
+  editingIncomeMonth=null;
   saveData();
 }
 function tradeRepublicCashBalance(){
@@ -584,6 +626,64 @@ function tradeRepublicCashBalance(){
   });
   return Number(asset?.balance||0);
 }
+
+
+let editingIncomeMonth = null;
+let editingAmexMonth = null;
+
+function renderIncomeRowV9(x){
+  const editing = editingIncomeMonth === x.month;
+  if(!editing){
+    return `<tr>
+      <td>${monthLabel(x.month)}</td>
+      <td>${fmt(x.salary)}</td>
+      <td>${fmt(x.bonus)}</td>
+      <td>${fmt(x.tips)}</td>
+      <td>${fmt(x.parents)}</td>
+      <td>${fmt(x.costs)}</td>
+      <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
+      <td><button class="edit-income" data-month="${x.month}" type="button">Bearbeiten</button></td>
+    </tr>`;
+  }
+  return `<tr>
+    <td>${monthLabel(x.month)}</td>
+    ${["salary","bonus","tips","parents","costs"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`).join("")}
+    <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
+    <td><button class="save-income" data-month="${x.month}" type="button">Speichern</button> <button class="cancel-income" type="button">Abbrechen</button></td>
+  </tr>`;
+}
+
+function renderAmexRowV9(x){
+  const editing = editingAmexMonth === x.month;
+  if(!editing){
+    return `<tr>
+      <td>${monthLabel(x.month)}</td>
+      <td>${fmt(x.expenses)}</td>
+      <td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td>
+      <td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td>
+      <td>${x.saving==null?"–":fmt(x.saving)}</td>
+      <td><button class="edit-amex" data-month="${x.month}" type="button">Bearbeiten</button></td>
+    </tr>`;
+  }
+  return `<tr>
+    <td>${monthLabel(x.month)}</td>
+    ${["expenses","incomeDay","passiveDay","saving"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="${k}" value="${x[k]==null?"":Number(x[k]).toFixed(2)}"></td>`).join("")}
+    <td><button class="save-amex" data-month="${x.month}" type="button">Speichern</button> <button class="cancel-amex" type="button">Abbrechen</button></td>
+  </tr>`;
+}
+
+function saveAmexRow(month){
+  const row=amexRows().find(x=>x.month===month);
+  if(!row)return;
+  ["expenses","incomeDay","passiveDay","saving"].forEach(key=>{
+    const el=document.querySelector(`[data-amex-month="${month}"][data-amex-field="${key}"]`);
+    row[key]=el && el.value!=="" ? Number(el.value) : null;
+  });
+  editingAmexMonth=null;
+  saveData();
+}
+
+const priorityGoalsV10 = [[1, "Absicherung", "Polster", 10000, 10000, null, null, null, null, 39.36, 39.36, 3936.33], [2, "Bildung", "Master", 182.1, 370, null, null, null, null, 0, 0, null], [3, "Haus", "Dachzustand prüfen und reparieren", 1500, 5000, null, null, null, null, 0, 0, null], [4, "Haus", "Treppenhaus sanieren", 900, 3063, null, null, null, null, 0, 0, null], [5, "Haus", "Sanierung Bad Erdgeschoss", 5000, 10000, null, null, null, null, 0, 0, null], [6, "Haus", "Renovierung Bad Wohnung", 3000, 7000, null, null, null, null, 0, 0, null], [7, "Haus", "Sanierung Bad Opa", 5000, 10000, null, null, null, null, 0, 0, null], [8, "Bank", "Kredit Deutsche Bildung", 13440, 13790, null, null, null, null, 8.3, 0, null], [9, "Bank", "Raten Vorwerk", 581.97, 529.02, null, null, null, null, 0, 0, null], [10, "Bank", "Kredit ING", 52336.78, 52336.78, 7080, 7080, 590, 590, 0, 0, null], [11, "Bank", "Kredit Bulldog", 45727.88, 45727.88, 7017.12, 7017.12, 584.76, 584.76, 0, 0, null], [12, "Bank", "Kredit Haus", 51436.68, 51436.68, 10277.64, 10277.64, 856.47, 856.47, 0, 0, null], [13, "Scheune", "Wohnung in Scheune sanieren", 180000, 250000, null, null, null, null, 0, 0, null], [14, "Altes Haus", "Architekten/Bauplaner beauftragen", 18000, 103500, null, null, null, null, 0, 0, null], [15, "Altes Haus", "Grundsanierung", 200000, 690000, 16800, 22200, 1400, 1850, 0, 0, null], [16, "Altes Haus", "Automat", 1150, 9200, 534, 7620, 44.5, 635, 0, 0, null], [17, "Altes Haus", "Laden einrichten", 3300, 10000, null, null, null, null, 0, 0, null], [18, "Altes Haus", "Ferienwohnung einrichten", 12000, 25000, null, null, null, null, 0, 0, null], [19, "Altes Haus", "Eventraum einrichten", 10000, 22000, null, null, null, null, 0, 0, null], [20, "Altes Haus", "Büro einrichten", 3200, 11200, null, null, null, null, 0, 0, null], [null, "Haus", "Bodenbeläge Zimmer", 2500, 6000, null, null, null, null, 0, 0, null], [null, "Haus", "Modernisierung Haus Isolation", 37000, 80000, null, null, null, null, 0, 0, null], [null, "Haus", "Modernisierung Haus Heizung", 8000, 23000, 2400, 3600, 200, 300, 0, 0, null], [null, "Scheune", "Stall bauen", 4200, 12900, null, null, null, null, 0, 0, null], [null, "Scheune", "Werkstatt renovieren", 4000, 4800, null, null, null, null, 0, 0, null], [null, "Gewölbekeller", "renovieren", 13500, 22500, null, null, null, null, 0, 0, null], [null, "Eckhaus", "zurückkaufen", 400000, 480000, null, null, null, null, 0, 0, null], [null, "Garten", "Gartenhaus renovieren", 3000, 5000, null, null, null, null, 0, 0, null], [null, "Haustier", "Hund/e", 150, 400, 600, 1800, 50, 150, 0, 0, null], [null, "Haustier", "Pferde", 11000, 24000, 9600, 13200, 800, 1100, 0, 0, null], [null, "Auto", "Audi A3", 22000, 30000, 2640, 3600, 220, 300, 0, 0, null], [null, "Eltern", "Versorgt", 650000, 1100000, null, null, null, null, 0, 0, null], [null, "Gnadenhof", "Land kaufen & bauen", 5913254.39, 18394160, 1218590, 2768939, 101549.17, 230744.92, 0, 0, null], [null, "Strandhaus", "kaufen", 300000, 2500000, null, null, null, null, 0, 0, null], [null, "Herrenhaus", "kaufen", 300000, 1500000, null, null, null, null, 0, 0, null], [null, "Herrenhaus", "sanieren", 90000, 700000, null, null, null, null, 0, 0, null], [null, "Schloss", "kaufen", 300000, 4000000, null, null, null, null, 0, 0, null], [null, "Schloss", "sanieren", 480000, 4500000, 30000, 135000, 2500, 11250, 0, 0, null]];
 
 function renderV6(){
   const wealth=totalWealth();
@@ -618,12 +718,7 @@ function renderV6(){
   set("taxAllowanceLeft",fmt(Math.max(0,12096-salary2026)));
 
   const ih=$("incomeHistoryBody");
-  if(ih)ih.innerHTML=incomeRows().map(x=>`<tr>
-    <td>${monthLabel(x.month)}</td>
-    ${["salary","bonus","tips","parents","costs"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`).join("")}
-    <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
-    <td><button class="save-income" data-month="${x.month}" type="button">Speichern</button></td>
-  </tr>`).join("");
+  if(ih)ih.innerHTML=incomeRows().map(renderIncomeRowV9).join("");
 
   set("avgExpenses",fmt(avgExp));
   const avgDailyExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses)/daysInMonthKey(x.month),0)/validExpenses.length;
@@ -633,7 +728,7 @@ function renderV6(){
   set("avgMonthlySaving",fmt(avgSaving));
 
   const eh=$("expenseHistoryBody");
-  if(eh)eh.innerHTML=amexRows().map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.expenses)}</td><td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td><td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td><td>${x.saving==null?"–":fmt(x.saving)}</td></tr>`).join("");
+  if(eh)eh.innerHTML=amexRows().map(renderAmexRowV9).join("");
 
   set("fixedMonthlyTotal",fmt(monthlyFixed));
   set("fixedYearlyTotal",fmt(monthlyFixed*12));
@@ -647,7 +742,7 @@ function renderV6(){
   set("passiveYear",fmt(passiveMonthly*12));
   const pt=$("passiveTargetsBody");
   const trCash=tradeRepublicCashBalance();
-  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${trCash>=capital?'<span class="badge success">erreicht</span>':fmt(capital-trCash)+" fehlen"}</td></tr>`).join("");
+  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${fmt(Math.max(0,capital-trCash))+" fehlt"}</td></tr>`).join("");
 
 
   const fuels=fuelRows().slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -669,6 +764,40 @@ function renderV6(){
     <td><input class="inline-input fuel-note" data-id="${x.id}" value="${esc(x.note||"")}"></td>
     <td><button class="save-fuel" data-id="${x.id}" type="button">Speichern</button> <button class="delete-fuel" data-id="${x.id}" type="button">Löschen</button></td>
   </tr>`).join("");
+
+
+  const pgb=$("priorityGoalsBody");
+  if(pgb){
+    pgb.innerHTML=priorityGoalsV10.map(r=>`<tr>
+      <td>${r[0]??""}</td>
+      <td>${esc(r[1])}</td>
+      <td>${esc(r[2])}</td>
+      <td>${r[3]==null?"–":fmt(r[3])}</td>
+      <td>${r[4]==null?"–":fmt(r[4])}</td>
+      <td>${r[5]==null?"–":fmt(r[5])}</td>
+      <td>${r[6]==null?"–":fmt(r[6])}</td>
+      <td>${r[7]==null?"–":fmt(r[7])}</td>
+      <td>${r[8]==null?"–":fmt(r[8])}</td>
+      <td>${r[9]==null?"–":Number(r[9]).toFixed(2).replace(".",",")+" %"}</td>
+      <td>${r[10]==null?"–":Number(r[10]).toFixed(2).replace(".",",")+" %"}</td>
+      <td>${r[11]==null?"–":fmt(r[11])}</td>
+    </tr>`).join("");
+  }
+  const pgf=$("priorityGoalsFoot");
+  if(pgf){
+    const sums=priorityGoalsV10.reduce((a,r)=>{
+      for(let i=3;i<=8;i++)a[i]=(a[i]||0)+(Number(r[i])||0);
+      a[11]=(a[11]||0)+(Number(r[11])||0);
+      return a;
+    },{});
+    pgf.innerHTML=`<tr class="total-row">
+      <th colspan="3">Summe</th>
+      <th>${fmt(sums[3])}</th><th>${fmt(sums[4])}</th>
+      <th>${fmt(sums[5])}</th><th>${fmt(sums[6])}</th>
+      <th>${fmt(sums[7])}</th><th>${fmt(sums[8])}</th>
+      <th>0,04299 %</th><th>0,01134 %</th><th>${fmt(sums[11])}</th>
+    </tr>`;
+  }
 
   const milestones=[5000,10000,25000,50000,100000];
   const c=capitalStats();
@@ -703,6 +832,18 @@ function renderV6(){
 
 
 document.addEventListener("click",e=>{
+
+  const editIncome=e.target.closest(".edit-income");
+  if(editIncome){ editingIncomeMonth=editIncome.dataset.month; renderV6(); return; }
+  if(e.target.closest(".cancel-income")){ editingIncomeMonth=null; renderV6(); return; }
+
+  const editAmex=e.target.closest(".edit-amex");
+  if(editAmex){ editingAmexMonth=editAmex.dataset.month; renderV6(); return; }
+  if(e.target.closest(".cancel-amex")){ editingAmexMonth=null; renderV6(); return; }
+
+  const saveAmex=e.target.closest(".save-amex");
+  if(saveAmex){ saveAmexRow(saveAmex.dataset.month); return; }
+
   const incomeBtn=e.target.closest(".save-income");
   if(incomeBtn){ saveIncomeRow(incomeBtn.dataset.month); return; }
 
