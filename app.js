@@ -42,7 +42,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 14;
+const APP_VERSION = 15;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -808,26 +808,27 @@ function renderV6(){
     const m=data.capitalMetrics||{};
     const items=[
       ["Aktueller Vermögenswert",fmt(m.netWorth||0)],
-      ["Aktueller Aktienwert",fmt(m.stockValue||0)],
-      ["Zinsen pro Tag",fmt(m.dailyInterest||0)],
-      ["Dividende pro Monat",fmt(m.monthlyDividend||0)],
-      ["Dividende pro Tag",fmt(m.dailyDividend||0)],
-      ["Gewinn Zinsen",fmt(m.interestProfit||0)],
-      ["Gewinn Aktien",fmt(m.stockProfit||0)],
-      ["Gewinn Dividende",fmt(m.dividendProfit||0)],
-      ["Gewinn gesamt",fmt(m.totalProfit||0)],
       ["Kapital t=0",fmt(m.initialCapital||0)],
-      ["Kapitalsteigerung",Number(m.capitalIncreasePct||0).toFixed(2).replace(".",",")+" %"],
       ["Kapitaldifferenz",fmt(m.capitalDifference||0)],
-      ["Passiv pro Monat",fmt(m.monthlyPassive||0)],
-      ["Aktuell pro Tag",fmt(m.dailyPassive||0)]
+      ["Kapitalsteigerung",Number(m.capitalIncreasePct||0).toFixed(2).replace(".",",")+" %"],
+      ["Aktueller Aktienwert",fmt(m.stockValue||0)],
+      ["Gewinn Aktien",fmt(m.stockProfit||0)],
+      ["Gewinn Zinsen",fmt(m.interestProfit||0)],
+      ["Gewinn Dividende",fmt(m.dividendProfit||0)],
+      ["Zinsen pro Tag",fmt(m.dailyInterest||0)],
+      ["Dividende pro Tag",fmt(m.dailyDividend||0)],
+      ["Dividende pro Monat",fmt(m.monthlyDividend||0)],
+      ["Passiv pro Tag",fmt(m.dailyPassive||0)],
+      ["Passiv pro Monat",fmt(m.monthlyPassive||0)]
     ];
     cmc.innerHTML=items.map(([k,v])=>`<div class="stat-card"><span>${k}</span><strong>${v}</strong></div>`).join("");
   }
   const rcb=$("requiredCapitalBody");
   if(rcb){
+    const trCash=tradeRepublicCashBalance();
     rcb.innerHTML=(data.requiredCapitalTable||[]).map(r=>`<tr>
-      <td>${Math.round(Number(r[0])*100)} Cent</td><td>${fmt(r[1])}</td>
+      <td>${Math.round(Number(r[0])*100)} Cent</td>
+      <td>${fmt(Math.max(0,Number(r[1]||0)-trCash))} fehlen</td>
     </tr>`).join("");
   }
 
@@ -837,15 +838,17 @@ function renderV6(){
   const avgSaving=validExpenses.reduce((s,x)=>s+Number(x.saving||0),0)/validExpenses.length;
   const avgIncome=incomeRows().reduce((s,x)=>s+x.total,0)/incomeRows().length;
   const savingRate=avgIncome ? avgSaving/avgIncome*100 : 0;
-  const monthlyFixed=fixedCostsV6.reduce((s,x)=>{
-    if(x.frequency==="monthly")return s+x.amount;
-    if(x.frequency==="bimonthly")return s+x.amount/2;
-    if(x.frequency==="twice")return s+x.amount*2/12;
-    return s+x.amount/12;
+  const fixedSource=(data.fixedCosts||[]).filter(x=>x.active!==false);
+  const monthlyFixed=fixedSource.reduce((s,x)=>{
+    if(x.frequency==="monthly")return s+Math.abs(Number(x.amount||0));
+    if(x.frequency==="bimonthly")return s+Math.abs(Number(x.amount||0))/2;
+    if(x.frequency==="twice" || x.frequency==="semiannual")return s+Math.abs(Number(x.amount||0))*2/12;
+    if(x.frequency==="bimonthly")return s+Math.abs(Number(x.amount||0))/2;
+    return s+Math.abs(Number(x.amount||0))/12;
   },0);
-  const interestDay=Number(data.metrics?.currentDailyInterest||0.17);
-  const dividendDay=Number(data.metrics?.currentDailyDividend||0.05);
-  const passiveMonthly=(interestDay+dividendDay)*30.4375;
+  const interestDay=Number(data.capitalMetrics?.dailyInterest ?? data.metrics?.currentDailyInterest ?? 0.18);
+  const dividendDay=Number(data.capitalMetrics?.dailyDividend ?? data.metrics?.currentDailyDividend ?? 0.05);
+  const passiveMonthly=Number(data.capitalMetrics?.monthlyPassive ?? ((interestDay+dividendDay)*30.4375));
   const coverage=monthlyFixed?passiveMonthly/monthlyFixed*100:0;
 
   const set=(id,val)=>{const el=$(id);if(el)el.textContent=val};
@@ -877,17 +880,17 @@ function renderV6(){
 
   set("fixedMonthlyTotal",fmt(monthlyFixed));
   set("fixedYearlyTotal",fmt(monthlyFixed*12));
-  set("nextFixedCount",String(fixedCostsV6.length));
+  set("nextFixedCount",String(fixedSource.length));
   const fl=$("fixedCostListV6");
-  if(fl)fl.innerHTML=fixedCostsV6.map(x=>`<div class="list-item"><div><h3>${esc(x.name)}</h3><p>${esc(x.when)}</p></div><strong>${fmt(x.amount)}</strong></div>`).join("");
+  if(fl)fl.innerHTML=fixedSource.map(x=>`<div class="list-item"><div><h3>${esc(x.name)}</h3><p>${esc(x.when)}</p></div><strong>${fmt(x.amount)}</strong></div>`).join("");
 
   set("passiveInterestDay",fmt(interestDay));
   set("passiveDividendDay",fmt(dividendDay));
-  set("passiveMonth",fmt(passiveMonthly));
-  set("passiveYear",fmt(passiveMonthly*12));
+  set("passiveAnalysisMonth",fmt(passiveMonthly));
+  set("passiveAnalysisYear",fmt(passiveMonthly*12));
   const pt=$("passiveTargetsBody");
   const trCash=tradeRepublicCashBalance();
-  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(capital)}</td><td>${fmt(Math.max(0,capital-trCash))+" fehlt"}</td></tr>`).join("");
+  if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>`<tr><td>${fmt(daily)}</td><td>${fmt(Math.max(0,capital-trCash))} fehlen</td></tr>`).join("");
 
 
   const fuels=fuelRows().slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
@@ -1015,3 +1018,11 @@ document.addEventListener("click",e=>{
     saveData(); return;
   }
 });
+
+
+// Initialisierung erst nach allen Stammdaten und Render-Funktionen.
+renderAll();
+
+document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
+  renderV6();
+}));
