@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 20;
+const APP_VERSION = 21;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -418,45 +418,15 @@ function cumulativeAmexAverages(){
     return [r.month,sum/(i+1)];
   }));
 }
-
-function getSharedFinanceMetricsV20(){
-  const assets=Array.isArray(data.assets)?data.assets:[];
+function passiveDetails(){
   const now=new Date();
   const days=daysInMonth(now.getFullYear(),now.getMonth()+1);
-  let monthlyInterest=0;
-
-  assets.forEach(a=>{
-    const balance=Number(a.balance ?? a.value ?? a.amount ?? 0)||0;
-    const rate=Number(a.rate ?? a.interestRate ?? 0)||0;
-    const type=String(a.type||"").toLowerCase();
-    const name=String(a.name||"").toLowerCase();
-    const eligible=type==="cash"||type==="bank"||type==="savings"||
-      name.includes("tagesgeld")||name.includes("sparkasse")||name.includes("trade republic");
-    if(eligible&&balance>0&&rate>0) monthlyInterest+=balance*rate/100/365*days;
-  });
-
-  const monthlyDividend=Number(data.metrics?.currentMonthlyDividend ?? data.capitalMetrics?.monthlyDividend ?? 0)||0;
-  const passiveMonth=monthlyInterest+monthlyDividend;
-  const passiveDay=days?passiveMonth/days:0;
-  const monthlyFixed=Math.abs(monthlyAverageFixed());
-  const fixedCoveragePct=monthlyFixed?passiveMonth/monthlyFixed*100:0;
-  const amexRow=currentAmexMasterRow();
-  const amexCurrent=Math.abs(Number(amexRow?.expenses||0));
-
-  return {monthlyInterest,monthlyDividend,passiveMonth,passiveDay,
-    annualPassive:passiveMonth*12,monthlyFixed,fixedCoveragePct,amexCurrent};
-}
-
-function passiveDetails(){
-  const m=getSharedFinanceMetricsV20();
-  return {
-    interest:m.monthlyInterest,
-    dividend:m.monthlyDividend,
-    monthly:m.passiveMonth,
-    daily:m.passiveDay,
-    annual:m.annualPassive,
-    days:daysInMonth(new Date().getFullYear(),new Date().getMonth()+1)
-  };
+  const interest=(data.assets||[])
+    .filter(a=>a.type==="cash"||a.type==="bank")
+    .reduce((s,a)=>s+(Number(a.balance)||0)*(Number(a.rate)||0)/100/365*days,0);
+  const dividend=Number(data.metrics?.currentMonthlyDividend||data.capitalMetrics?.monthlyDividend||0);
+  const monthly=interest+dividend;
+  return {interest,dividend,monthly,daily:monthly/days,annual:monthly*12,days};
 }
 function dynamicAverageSaving(){
   const inc=new Map(incomeRows().map(x=>[x.month,Number(x.salary||0)+Number(x.bonus||0)+Number(x.tips||0)+Number(x.parents||0)+fixedCostAmountForMonth(x.month)]));
@@ -468,8 +438,52 @@ function dynamicAverageSaving(){
   return {amount,rate:avgIncome?amount/avgIncome*100:0};
 }
 
+
+function sharedFinanceMetricsV21(){
+  const p=passiveDetails();
+  const fixed=Math.abs(monthlyAverageFixed());
+  const amex=currentAmexMasterRow();
+  return {
+    amexCurrent:Math.abs(Number(amex?.expenses||0)),
+    passiveMonth:Number(p.monthly||0),
+    passiveDay:Number(p.daily||0),
+    passiveYear:Number(p.annual||0),
+    interestMonth:Number(p.interest||0),
+    dividendMonth:Number(p.dividend||0),
+    fixedCoveragePct:fixed ? Number(p.monthly||0)/fixed*100 : 0
+  };
+}
+function syncSharedFinanceDisplaysV21(){
+  const m=sharedFinanceMetricsV21();
+
+  const amexEl=$("amexMonthTotal");
+  if(amexEl) amexEl.textContent=fmt(m.amexCurrent);
+
+  const coverage=m.fixedCoveragePct.toFixed(1).replace(".",",")+" %";
+  const breakEven=$("breakEvenPassive");
+  if(breakEven) breakEven.textContent=coverage;
+  const passiveCoverage=$("passiveCoverage");
+  if(passiveCoverage) passiveCoverage.textContent=coverage;
+  const bar=$("passiveProgress");
+  if(bar) bar.style.width=`${Math.min(100,m.fixedCoveragePct)}%`;
+
+  const mappings={
+    passiveMonth:[m.passiveMonth,"/Monat"],
+    passiveYear:[m.passiveYear,"/Jahr"],
+    passiveTabMonth:[m.passiveMonth,""],
+    passiveTabYear:[m.passiveYear,""],
+    passiveInterestMonth:[m.interestMonth,""],
+    passiveDividendMonth:[m.dividendMonth,""],
+    passiveTotalDay:[m.passiveDay,""]
+  };
+  Object.entries(mappings).forEach(([id,[value,suffix]])=>{
+    const el=$(id);
+    if(el) el.textContent=fmt(value)+suffix;
+  });
+}
+
 function renderAll(){
-  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
+  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();syncSharedFinanceDisplaysV21();
 }
 document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===btn));
@@ -479,8 +493,8 @@ document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>
 function renderDashboard(){
   $("headerMonth").textContent=monthLabel(monthISO());
   const wealth=totalWealth();
-  const amexRow=currentAmexMasterRow(), incomeRow=currentIncomeMasterRow(), p=passiveDetails(), shared=getSharedFinanceMetricsV20();
-  const expenses=shared.amexCurrent;
+  const amexRow=currentAmexMasterRow(), incomeRow=currentIncomeMasterRow(), p=passiveDetails();
+  const expenses=Math.abs(Number(amexRow?.expenses||0));
   const income=incomeRow ? Number(incomeRow.salary||0)+Number(incomeRow.bonus||0)+Number(incomeRow.tips||0)+Number(incomeRow.parents||0)+fixedCostAmountForMonth(incomeRow.month) : 0;
   const passive=p.annual;
   $("totalWealth").textContent=fmt(wealth);
@@ -1188,36 +1202,3 @@ document.addEventListener("click",e=>{
     data.priorityGoals=rows; saveData(); toast("Sparziel gespeichert");
   }
 });
-
-
-function syncSharedValuesV20(){
-  const m=getSharedFinanceMetricsV20();
-
-  ["monthExpenses","amexMonthTotal","amexDue","dashAmex","dashboardAmex","currentAmex","amexCurrent","avgExpenses"].forEach(id=>{
-    const el=$(id); if(el) el.textContent=fmt(m.amexCurrent);
-  });
-  document.querySelectorAll("[data-dashboard-amex],[data-current-amex]").forEach(el=>el.textContent=fmt(m.amexCurrent));
-
-  const map={
-    passiveMonth:m.passiveMonth,
-    passiveYear:m.annualPassive,
-    passiveTabMonth:m.passiveMonth,
-    passiveTabYear:m.annualPassive,
-    passiveInterestMonth:m.monthlyInterest,
-    passiveDividendMonth:m.monthlyDividend,
-    passiveTotalDay:m.passiveDay
-  };
-  Object.entries(map).forEach(([id,val])=>{
-    const el=$(id);
-    if(el) el.textContent=fmt(val)+(id==="passiveMonth"?"/Monat":id==="passiveYear"?"/Jahr":"");
-  });
-
-  const coverage=m.fixedCoveragePct.toFixed(1).replace(".",",")+" %";
-  ["breakEvenPassive","passiveCoverage"].forEach(id=>{const el=$(id);if(el)el.textContent=coverage;});
-  const bar=$("passiveProgress"); if(bar) bar.style.width=`${Math.min(100,m.fixedCoveragePct)}%`;
-}
-
-
-const _renderAllV20=renderAll;
-renderAll=function(){_renderAllV20();syncSharedValuesV20();};
-setTimeout(syncSharedValuesV20,0);
