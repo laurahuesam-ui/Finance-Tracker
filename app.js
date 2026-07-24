@@ -42,7 +42,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -398,6 +398,55 @@ function monthLabel(ym){
   const [y,m]=ym.split("-").map(Number);
   return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"}).format(new Date(y,m-1,1));
 }
+
+function currentMonthKey(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+}
+function lastDayOfMonth(year,monthIndex){
+  return new Date(year,monthIndex+1,0).getDate();
+}
+function resolveFixedCostDay(cost,year,monthIndex){
+  const explicit=Number(cost.day);
+  if(Number.isInteger(explicit)&&explicit>=1&&explicit<=31){
+    return Math.min(explicit,lastDayOfMonth(year,monthIndex));
+  }
+  const when=String(cost.when||"").toLowerCase();
+  if(when.includes("anfang")) return 1;
+  if(when.includes("mitte")) return 14;
+  if(when.includes("ende")) return lastDayOfMonth(year,monthIndex);
+  const m=when.match(/\b([1-9]|[12]\d|3[01])\b/);
+  if(m) return Math.min(Number(m[1]),lastDayOfMonth(year,monthIndex));
+  return null;
+}
+function getCurrentIncomeRow(){
+  const key=currentMonthKey();
+  return (data.v7?.incomeHistory||[]).find(x=>x.month===key)
+    || [...(data.v7?.incomeHistory||[])].reverse().find(x=>Number(x.total||0)!==0)
+    || null;
+}
+function getCurrentAmexRow(){
+  const key=currentMonthKey();
+  return (data.v7?.amexHistory||[]).find(x=>x.month===key)
+    || [...(data.v7?.amexHistory||[])].reverse().find(x=>Number(x.expenses||0)!==0)
+    || null;
+}
+function calculatePassiveMetrics(){
+  const key=currentMonthKey();
+  const current=(data.capitalHistory||[]).find(x=>x.month===key)
+    || [...(data.capitalHistory||[])].reverse().find(x=>x && (Number(x.trInterest||0)!==0 || Number(x.dividend||0)!==0))
+    || {};
+  const interest=Number(current.trInterest||0)+Number(current.sparkasseInterest||0);
+  const dividend=Number(current.dividend||0);
+  const monthly=interest+dividend;
+  const days=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
+  return {interest,dividend,monthly,daily:days?monthly/days:0};
+}
+function dynamicAmexAverage(){
+  const vals=(data.v7?.amexHistory||[]).map(x=>Number(x.expenses)).filter(Number.isFinite);
+  return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+}
+
 function renderAll(){
   renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
 }
@@ -756,21 +805,19 @@ function renderIncomeRowV9(x){
 
 function renderAmexRowV9(x){
   const editing=editingAmexMonth===x.month;
+  const avg=dynamicAmexAverage();
   if(!editing){
     return `<tr>
-      <td>${monthLabel(x.month)}</td><td>${fmt(x.expenses)}</td>
-      <td>${x.average==null?"–":fmt(x.average)}</td>
-      <td>${x.expenseDay==null?"–":fmt(x.expenseDay)}</td>
-      <td>${x.incomeDay==null?"–":fmt(x.incomeDay)}</td>
-      <td>${x.passiveDay==null?"–":fmt(x.passiveDay)}</td>
-      <td>${x.netDay==null?"–":fmt(x.netDay)}</td>
-      <td>${x.saving==null?"–":fmt(x.saving)}</td>
+      <td>${monthLabel(x.month)}</td>
+      <td>${fmt(Math.abs(Number(x.expenses||0)))}</td>
+      <td>${fmt(Math.abs(avg))}</td>
       <td><button class="edit-amex" data-month="${x.month}" type="button">Bearbeiten</button></td>
     </tr>`;
   }
   return `<tr>
     <td>${monthLabel(x.month)}</td>
-    ${["expenses","average","expenseDay","incomeDay","passiveDay","netDay","saving"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="${k}" value="${x[k]==null?"":Number(x[k]).toFixed(2)}"></td>`).join("")}
+    <td><input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="expenses" value="${x.expenses==null?"":Number(x.expenses).toFixed(2)}"></td>
+    <td>${fmt(Math.abs(avg))}</td>
     <td><button class="save-amex" data-month="${x.month}" type="button">Speichern</button> <button class="cancel-amex" type="button">Abbrechen</button></td>
   </tr>`;
 }
@@ -1083,3 +1130,148 @@ guaranteeMasterData();
 ensureV7Data();
 localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 renderAll();
+
+
+function renderDashboardCurrentMonthV18(){
+  const income=getCurrentIncomeRow();
+  const amex=getCurrentAmexRow();
+  const incomeValue=income?Number(income.total||0):0;
+  const amexValue=amex?Math.abs(Number(amex.expenses||0)):0;
+
+  ["dashIncome","dashboardIncome","currentIncome","incomeCurrent","salaryDashboard"].forEach(id=>{
+    const el=$(id); if(el) el.textContent=fmt(incomeValue);
+  });
+  ["dashAmex","dashboardAmex","currentAmex","amexCurrent","amexDue"].forEach(id=>{
+    const el=$(id); if(el) el.textContent=fmt(amexValue);
+  });
+
+  document.querySelectorAll("[data-dashboard-income]").forEach(el=>el.textContent=fmt(incomeValue));
+  document.querySelectorAll("[data-dashboard-amex]").forEach(el=>el.textContent=fmt(amexValue));
+}
+
+
+
+let editingFixedCostId=null;
+function renderFixedCostsV18(){
+  const body=$("fixedCostsBody")||$("fixedBody")||$("fixedCostsTableBody");
+  if(!body) return;
+  const now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  body.innerHTML=(data.fixedCosts||[]).map(x=>{
+    const day=resolveFixedCostDay(x,y,m);
+    const editing=editingFixedCostId===x.id;
+    if(!editing){
+      return `<tr>
+        <td>${esc(x.name||"")}</td>
+        <td>${fmt(x.amount||0)}</td>
+        <td>${day?`${String(day).padStart(2,"0")}.${String(m+1).padStart(2,"0")}.${y}`:esc(x.when||"–")}</td>
+        <td>${esc(x.frequency||"")}</td>
+        <td><button type="button" class="edit-fixed" data-id="${x.id}">Bearbeiten</button></td>
+      </tr>`;
+    }
+    return `<tr>
+      <td><input class="inline-input" data-fixed-field="name" data-id="${x.id}" value="${esc(x.name||"")}"></td>
+      <td><input class="inline-input" type="number" step="0.01" data-fixed-field="amount" data-id="${x.id}" value="${Number(x.amount||0)}"></td>
+      <td><input class="inline-input" type="number" min="1" max="31" data-fixed-field="day" data-id="${x.id}" value="${x.day??day??""}"></td>
+      <td><input class="inline-input" data-fixed-field="frequency" data-id="${x.id}" value="${esc(x.frequency||"")}"></td>
+      <td><button type="button" class="save-fixed" data-id="${x.id}">Speichern</button> <button type="button" class="cancel-fixed">Abbrechen</button></td>
+    </tr>`;
+  }).join("");
+}
+document.addEventListener("click",e=>{
+  const edit=e.target.closest(".edit-fixed");
+  if(edit){editingFixedCostId=edit.dataset.id;renderFixedCostsV18();}
+  const cancel=e.target.closest(".cancel-fixed");
+  if(cancel){editingFixedCostId=null;renderFixedCostsV18();}
+  const save=e.target.closest(".save-fixed");
+  if(save){
+    const id=save.dataset.id;
+    const row=(data.fixedCosts||[]).find(x=>String(x.id)===String(id));
+    if(row){
+      document.querySelectorAll(`[data-id="${CSS.escape(id)}"][data-fixed-field]`).forEach(inp=>{
+        const f=inp.dataset.fixedField;
+        row[f]=f==="amount"||f==="day"?Number(inp.value):inp.value;
+      });
+      saveData();
+    }
+    editingFixedCostId=null;renderFixedCostsV18();renderAll();
+  }
+});
+
+
+
+function renderPassiveV18(){
+  const p=calculatePassiveMetrics();
+  const mapping={
+    passiveMonth:p.monthly,
+    passiveYear:p.monthly*12,
+    passiveDay:p.daily,
+    interestMonth:p.interest,
+    dividendMonth:p.dividend
+  };
+  Object.entries(mapping).forEach(([id,val])=>{const el=$(id);if(el)el.textContent=fmt(val);});
+  document.querySelectorAll("[data-passive-month]").forEach(el=>el.textContent=fmt(p.monthly));
+  document.querySelectorAll("[data-passive-day]").forEach(el=>el.textContent=fmt(p.daily));
+}
+
+
+
+let editingGoalIndex=null;
+function renderGoalsV18(){
+  const body=$("goalsBody")||$("savingsGoalsBody")||$("priorityGoalsBody");
+  if(!body) return;
+  body.innerHTML=(data.goals||[]).map((g,i)=>{
+    const editing=editingGoalIndex===i;
+    if(!editing){
+      return `<tr>
+        <td>${g.priority??""}</td><td>${esc(g.category||"")}</td><td>${esc(g.name||g.title||g.subcategory||"")}</td>
+        <td>${fmt(g.min??g.targetMin??0)}</td><td>${fmt(g.max??g.targetMax??0)}</td>
+        <td>${fmt(g.annualMin??g.lkMinPa??0)}</td><td>${fmt(g.annualMax??g.lkMaxPa??0)}</td>
+        <td>${fmt(g.monthlyMin??g.lkMinPm??0)}</td><td>${fmt(g.monthlyMax??g.lkMaxPm??0)}</td>
+        <td>${fmt(g.available??g.current??0)}</td>
+        <td><button type="button" class="edit-goal" data-index="${i}">Bearbeiten</button></td>
+      </tr>`;
+    }
+    const fields=[
+      ["priority","number"],["category","text"],["name","text"],["min","number"],["max","number"],
+      ["annualMin","number"],["annualMax","number"],["monthlyMin","number"],["monthlyMax","number"],["available","number"]
+    ];
+    return `<tr>${fields.map(([f,t])=>`<td><input class="inline-input" type="${t}" step="${t==="number"?"0.01":""}" data-goal-field="${f}" data-index="${i}" value="${esc(g[f]??(f==="name"?(g.title||g.subcategory||""):""))}"></td>`).join("")}
+      <td><button type="button" class="save-goal" data-index="${i}">Speichern</button> <button type="button" class="cancel-goal">Abbrechen</button></td></tr>`;
+  }).join("");
+}
+document.addEventListener("click",e=>{
+  const edit=e.target.closest(".edit-goal");
+  if(edit){editingGoalIndex=Number(edit.dataset.index);renderGoalsV18();}
+  const cancel=e.target.closest(".cancel-goal");
+  if(cancel){editingGoalIndex=null;renderGoalsV18();}
+  const save=e.target.closest(".save-goal");
+  if(save){
+    const i=Number(save.dataset.index), g=data.goals?.[i];
+    if(g){
+      document.querySelectorAll(`[data-index="${i}"][data-goal-field]`).forEach(inp=>{
+        const f=inp.dataset.goalField;
+        g[f]=inp.type==="number"?Number(inp.value):inp.value;
+      });
+      saveData();
+    }
+    editingGoalIndex=null;renderGoalsV18();renderAll();
+  }
+});
+
+
+const _renderAllV18=typeof renderAll==="function"?renderAll:null;
+if(_renderAllV18){
+  renderAll=function(){
+    _renderAllV18();
+    renderDashboardCurrentMonthV18();
+    renderFixedCostsV18();
+    renderPassiveV18();
+    renderGoalsV18();
+  };
+}
+setTimeout(()=>{
+  renderDashboardCurrentMonthV18();
+  renderFixedCostsV18();
+  renderPassiveV18();
+  renderGoalsV18();
+},0);

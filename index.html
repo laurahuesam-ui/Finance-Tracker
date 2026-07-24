@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 17</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 18</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -24,9 +24,9 @@
   <button class="tab active" data-page="dashboard">Dashboard</button>
   <button class="tab" data-page="overview">Übersicht</button>
   <button class="tab" data-page="expenseAnalysis">Amex & Tanken</button>
-  <button class="tab" data-page="fixedCostsOverview">Fixkosten</button>
+  <button class="tab" data-page="fixedCostsOverview" data-dashboard-amex>Fixkosten</button>
   <button class="tab" data-page="incomeAnalysis">Einkommen</button>
-  <button class="tab" data-page="assets">Konten & Vermögen</button>
+  <button class="tab" data-page="assets" data-dashboard-income>Konten & Vermögen</button>
   <button class="tab" data-page="passiveIncome">Passiv</button>
   <button class="tab" data-page="goals">Sparziele</button>
   <button class="tab" data-page="backup">Backup</button>
@@ -47,12 +47,12 @@
       </article>
       <article class="card">
         <span>Gehalt diesen Monat</span>
-        <strong id="monthIncome">0,00 €</strong>
+        <strong id="monthIncome" data-dashboard-income>0,00 €</strong>
         <small id="monthBalance">Monatssaldo: 0,00 €</small>
       </article>
       <article class="card">
         <span>Passives Einkommen</span>
-        <strong id="passiveMonth">0,00 €/Monat</strong>
+        <strong id="passiveMonth" data-dashboard-income>0,00 €/Monat</strong>
         <small id="passiveYear">0,00 €/Jahr</small>
       </article>
     </div>
@@ -70,7 +70,7 @@
       <article class="panel">
         <div class="panel-head">
           <h2>Amex-Abrechnung</h2>
-          <select id="amexMonthSelect" aria-label="Amex-Monat"></select>
+          <select id="amexMonthSelect" aria-label="Amex-Monat" data-dashboard-amex></select>
         </div>
         <p class="big" id="amexMonthTotal">0,00 €</p>
         <p id="amexStatus" class="muted"></p>
@@ -117,14 +117,14 @@
       <p class="muted">Trage nur den aktuellen Stand ein. Die Veränderung seit dem letzten Stand wird automatisch berechnet.</p>
       <form id="balanceForm" class="form-grid">
         <label>Datum<input id="balanceDate" type="date" required></label>
-        <label>Konto<select id="balanceAccount" required><option>Amex</option><option>Sparkasse</option></select></label>
+        <label>Konto<select id="balanceAccount" required><option>Amex</option><option data-dashboard-amex>Sparkasse</option></select></label>
         <label>Aktueller Stand<input id="balanceAmount" type="number" step="0.01" required></label>
         <label class="wide">Notiz<input id="balanceNote" type="text" placeholder="optional"></label>
         <button type="submit">Kontostand speichern</button>
       </form>
     </article>
     <article class="panel">
-      <div class="panel-head"><h2>Kontostände und Veränderungen</h2><div class="filters"><input id="balanceMonthFilter" type="month"><select id="balanceAccountFilter"><option value="">Alle Konten</option><option>Amex</option><option>Sparkasse</option></select></div></div>
+      <div class="panel-head"><h2>Kontostände und Veränderungen</h2><div class="filters"><input id="balanceMonthFilter" type="month"><select id="balanceAccountFilter"><option value="">Alle Konten</option><option>Amex</option><option data-dashboard-amex>Sparkasse</option></select></div></div>
       <div id="balanceSummary" class="summary-line"></div><div id="balanceList" class="list"></div>
     </article>
   </section>
@@ -140,7 +140,7 @@
           <select id="fixedFrequency"><option value="monthly">Monatlich</option><option value="quarterly">Vierteljährlich</option><option value="semiannual">Halbjährlich</option><option value="annual">Jährlich</option></select>
         </label>
         <label>Erster Abbuchungsmonat<input id="fixedStartMonth" type="month" required></label>
-        <label>Konto<select id="fixedAccount"><option>Sparkasse</option><option>Amex</option></select></label>
+        <label>Konto<select id="fixedAccount"><option>Sparkasse</option><option>Amex</option></select data-dashboard-amex></label>
         <button type="submit">Fixkosten speichern</button>
       </form>
     </article>
@@ -153,16 +153,16 @@
   <section id="income" class="page">
     <article class="panel">
       <h2>Gehalt / Einkommen erfassen</h2>
-      <form id="incomeForm" class="form-grid">
+      <form id="incomeForm" class="form-grid" data-dashboard-income>
         <label>Datum<input id="incomeDate" type="date" required></label>
         <label>Betrag<input id="incomeAmount" type="number" min="0" step="0.01" required></label>
-        <label>Art<select id="incomeType"><option>Gehalt</option><option>Trinkgeld</option><option>Nebenverdienst</option><option>Sonstiges</option></select></label>
+        <label>Art<select id="incomeType"><option>Gehalt</option><option data-dashboard-income>Trinkgeld</option><option>Nebenverdienst</option><option>Sonstiges</option></select></label>
         <label class="wide">Notiz<input id="incomeNote" placeholder="optional"></label>
         <button type="submit">Einkommen speichern</button>
-      </form>
+      </form data-dashboard-income>
     </article>
     <article class="panel">
-      <div class="panel-head"><h2>Einkommenshistorie</h2><input id="incomeMonthFilter" type="month"></div>
+      <div class="panel-head"><h2>Einkommenshistorie</h2><input id="incomeMonthFilter" type="month" data-dashboard-income></div>
       <div id="incomeList" class="list"></div>
     </article>
   </section>
@@ -174,7 +174,7 @@
     <div class="stats-grid" id="capitalMetricCards"></div>
     <div class="table-wrap wide-table">
       <table>
-        <thead><tr><th>Monat</th><th>Sparkasse</th><th>Sparkasse Zinsen</th><th>Trade Republic</th><th>TR Zinsen</th><th>Dividende</th><th>Gesamtgewinn</th></tr></thead>
+        <thead><tr><th>Monat</th><th>Sparkasse</th><th>Sparkasse Zinsen</th><th>Trade Republic</th><th>TR Zinsen</th><th>Dividende</th><th>Gesamtgewinn</th><th></th></tr></thead>
         <tbody id="capitalMasterBody"></tbody>
       </table>
     </div>
@@ -272,7 +272,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 17</span>
+      <span class="badge">Version 18</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
@@ -296,20 +296,20 @@
 <section id="incomeAnalysis" class="page">
   <article class="panel">
     <h2>Einkommenshistorie</h2>
-    <div class="stats-grid">
+    <div class="stats-grid" data-dashboard-income>
       <div class="stat"><span>Steuerfreibetrag</span><strong>12.096,00 €</strong></div>
-      <div class="stat"><span>Erfasstes Gehalt 2025</span><strong id="salary2025">–</strong></div>
-      <div class="stat"><span>Prognose Gehalt 2026</span><strong id="salary2026">–</strong></div>
+      <div class="stat"><span>Erfasstes Gehalt 2025</span><strong id="salary2025" data-dashboard-income>–</strong></div>
+      <div class="stat"><span>Prognose Gehalt 2026</span><strong id="salary2026" data-dashboard-income>–</strong></div>
       <div class="stat"><span>Verbleibender Freibetrag 2026</span><strong id="taxAllowanceLeft">–</strong></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Monat</th><th>Gehalt</th><th>Bonus</th><th>Trinkgeld</th><th>Eltern</th><th>Kosten</th><th>Netto gesamt</th><th></th></tr></thead>
+      <thead><tr><th>Monat</th><th>Gehalt</th><th data-dashboard-income>Bonus</th><th>Trinkgeld</th><th>Eltern</th><th>Kosten</th><th>Netto gesamt</th><th></th></tr></thead>
       <tbody id="incomeHistoryBody"></tbody>
     </table></div>
   </article>
   <article class="panel">
     <h2>Schicht- und Einkommensplanung</h2>
-    <div class="stats-grid">
+    <div class="stats-grid" data-dashboard-income>
       <div class="stat"><span>Pro Schicht (5 h)</span><strong>70,00 €</strong></div>
       <div class="stat"><span>12 Schichten/Monat</span><strong>840,00 €</strong></div>
       <div class="stat"><span>Max. 14 Schichten</span><strong>980,00 €</strong></div>
@@ -321,7 +321,7 @@
 
 <section id="expenseAnalysis" class="page">
   <article class="panel">
-    <h2>Amex-Kontostand und Sparanalyse</h2><p class="muted">Die Monatswerte sind Amex-Abbuchungen; der Juli-Wert ist der bisherige aktuelle Stand.</p>
+    <h2>Amex-Kontostand und Sparanalyse</h2><p class="muted" data-dashboard-amex>Die Monatswerte sind Amex-Abbuchungen; der Juli-Wert ist der bisherige aktuelle Stand.</p>
     <div class="stats-grid">
       <div class="stat"><span>Ø Ausgaben</span><strong id="avgExpenses">–</strong></div>
       <div class="stat"><span>Ø Ausgaben/Tag</span><strong id="avgExpensesDaily">–</strong></div>
@@ -329,7 +329,7 @@
       <div class="stat"><span>Ø Sparrate/Monat</span><strong id="avgMonthlySaving">–</strong></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Monat</th><th>Ausgaben</th><th>Durchschnitt</th><th>Ausgaben/Tag</th><th>Einnahmen/Tag</th><th>Passiv/Tag</th><th>Netto/Tag</th><th>Sparrate/Monat</th><th></th></tr></thead>
+      <thead><tr><th>Monat</th><th>Zu zahlender Betrag</th><th>Dynamischer Durchschnitt</th><th></th></tr></thead>
       <tbody id="expenseHistoryBody"></tbody>
     </table></div>
   </article>
@@ -368,7 +368,7 @@
 
 <section id="passiveIncome" class="page">
   <article class="panel">
-    <h2>Passives Einkommen</h2><p class="muted">Für die Tageszins-Ziele zählt ausschließlich das Trade-Republic-Tagesgeldkonto.</p>
+    <h2>Passives Einkommen</h2><p class="muted" data-dashboard-income>Für die Tageszins-Ziele zählt ausschließlich das Trade-Republic-Tagesgeldkonto.</p>
     <div class="stats-grid">
       <div class="stat"><span>Zinsen pro Tag</span><strong id="passiveInterestDay">–</strong></div>
       <div class="stat"><span>Dividende pro Tag</span><strong id="passiveDividendDay">–</strong></div>

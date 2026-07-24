@@ -74,3 +74,6 @@ th:first-child,td:first-child{text-align:left}
 .total-row th{font-weight:800;border-top:2px solid currentColor}
 
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0}.stat-card{padding:14px;border:1px solid var(--border,#ddd);border-radius:12px}.stat-card span{display:block;font-size:.85rem;opacity:.75}.stat-card strong{display:block;margin-top:5px;font-size:1.1rem}
+
+.inline-input{max-width:140px}
+table td:last-child button{white-space:nowrap}
