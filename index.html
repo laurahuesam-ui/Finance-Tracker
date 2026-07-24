@@ -14,19 +14,22 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 6</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 17</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
 </header>
 
 <nav class="tabs" aria-label="Bereiche">
-<button data-page="overview">Übersicht</button>
-<button data-page="incomeAnalysis">Einkommen</button>
-<button data-page="expenseAnalysis">Ausgaben</button>
-<button data-page="fixedCostsOverview">Fixkosten</button>
-<button data-page="passiveIncome">Passiv</button>
-<button data-page="goals">Sparziele</button>
+  <button class="tab active" data-page="dashboard">Dashboard</button>
+  <button class="tab" data-page="overview">Übersicht</button>
+  <button class="tab" data-page="expenseAnalysis">Amex & Tanken</button>
+  <button class="tab" data-page="fixedCostsOverview">Fixkosten</button>
+  <button class="tab" data-page="incomeAnalysis">Einkommen</button>
+  <button class="tab" data-page="assets">Konten & Vermögen</button>
+  <button class="tab" data-page="passiveIncome">Passiv</button>
+  <button class="tab" data-page="goals">Sparziele</button>
+  <button class="tab" data-page="backup">Backup</button>
 </nav>
 
 <main>
@@ -104,7 +107,7 @@
 
     <article class="panel">
       <div class="panel-head"><h2>Zinsziele pro Tag</h2><span class="muted">je 0,01 € täglich rund 162,22 € mehr Kapital</span></div>
-      <div class="table-wrap"><table class="history-table"><thead><tr><th>Tageszinsen</th><th>Benötigtes Kapital</th><th>Status</th></tr></thead><tbody id="interestTargetsBody"></tbody></table></div>
+      <div class="table-wrap"><table class="history-table"><thead><tr><th>Tageszinsen</th><th>Noch fehlend auf TR-Tagesgeld</th><th>Status</th></tr></thead><tbody id="interestTargetsBody"></tbody></table></div>
     </article>
   </section>
 
@@ -165,6 +168,25 @@
   </section>
 
   <section id="assets" class="page">
+
+  <article class="panel">
+    <div class="panel-head"><div><h2>Kapitalentwicklung</h2><p class="muted">Vollständige Stammdaten seit Juni 2025.</p></div></div>
+    <div class="stats-grid" id="capitalMetricCards"></div>
+    <div class="table-wrap wide-table">
+      <table>
+        <thead><tr><th>Monat</th><th>Sparkasse</th><th>Sparkasse Zinsen</th><th>Trade Republic</th><th>TR Zinsen</th><th>Dividende</th><th>Gesamtgewinn</th></tr></thead>
+        <tbody id="capitalMasterBody"></tbody>
+      </table>
+    </div>
+    <h3>Benötigtes Kapital nach Tageszinsen</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tageszinsen</th><th>Noch fehlend auf TR-Tagesgeld</th></tr></thead>
+        <tbody id="requiredCapitalBody"></tbody>
+      </table>
+    </div>
+  </article>
+
     <article class="panel">
       <h2>Vermögenswert anlegen</h2>
       <form id="assetForm" class="form-grid">
@@ -189,6 +211,31 @@
   </section>
 
   <section id="goals" class="page">
+
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Priorisierte Sparziele</h2>
+        <p class="muted">Einmalige Kosten und laufende Kosten mit Mindest- und Maximalwerten.</p>
+      </div>
+    </div>
+    <div class="table-wrap wide-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Prio</th><th>Kategorie</th><th>Unterkategorie</th>
+            <th>Einmalig min</th><th>Einmalig max</th>
+            <th>LK min p.a.</th><th>LK max p.a.</th>
+            <th>LK min p.m.</th><th>LK max p.m.</th>
+            <th>% min</th><th>% max</th><th>Verfügbar</th>
+          </tr>
+        </thead>
+        <tbody id="priorityGoalsBody"></tbody>
+        <tfoot id="priorityGoalsFoot"></tfoot>
+      </table>
+    </div>
+  </article>
+
     <article class="panel">
       <h2>Sparziel anlegen</h2>
       <form id="goalForm" class="form-grid">
@@ -225,7 +272,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 6</span>
+      <span class="badge">Version 17</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
@@ -256,7 +303,7 @@
       <div class="stat"><span>Verbleibender Freibetrag 2026</span><strong id="taxAllowanceLeft">–</strong></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Monat</th><th>Gehalt</th><th>Bonus</th><th>Trinkgeld</th><th>Eltern</th><th>Kosten</th><th>Netto gesamt</th></tr></thead>
+      <thead><tr><th>Monat</th><th>Gehalt</th><th>Bonus</th><th>Trinkgeld</th><th>Eltern</th><th>Kosten</th><th>Netto gesamt</th><th></th></tr></thead>
       <tbody id="incomeHistoryBody"></tbody>
     </table></div>
   </article>
@@ -274,7 +321,7 @@
 
 <section id="expenseAnalysis" class="page">
   <article class="panel">
-    <h2>Ausgaben- und Sparanalyse</h2>
+    <h2>Amex-Kontostand und Sparanalyse</h2><p class="muted">Die Monatswerte sind Amex-Abbuchungen; der Juli-Wert ist der bisherige aktuelle Stand.</p>
     <div class="stats-grid">
       <div class="stat"><span>Ø Ausgaben</span><strong id="avgExpenses">–</strong></div>
       <div class="stat"><span>Ø Ausgaben/Tag</span><strong id="avgExpensesDaily">–</strong></div>
@@ -282,10 +329,29 @@
       <div class="stat"><span>Ø Sparrate/Monat</span><strong id="avgMonthlySaving">–</strong></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Monat</th><th>Ausgaben</th><th>Einnahmen/Tag</th><th>Passiv/Tag</th><th>Sparbetrag</th></tr></thead>
+      <thead><tr><th>Monat</th><th>Ausgaben</th><th>Durchschnitt</th><th>Ausgaben/Tag</th><th>Einnahmen/Tag</th><th>Passiv/Tag</th><th>Netto/Tag</th><th>Sparrate/Monat</th><th></th></tr></thead>
       <tbody id="expenseHistoryBody"></tbody>
     </table></div>
   </article>
+
+  <article class="panel">
+    <div class="panel-head">
+      <div><h2>Variable Kosten – Tanken</h2>
+      <p class="muted">Jeden Tankvorgang einzeln speichern. Durchschnittswerte erscheinen, sobald ausreichend Daten vorhanden sind.</p></div>
+      <button id="addFuelEntry" type="button">Tankvorgang hinzufügen</button>
+    </div>
+    <div class="stats-grid">
+      <div class="stat"><span>Gesamt erfasst</span><strong id="fuelCurrentTotal">–</strong></div>
+      <div class="stat"><span>Ø Tankvorgang</span><strong id="fuelAvgEntry">–</strong></div>
+      <div class="stat"><span>Ø pro Monat</span><strong id="fuelAvgMonth">–</strong></div>
+      <div class="stat"><span>Ø Abstand</span><strong id="fuelAvgGap">–</strong></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Datum</th><th>Betrag</th><th>Notiz</th><th></th></tr></thead>
+      <tbody id="fuelEntriesBody"></tbody>
+    </table></div>
+  </article>
+
 </section>
 
 <section id="fixedCostsOverview" class="page">
@@ -302,15 +368,15 @@
 
 <section id="passiveIncome" class="page">
   <article class="panel">
-    <h2>Passives Einkommen</h2>
+    <h2>Passives Einkommen</h2><p class="muted">Für die Tageszins-Ziele zählt ausschließlich das Trade-Republic-Tagesgeldkonto.</p>
     <div class="stats-grid">
       <div class="stat"><span>Zinsen pro Tag</span><strong id="passiveInterestDay">–</strong></div>
       <div class="stat"><span>Dividende pro Tag</span><strong id="passiveDividendDay">–</strong></div>
-      <div class="stat"><span>Gesamt pro Monat</span><strong id="passiveMonth">–</strong></div>
-      <div class="stat"><span>Gesamt pro Jahr</span><strong id="passiveYear">–</strong></div>
+      <div class="stat"><span>Gesamt pro Monat</span><strong id="passiveTabMonth">–</strong></div>
+      <div class="stat"><span>Gesamt pro Jahr</span><strong id="passiveTabYear">–</strong></div>
     </div>
     <div class="table-wrap"><table>
-      <thead><tr><th>Ziel pro Tag</th><th>Benötigtes Kapital</th><th>Status</th></tr></thead>
+      <thead><tr><th>Ziel pro Tag</th><th>Noch fehlend auf TR-Tagesgeld</th></tr></thead>
       <tbody id="passiveTargetsBody"></tbody>
     </table></div>
   </article>
