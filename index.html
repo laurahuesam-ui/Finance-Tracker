@@ -1,102 +1,331 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#183153">
-<title>Finanzen PWA</title>
-<link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b5ed7">
+  <meta name="description" content="Lokale Finanz-PWA für Vermögen, Ausgaben, Fixkosten und Sparziele">
+  <title>Finanzen</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <div><h1>Finanzen</h1><p>Version 17 – komplett neu aufgebaut</p></div>
-  <div class="header-actions">
-    <button id="exportBtn">Backup exportieren</button>
-    <label class="button">Backup importieren<input id="importInput" type="file" accept=".json" hidden></label>
-    <button id="resetBtn" class="danger">Stammdaten zurücksetzen</button>
+<header class="app-header">
+  <div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 6</span></div>
+    <p id="headerMonth"></p>
   </div>
+  <button id="installBtn" class="secondary hidden">Installieren</button>
 </header>
-<nav id="nav">
-  <button data-page="overview" class="active">Übersicht</button>
-  <button data-page="assets">Konten & Vermögen</button>
-  <button data-page="spending">AMEX & Tanken</button>
-  <button data-page="fixed">Fixkosten</button>
-  <button data-page="income">Einkommen</button>
-  <button data-page="passive">Passiv</button>
-  <button data-page="goals">Sparziele</button>
+
+<nav class="tabs" aria-label="Bereiche">
+<button data-page="overview">Übersicht</button>
+<button data-page="incomeAnalysis">Einkommen</button>
+<button data-page="expenseAnalysis">Ausgaben</button>
+<button data-page="fixedCostsOverview">Fixkosten</button>
+<button data-page="passiveIncome">Passiv</button>
+<button data-page="goals">Sparziele</button>
 </nav>
+
 <main>
-<section id="overview" class="page active">
-  <h2>Übersicht</h2>
-  <div id="overviewCards" class="cards"></div>
-  <div class="grid-2">
-    <article><h3>Aktueller Monat</h3><div id="overviewMonth"></div></article>
-    <article><h3>Nächste Ziele</h3><div id="overviewGoals"></div></article>
-  </div>
-</section>
+  <section id="dashboard" class="page active">
+    <div class="grid cards">
+      <article class="card hero">
+        <span>Gesamtvermögen</span>
+        <strong id="totalWealth">0,00 €</strong>
+        <small id="wealthChange">Noch keine Historie</small>
+      </article>
+      <article class="card">
+        <span>Veränderung Kontostände</span>
+        <strong id="monthExpenses">0,00 €</strong>
+        <small>aus Kontoständen + fälligen Fixkosten</small>
+      </article>
+      <article class="card">
+        <span>Gehalt diesen Monat</span>
+        <strong id="monthIncome">0,00 €</strong>
+        <small id="monthBalance">Monatssaldo: 0,00 €</small>
+      </article>
+      <article class="card">
+        <span>Passives Einkommen</span>
+        <strong id="passiveMonth">0,00 €/Monat</strong>
+        <small id="passiveYear">0,00 €/Jahr</small>
+      </article>
+    </div>
 
-<section id="assets" class="page">
-  <h2>Konten & Vermögen</h2>
-  <div id="assetCards" class="cards"></div>
-  <article>
-    <h3>Konten bearbeiten</h3>
-    <div class="table-wrap"><table><thead><tr><th>Konto</th><th>Art</th><th>Wert</th><th></th></tr></thead><tbody id="accountsBody"></tbody></table></div>
+    <div class="grid two">
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Break-even Fixkosten</h2>
+        </div>
+        <div class="progress"><div id="passiveProgress"></div></div>
+        <p><strong id="breakEvenPassive">0 %</strong> durch Zinsen und Dividenden gedeckt</p>
+        <p id="breakEvenWithSalary" class="muted"></p>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Amex-Abrechnung</h2>
+          <select id="amexMonthSelect" aria-label="Amex-Monat"></select>
+        </div>
+        <p class="big" id="amexMonthTotal">0,00 €</p>
+        <p id="amexStatus" class="muted"></p>
+        <button id="toggleAmexPaid">Als abgebucht markieren</button>
+      </article>
+    </div>
+
+    <div class="grid two">
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Kontenübersicht</h2>
+        </div>
+        <div id="assetSummary" class="list"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Nächste Fixkosten</h2>
+        </div>
+        <div id="nextFixedCosts" class="list"></div>
+      </article>
+    </div>
+
+    <div class="grid cards finance-kpis">
+      <article class="card"><span>Gewinn Zinsen</span><strong id="interestProfit">39,84 €</strong><small id="dailyInterest">aktuell 0,17 €/Tag</small></article>
+      <article class="card"><span>Gewinn Dividenden</span><strong id="dividendProfit">14,63 €</strong><small id="monthlyDividend">aktuell 1,65 €/Monat</small></article>
+      <article class="card"><span>Gewinn Aktien</span><strong id="stockProfit">45,90 €</strong><small>aktueller Aktienwert: 768,63 €</small></article>
+      <article class="card"><span>Kapitalsteigerung</span><strong id="capitalGrowth">64,94 %</strong><small id="capitalDelta">+1.549,83 € seit Beginn</small></article>
+    </div>
+
+    <article class="panel">
+      <div class="panel-head"><h2>Vermögens- und Ertragshistorie</h2><strong id="historyTotalProfit"></strong></div>
+      <div class="table-wrap"><table class="history-table"><thead><tr><th>Monat</th><th>Sparkasse</th><th>Zinsen Sparkasse</th><th>Trade Republic</th><th>Zinsen TR</th><th>Dividende TR</th><th>Insgesamt</th></tr></thead><tbody id="financeHistoryBody"></tbody></table></div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-head"><h2>Zinsziele pro Tag</h2><span class="muted">je 0,01 € täglich rund 162,22 € mehr Kapital</span></div>
+      <div class="table-wrap"><table class="history-table"><thead><tr><th>Tageszinsen</th><th>Benötigtes Kapital</th><th>Status</th></tr></thead><tbody id="interestTargetsBody"></tbody></table></div>
+    </article>
+  </section>
+
+  <section id="expenses" class="page">
+    <article class="panel">
+      <h2>Neuen Kontostand eintragen</h2>
+      <p class="muted">Trage nur den aktuellen Stand ein. Die Veränderung seit dem letzten Stand wird automatisch berechnet.</p>
+      <form id="balanceForm" class="form-grid">
+        <label>Datum<input id="balanceDate" type="date" required></label>
+        <label>Konto<select id="balanceAccount" required><option>Amex</option><option>Sparkasse</option></select></label>
+        <label>Aktueller Stand<input id="balanceAmount" type="number" step="0.01" required></label>
+        <label class="wide">Notiz<input id="balanceNote" type="text" placeholder="optional"></label>
+        <button type="submit">Kontostand speichern</button>
+      </form>
+    </article>
+    <article class="panel">
+      <div class="panel-head"><h2>Kontostände und Veränderungen</h2><div class="filters"><input id="balanceMonthFilter" type="month"><select id="balanceAccountFilter"><option value="">Alle Konten</option><option>Amex</option><option>Sparkasse</option></select></div></div>
+      <div id="balanceSummary" class="summary-line"></div><div id="balanceList" class="list"></div>
+    </article>
+  </section>
+
+  <section id="fixed" class="page">
+    <article class="panel">
+      <h2>Fixkosten anlegen</h2>
+      <form id="fixedForm" class="form-grid">
+        <label>Name<input id="fixedName" required placeholder="z. B. Internet"></label>
+        <label>Betrag<input id="fixedAmount" type="number" min="0" step="0.01" required></label>
+        <label>Abbuchungstag<input id="fixedDay" type="number" min="1" max="31" value="1" required></label>
+        <label>Intervall
+          <select id="fixedFrequency"><option value="monthly">Monatlich</option><option value="quarterly">Vierteljährlich</option><option value="semiannual">Halbjährlich</option><option value="annual">Jährlich</option></select>
+        </label>
+        <label>Erster Abbuchungsmonat<input id="fixedStartMonth" type="month" required></label>
+        <label>Konto<select id="fixedAccount"><option>Sparkasse</option><option>Amex</option></select></label>
+        <button type="submit">Fixkosten speichern</button>
+      </form>
+    </article>
+    <article class="panel">
+      <div class="panel-head"><h2>Fixkostenübersicht</h2><strong id="fixedMonthlyAverage"></strong></div>
+      <div id="fixedList" class="list"></div>
+    </article>
+  </section>
+
+  <section id="income" class="page">
+    <article class="panel">
+      <h2>Gehalt / Einkommen erfassen</h2>
+      <form id="incomeForm" class="form-grid">
+        <label>Datum<input id="incomeDate" type="date" required></label>
+        <label>Betrag<input id="incomeAmount" type="number" min="0" step="0.01" required></label>
+        <label>Art<select id="incomeType"><option>Gehalt</option><option>Trinkgeld</option><option>Nebenverdienst</option><option>Sonstiges</option></select></label>
+        <label class="wide">Notiz<input id="incomeNote" placeholder="optional"></label>
+        <button type="submit">Einkommen speichern</button>
+      </form>
+    </article>
+    <article class="panel">
+      <div class="panel-head"><h2>Einkommenshistorie</h2><input id="incomeMonthFilter" type="month"></div>
+      <div id="incomeList" class="list"></div>
+    </article>
+  </section>
+
+  <section id="assets" class="page">
+    <article class="panel">
+      <h2>Vermögenswert anlegen</h2>
+      <form id="assetForm" class="form-grid">
+        <label>Name<input id="assetName" required placeholder="z. B. Trade Republic Aktien"></label>
+        <label>Typ
+          <select id="assetType">
+            <option value="stocks">Aktien</option>
+            <option value="cash">Tagesgeldkonto</option>
+            <option value="bank">Sparkasse Konto</option>
+            <option value="other">Sonstiges</option>
+          </select>
+        </label>
+        <label>Aktueller Stand<input id="assetBalance" type="number" step="0.01" required></label>
+        <label>Dividenden-/Zinssatz p. a. (%)<input id="assetRate" type="number" min="0" step="0.01" value="0"></label>
+        <button type="submit">Vermögenswert speichern</button>
+      </form>
+    </article>
+    <article class="panel">
+      <div class="panel-head"><h2>Vermögen und Erträge</h2><strong id="assetTotal"></strong></div>
+      <div id="assetList" class="list"></div>
+    </article>
+  </section>
+
+  <section id="goals" class="page">
+    <article class="panel">
+      <h2>Sparziel anlegen</h2>
+      <form id="goalForm" class="form-grid">
+        <label>Name<input id="goalName" required placeholder="z. B. Notgroschen"></label>
+        <label>Zielbetrag<input id="goalTarget" type="number" step="0.01" required></label>
+        <label>Aktueller Stand<input id="goalCurrent" type="number" step="0.01" readonly title="Wird automatisch aus dem Gesamtvermögen übernommen"></label>
+        <label>Wunschdatum<input id="goalDate" type="date" required></label>
+        <button type="submit">Sparziel speichern</button>
+      </form>
+    </article>
+    <div id="goalList" class="grid two"></div>
+  </section>
+
+  <section id="backup" class="page">
+    <article class="panel">
+      <h2>Backup und Export</h2>
+      <p>Alle Daten bleiben lokal auf diesem Gerät. Erstelle regelmäßig ein Backup.</p>
+      <div class="button-row">
+        <button id="exportBackup">Backup als JSON</button>
+        <label class="file-button">Backup importieren<input id="importBackup" type="file" accept=".json,application/json"></label>
+        <button id="exportCsv" class="secondary">Kontostände als CSV</button>
+      </div>
+      <hr>
+      <h3>Alle Daten löschen</h3>
+      <p class="muted">Löscht sämtliche Finanzdaten nur auf diesem Gerät.</p>
+      <button id="deleteAll" class="danger">Alle Daten löschen</button>
+    </article>
+  </section>
+
+<section id="overview" class="page">
+  <article class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Finanzübersicht</h2>
+        <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
+      </div>
+      <span class="badge">Version 6</span>
+    </div>
+    <div class="stats-grid">
+      <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
+      <div class="stat"><span>Ø Sparrate</span><strong id="v6AvgSaving">–</strong></div>
+      <div class="stat"><span>Ø Sparquote</span><strong id="v6SavingRate">–</strong></div>
+      <div class="stat"><span>Passiv pro Monat</span><strong id="v6PassiveMonthly">–</strong></div>
+      <div class="stat"><span>Fixkosten pro Monat</span><strong id="v6FixedMonthly">–</strong></div>
+      <div class="stat"><span>Fixkosten passiv gedeckt</span><strong id="v6Coverage">–</strong></div>
+    </div>
   </article>
-  <article>
-    <h3>Kapitalhistorie</h3>
-    <div class="table-wrap"><table><thead><tr><th>Monat</th><th>Sparkasse</th><th>Sparkasse Zinsen</th><th>Trade Republic</th><th>TR Zinsen</th><th>Dividende</th><th>Gewinn</th></tr></thead><tbody id="capitalBody"></tbody></table></div>
+  <article class="panel">
+    <h2>Meilensteine</h2>
+    <div id="milestoneList" class="list"></div>
+  </article>
+  <article class="panel">
+    <h2>Jahresprognose</h2>
+    <div id="yearForecast" class="stats-grid"></div>
   </article>
 </section>
 
-<section id="spending" class="page">
-  <h2>AMEX & Tanken</h2>
-  <article>
-    <div class="section-head"><h3>AMEX</h3><button id="addAmexBtn">Monat hinzufügen</button></div>
-    <div class="table-wrap"><table><thead><tr><th>Monat</th><th>Ausgaben</th><th>Durchschnitt</th><th>Ausgaben/Tag</th><th>Einnahmen/Tag</th><th>Passiv/Tag</th><th>Netto/Tag</th><th>Sparrate/Monat</th><th>Abgebucht</th><th></th></tr></thead><tbody id="amexBody"></tbody></table></div>
+<section id="incomeAnalysis" class="page">
+  <article class="panel">
+    <h2>Einkommenshistorie</h2>
+    <div class="stats-grid">
+      <div class="stat"><span>Steuerfreibetrag</span><strong>12.096,00 €</strong></div>
+      <div class="stat"><span>Erfasstes Gehalt 2025</span><strong id="salary2025">–</strong></div>
+      <div class="stat"><span>Prognose Gehalt 2026</span><strong id="salary2026">–</strong></div>
+      <div class="stat"><span>Verbleibender Freibetrag 2026</span><strong id="taxAllowanceLeft">–</strong></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Monat</th><th>Gehalt</th><th>Bonus</th><th>Trinkgeld</th><th>Eltern</th><th>Kosten</th><th>Netto gesamt</th></tr></thead>
+      <tbody id="incomeHistoryBody"></tbody>
+    </table></div>
   </article>
-  <article>
-    <div class="section-head"><h3>Tanken</h3><button id="addFuelBtn">Tankvorgang hinzufügen</button></div>
-    <div id="fuelSummary" class="cards compact"></div>
-    <div class="table-wrap"><table><thead><tr><th>Datum</th><th>Betrag</th><th>Notiz</th><th></th></tr></thead><tbody id="fuelBody"></tbody></table></div>
-  </article>
-</section>
-
-<section id="fixed" class="page">
-  <div class="section-head"><h2>Fixkosten</h2><button id="addFixedBtn">Fixkosten hinzufügen</button></div>
-  <div id="fixedSummary" class="cards compact"></div>
-  <div class="table-wrap"><table><thead><tr><th>Name</th><th>Betrag</th><th>Wann?</th><th>Rhythmus</th><th>Aktiv</th><th></th></tr></thead><tbody id="fixedBody"></tbody></table></div>
-</section>
-
-<section id="income" class="page">
-  <div class="section-head"><h2>Einkommen</h2><button id="addIncomeBtn">Monat hinzufügen</button></div>
-  <div id="incomeSummary" class="cards compact"></div>
-  <div class="table-wrap"><table><thead><tr><th>Monat</th><th>Gehalt</th><th>Bonus</th><th>Trinkgeld</th><th>Eltern</th><th>Kosten</th><th>Insgesamt</th><th>pro Tag</th><th></th></tr></thead><tbody id="incomeBody"></tbody></table></div>
-</section>
-
-<section id="passive" class="page">
-  <h2>Passives Einkommen</h2>
-  <div id="passiveCards" class="cards"></div>
-  <article>
-    <h3>Wie viel fehlt für x Cent Zinsen pro Tag?</h3>
-    <p class="muted">Berechnung: benötigtes Kapital minus aktuelles Trade-Republic-Tagesgeld.</p>
-    <div class="table-wrap small"><table><thead><tr><th>Ziel</th><th>Noch auf TR-Tagesgeld nötig</th></tr></thead><tbody id="requiredBody"></tbody></table></div>
+  <article class="panel">
+    <h2>Schicht- und Einkommensplanung</h2>
+    <div class="stats-grid">
+      <div class="stat"><span>Pro Schicht (5 h)</span><strong>70,00 €</strong></div>
+      <div class="stat"><span>12 Schichten/Monat</span><strong>840,00 €</strong></div>
+      <div class="stat"><span>Max. 14 Schichten</span><strong>980,00 €</strong></div>
+      <div class="stat"><span>Jahr bei 12/Monat</span><strong>10.080,00 €</strong></div>
+      <div class="stat"><span>Maximal im Jahr</span><strong>11.760,00 €</strong></div>
+    </div>
   </article>
 </section>
 
-<section id="goals" class="page">
-  <h2>Sparziele</h2>
-  <div id="goalSummary" class="cards compact"></div>
-  <div class="table-wrap"><table><thead><tr><th>Prio</th><th>Kategorie</th><th>Unterkategorie</th><th>Einmalig min.</th><th>Einmalig max.</th><th>LK min./Jahr</th><th>LK max./Jahr</th><th>LK min./Monat</th><th>LK max./Monat</th><th>% min.</th><th>% max.</th><th>Verfügbar</th><th></th></tr></thead><tbody id="goalsBody"></tbody><tfoot id="goalsFoot"></tfoot></table></div>
+<section id="expenseAnalysis" class="page">
+  <article class="panel">
+    <h2>Ausgaben- und Sparanalyse</h2>
+    <div class="stats-grid">
+      <div class="stat"><span>Ø Ausgaben</span><strong id="avgExpenses">–</strong></div>
+      <div class="stat"><span>Ø Ausgaben/Tag</span><strong id="avgExpensesDaily">–</strong></div>
+      <div class="stat"><span>Ø Einnahmen/Tag</span><strong id="avgIncomeDaily">–</strong></div>
+      <div class="stat"><span>Ø Sparrate/Monat</span><strong id="avgMonthlySaving">–</strong></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Monat</th><th>Ausgaben</th><th>Einnahmen/Tag</th><th>Passiv/Tag</th><th>Sparbetrag</th></tr></thead>
+      <tbody id="expenseHistoryBody"></tbody>
+    </table></div>
+  </article>
 </section>
+
+<section id="fixedCostsOverview" class="page">
+  <article class="panel">
+    <h2>Fixkosten</h2>
+    <div class="stats-grid">
+      <div class="stat"><span>Regelmäßig pro Monat</span><strong id="fixedMonthlyTotal">–</strong></div>
+      <div class="stat"><span>Fixkosten pro Jahr</span><strong id="fixedYearlyTotal">–</strong></div>
+      <div class="stat"><span>Nächste Abbuchungen</span><strong id="nextFixedCount">–</strong></div>
+    </div>
+    <div id="fixedCostListV6" class="list"></div>
+  </article>
+</section>
+
+<section id="passiveIncome" class="page">
+  <article class="panel">
+    <h2>Passives Einkommen</h2>
+    <div class="stats-grid">
+      <div class="stat"><span>Zinsen pro Tag</span><strong id="passiveInterestDay">–</strong></div>
+      <div class="stat"><span>Dividende pro Tag</span><strong id="passiveDividendDay">–</strong></div>
+      <div class="stat"><span>Gesamt pro Monat</span><strong id="passiveMonth">–</strong></div>
+      <div class="stat"><span>Gesamt pro Jahr</span><strong id="passiveYear">–</strong></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ziel pro Tag</th><th>Benötigtes Kapital</th><th>Status</th></tr></thead>
+      <tbody id="passiveTargetsBody"></tbody>
+    </table></div>
+  </article>
+</section>
+
 </main>
 
-<dialog id="editDialog">
-<form method="dialog" id="editForm">
-  <h3 id="dialogTitle">Bearbeiten</h3>
-  <div id="dialogFields"></div>
-  <div class="dialog-actions"><button value="cancel">Abbrechen</button><button id="dialogSave" value="default">Speichern</button></div>
-</form>
-</dialog>
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <button id="closeModal" class="icon-btn" aria-label="Schließen">×</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
 <script src="app.js"></script>
-</body></html>
+</body>
+</html>
