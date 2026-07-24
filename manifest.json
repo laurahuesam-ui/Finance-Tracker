@@ -1,0 +1,9 @@
+{
+  "name": "Finanzen PWA",
+  "short_name": "Finanzen",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f9",
+  "theme_color": "#183153",
+  "icons": []
+}
