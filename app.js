@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 20;
+const APP_VERSION = 21;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -421,27 +421,84 @@ function cumulativeAmexAverages(){
 
 function financeSourceOfTruth(){
   const now=new Date();
+  const ym=monthISO();
   const days=daysInMonth(now.getFullYear(),now.getMonth()+1);
   const assets=Array.isArray(data.assets)?data.assets:[];
+  const norm=a=>String(a.name||"").toLowerCase();
+  const isStock=a=>["stock","stocks","equity","fund","etf"].includes(String(a.type||"").toLowerCase());
+  const isCash=a=>["cash","bank","savings"].includes(String(a.type||"").toLowerCase());
+  const isTradeRepublicCash=a=>isCash(a)&&(String(a.id||"")==="seed-tr-cash"||norm(a).includes("trade republic"));
+  const isSparkasse=a=>isCash(a)&&!isTradeRepublicCash(a)&&(norm(a).includes("sparkasse")||String(a.type||"").toLowerCase()==="bank");
+
+  const cashAssets=assets.filter(isCash);
+  const stockAssets=assets.filter(isStock);
+  const tradeRepublicCashAssets=cashAssets.filter(isTradeRepublicCash);
+  const sparkasseAssets=cashAssets.filter(isSparkasse);
+  const otherCashAssets=cashAssets.filter(a=>!isTradeRepublicCash(a)&&!isSparkasse(a));
+
   const totalWealthValue=assets.reduce((sum,a)=>sum+Number(a.balance||0),0);
-  const cashAssets=assets.filter(a=>["cash","bank","savings"].includes(String(a.type||"").toLowerCase()));
-  const stockAssets=assets.filter(a=>["stock","stocks","equity","fund","etf"].includes(String(a.type||"").toLowerCase()));
-  const monthlyInterest=cashAssets.reduce((sum,a)=>sum+Number(a.balance||0)*(Number(a.rate||0)/100)/365*days,0);
-  const monthlyDividendFromAssets=assets.reduce((sum,a)=>{
+  const stockValue=stockAssets.reduce((sum,a)=>sum+Number(a.balance||0),0);
+  const tradeRepublicCash=tradeRepublicCashAssets.reduce((sum,a)=>sum+Number(a.balance||0),0);
+  const sparkasseBalance=sparkasseAssets.reduce((sum,a)=>sum+Number(a.balance||0),0);
+
+  const monthlyYield=a=>Number(a.balance||0)*(Number(a.rate||0)/100)/365*days;
+  const trInterest=tradeRepublicCashAssets.reduce((s,a)=>s+monthlyYield(a),0);
+  const sparkasseInterest=sparkasseAssets.reduce((s,a)=>s+monthlyYield(a),0);
+  const otherInterest=otherCashAssets.reduce((s,a)=>s+monthlyYield(a),0);
+  const monthlyInterest=trInterest+sparkasseInterest+otherInterest;
+
+  // Bei Aktien ist der eingetragene Satz die Dividendenrendite p.a.
+  const calculatedStockDividend=stockAssets.reduce((s,a)=>s+monthlyYield(a),0);
+  const explicitDividend=stockAssets.reduce((s,a)=>{
     const direct=Number(a.monthlyDividend||a.dividendMonth||0);
-    if(direct) return sum+direct;
+    if(direct)return s+direct;
     const annual=Number(a.annualDividend||0);
-    return sum+(annual?annual/12:0);
+    return s+(annual?annual/12:0);
   },0);
-  const monthlyDividend=monthlyDividendFromAssets || Number(data.metrics?.currentMonthlyDividend ?? data.capitalMetrics?.monthlyDividend ?? 0);
+  const monthlyDividend=explicitDividend||calculatedStockDividend;
+
   const passiveMonthly=monthlyInterest+monthlyDividend;
   const passiveDaily=days?passiveMonthly/days:0;
   const passiveAnnual=passiveMonthly*12;
   const monthlyFixed=monthlyAverageFixed();
   const fixedCoveragePct=monthlyFixed?passiveMonthly/monthlyFixed*100:0;
-  const stockValue=stockAssets.reduce((sum,a)=>sum+Number(a.balance||0),0) || Number(data.metrics?.stockValue ?? data.capitalMetrics?.stockValue ?? 0);
-  return {days,assets,totalWealthValue,cashAssets,stockAssets,stockValue,monthlyInterest,monthlyDividend,passiveMonthly,passiveDaily,passiveAnnual,monthlyFixed,fixedCoveragePct};
+
+  const initialCapital=Number(data.capitalMetrics?.initialCapital||data.settings?.capitalStart||2386.50);
+  const capitalDifference=totalWealthValue-initialCapital;
+  const capitalIncreasePct=initialCapital?capitalDifference/initialCapital*100:0;
+
+  const historicRows=(data.financeHistory||data.capitalHistory||[]).filter(r=>r.month!==ym);
+  const historicalInterestProfit=historicRows.reduce((s,r)=>s+Number(r.sparkasseInterest||0)+Number(r.trInterest||0),0);
+  const historicalDividendProfit=historicRows.reduce((s,r)=>s+Number(r.dividend||0),0);
+  const interestProfit=historicalInterestProfit+monthlyInterest;
+  const dividendProfit=historicalDividendProfit+monthlyDividend;
+
+  return {
+    ym,days,assets,cashAssets,stockAssets,totalWealthValue,stockValue,
+    tradeRepublicCash,sparkasseBalance,trInterest,sparkasseInterest,otherInterest,
+    monthlyInterest,monthlyDividend,passiveMonthly,passiveDaily,passiveAnnual,
+    monthlyFixed,fixedCoveragePct,initialCapital,capitalDifference,capitalIncreasePct,
+    interestProfit,dividendProfit
+  };
 }
+
+function liveCapitalHistoryRows(){
+  const s=financeSourceOfTruth();
+  const base=[...(data.capitalHistory||data.financeHistory||[])];
+  const live={
+    month:s.ym,
+    sparkasse:s.sparkasseBalance,
+    sparkasseInterest:s.sparkasseInterest+s.otherInterest,
+    tradeRepublic:s.tradeRepublicCash,
+    trInterest:s.trInterest,
+    dividend:s.monthlyDividend,
+    total:s.monthlyInterest+s.monthlyDividend
+  };
+  const idx=base.findIndex(x=>x.month===s.ym);
+  if(idx>=0)base[idx]={...base[idx],...live}; else base.push(live);
+  return base.sort((a,b)=>a.month.localeCompare(b.month));
+}
+
 function passiveDetails(){
   const s=financeSourceOfTruth();
   return {interest:s.monthlyInterest,dividend:s.monthlyDividend,monthly:s.passiveMonthly,daily:s.passiveDaily,annual:s.passiveAnnual,days:s.days,fixedCoveragePct:s.fixedCoveragePct};
@@ -494,14 +551,15 @@ function renderDashboard(){
   $("nextFixedCosts").innerHTML=next.length?next.map(x=>`
     <div class="list-item"><div><h3>${esc(x.name)}</h3><p>${x.next.toLocaleDateString("de-DE")} · ${esc(x.account)}</p></div><strong>${fmt(x.amount)}</strong></div>`).join(""):'<div class="empty">Keine Fixkosten angelegt.</div>';
   const m=data.metrics||{};
+  const s=financeSourceOfTruth();
   const c=capitalStats();
-  $("interestProfit").textContent=fmt(m.interestProfit);
-  $("dailyInterest").textContent=`aktuell ${fmt(m.currentDailyInterest)}/Tag`;
-  $("dividendProfit").textContent=fmt(m.dividendProfit);
-  $("monthlyDividend").textContent=`aktuell ${fmt(m.currentMonthlyDividend)}/Monat · ${fmt(m.currentDailyDividend)}/Tag`;
-  $("stockProfit").textContent=fmt(m.stockProfit);
-  $("capitalGrowth").textContent=`${c.pct.toFixed(2).replace(".",",")} %`;
-  $("capitalDelta").textContent=`${c.diff>=0?"+":""}${fmt(c.diff)} seit Juni 2025 · Ø ${fmt(c.monthly)}/Monat · ${fmt(c.daily)}/Tag`;
+  $("interestProfit").textContent=fmt(s.interestProfit);
+  $("dailyInterest").textContent=`aktuell ${fmt(s.monthlyInterest/s.days)}/Tag · ${fmt(s.monthlyInterest)}/Monat`;
+  $("dividendProfit").textContent=fmt(s.dividendProfit);
+  $("monthlyDividend").textContent=`aktuell ${fmt(s.monthlyDividend)}/Monat · ${fmt(s.monthlyDividend/s.days)}/Tag`;
+  $("stockProfit").textContent=fmt(m.stockProfit||0);
+  $("capitalGrowth").textContent=`${s.capitalIncreasePct.toFixed(2).replace(".",",")} %`;
+  $("capitalDelta").textContent=`${s.capitalDifference>=0?"+":""}${fmt(s.capitalDifference)} seit Juni 2025 · aktuelles Vermögen ${fmt(s.totalWealthValue)}`;
   const lifetime=lifetimeCapitalStats();
   const lifetimeEl=$("lifetimeCapitalDelta");
   if(lifetimeEl) lifetimeEl.textContent=`Langfristig seit Mai 2023: ${fmt(lifetime.current)} aufgebaut · rechnerisch Ø ${fmt(lifetime.monthly)}/Monat. Für Prognosen wird weiterhin nur die dokumentierte Historie ab Juni 2025 verwendet.`;
@@ -543,12 +601,13 @@ function renderBalances(){
 }
 
 function renderFinanceHistory(){
-  const rows=data.financeHistory||[];
+  const rows=liveCapitalHistoryRows();
   $("financeHistoryBody").innerHTML=rows.map(x=>{
     const future=x.sparkasse===null&&x.tradeRepublic===null;
     return `<tr class="${future?"future-row":""}"><td>${monthLabel(x.month)}</td><td>${x.sparkasse===null?"–":fmt(x.sparkasse)}</td><td>${fmt(x.sparkasseInterest)}</td><td>${x.tradeRepublic===null?"–":fmt(x.tradeRepublic)}</td><td>${x.trInterest===null?"–":fmt(x.trInterest)}</td><td>${x.dividend===null?"–":fmt(x.dividend)}</td><td class="positive">${fmt(x.total)}</td></tr>`;
   }).join("");
-  $("historyTotalProfit").textContent=`Gewinn gesamt: ${fmt(data.metrics?.totalProfit||0)}`;
+  const s=financeSourceOfTruth();
+  $("historyTotalProfit").textContent=`Zinsen + Dividenden gesamt: ${fmt(s.interestProfit+s.dividendProfit)}`;
   const currentCapital=Number(data.assets.find(a=>a.name==="Trade Republic Tagesgeld")?.balance||0);
   const targets=[];
   for(let cents=16;cents<=30;cents++)targets.push({daily:cents/100,capital:cents*162.222222});
@@ -599,9 +658,10 @@ function renderAssets(){
   $("assetTotal").textContent=fmt(totalWealth());
   $("assetList").innerHTML=data.assets.length?data.assets.map(a=>{
     const annual=Number(a.balance)*Number(a.rate||0)/100;
+    const yieldName=a.type==="stocks"?"Dividendenrendite":"Zinssatz";
     return `<div class="list-item">
-      <div><h3>${esc(a.name)}</h3><p>${typeLabel(a.type)} · ${Number(a.rate||0).toFixed(2).replace(".",",")} % p. a.</p>
-      <p>Erwartet: ${fmt(annual/12)}/Monat · ${fmt(annual)}/Jahr</p></div>
+      <div><h3>${esc(a.name)}</h3><p>${typeLabel(a.type)} · ${yieldName}: ${Number(a.rate||0).toFixed(2).replace(".",",")} % p. a.</p>
+      <p>Dynamisch übernommen: ${fmt(annual/12)}/Monat · ${fmt(annual)}/Jahr</p></div>
       <div class="item-actions"><strong>${fmt(a.balance)}</strong>
       <button class="secondary" onclick="openAssetUpdate('${a.id}')">Aktualisieren</button>
       <button class="danger" onclick="removeItem('assets','${a.id}')">Löschen</button></div>
@@ -613,7 +673,7 @@ window.openAssetUpdate=id=>{
     <form id="assetUpdateForm" class="form-grid">
       <label>Datum<input id="assetUpdateDate" type="date" value="${todayISO()}" required></label>
       <label>Neuer Stand<input id="assetUpdateBalance" type="number" step="0.01" value="${a.balance}" required></label>
-      <label>Neuer Satz p. a. (%)<input id="assetUpdateRate" type="number" min="0" step="0.01" value="${a.rate||0}" required></label>
+      <label>${a.type==="stocks"?"Neue Dividendenrendite":"Neuer Zinssatz"} p. a. (%)<input id="assetUpdateRate" type="number" min="0" step="0.01" value="${a.rate||0}" required></label>
       <button type="submit">Speichern</button>
     </form>`);
   $("assetUpdateForm").addEventListener("submit",e=>{
@@ -904,7 +964,7 @@ function reloadAuthoritativeMasterDataV17(){
 function renderV6(){
   const cmb=$("capitalMasterBody");
   if(cmb){
-    cmb.innerHTML=(data.capitalHistory||[]).map(x=>`<tr>
+    cmb.innerHTML=liveCapitalHistoryRows().map(x=>`<tr>
       <td>${monthLabel(x.month)}</td>
       <td>${x.sparkasse==null?"–":fmt(x.sparkasse)}</td>
       <td>${x.sparkasseInterest==null?"–":fmt(x.sparkasseInterest)}</td>
@@ -917,21 +977,21 @@ function renderV6(){
   const cmc=$("capitalMetricCards");
   if(cmc){
     const m=data.capitalMetrics||{};
-    const p=passiveDetails();
     const s=financeSourceOfTruth();
     const items=[
-      ["Aktueller Vermögenswert",fmt(s.totalWealthValue||m.netWorth||0)],
-      ["Kapital t=0",fmt(m.initialCapital||0)],
-      ["Kapitaldifferenz",fmt(m.capitalDifference||0)],
-      ["Kapitalsteigerung",Number(m.capitalIncreasePct||0).toFixed(2).replace(".",",")+" %"],
-      ["Aktueller Aktienwert",fmt(s.stockValue||m.stockValue||0)],
+      ["Aktueller Vermögenswert",fmt(s.totalWealthValue)],
+      ["Kapital t=0",fmt(s.initialCapital)],
+      ["Kapitaldifferenz",fmt(s.capitalDifference)],
+      ["Kapitalsteigerung",s.capitalIncreasePct.toFixed(2).replace(".",",")+" %"],
+      ["Aktueller Aktienwert",fmt(s.stockValue)],
       ["Gewinn Aktien",fmt(m.stockProfit||0)],
-      ["Gewinn Zinsen",fmt(m.interestProfit||0)],
-      ["Gewinn Dividende",fmt(m.dividendProfit||0)],
+      ["Gewinn Zinsen",fmt(s.interestProfit)],
+      ["Gewinn Dividende",fmt(s.dividendProfit)],
       ["Zinsen aktueller Monat",fmt(s.monthlyInterest)],
       ["Dividende aktueller Monat",fmt(s.monthlyDividend)],
       ["Passiv pro Tag",fmt(s.passiveDaily)],
-      ["Passiv pro Monat",fmt(s.passiveMonthly)]
+      ["Passiv pro Monat",fmt(s.passiveMonthly)],
+      ["Fixkosten gedeckt",s.fixedCoveragePct.toFixed(1).replace(".",",")+" %"]
     ];
     cmc.innerHTML=items.map(([k,v])=>`<div class="stat-card"><span>${k}</span><strong>${v}</strong></div>`).join("");
   }
@@ -1189,7 +1249,13 @@ function renderSharedFinanceValuesV20(){
     passiveTabMonth:fmt(s.passiveMonthly),
     passiveTabYear:fmt(s.passiveAnnual),
     passiveCoverage:`${s.fixedCoveragePct.toFixed(1).replace(".",",")} %`,
-    breakEvenPassive:`${s.fixedCoveragePct.toFixed(1).replace(".",",")} %`
+    breakEvenPassive:`${s.fixedCoveragePct.toFixed(1).replace(".",",")} %`,
+    interestProfit:fmt(s.interestProfit),
+    dailyInterest:`aktuell ${fmt(s.monthlyInterest/s.days)}/Tag · ${fmt(s.monthlyInterest)}/Monat`,
+    dividendProfit:fmt(s.dividendProfit),
+    monthlyDividend:`aktuell ${fmt(s.monthlyDividend)}/Monat · ${fmt(s.monthlyDividend/s.days)}/Tag`,
+    capitalGrowth:`${s.capitalIncreasePct.toFixed(2).replace(".",",")} %`,
+    capitalDelta:`${s.capitalDifference>=0?"+":""}${fmt(s.capitalDifference)} seit Juni 2025 · aktuelles Vermögen ${fmt(s.totalWealthValue)}`
   };
   Object.entries(values).forEach(([id,value])=>{const el=$(id);if(el)el.textContent=value;});
   const progress=$("passiveProgress");
