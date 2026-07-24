@@ -17,21 +17,7 @@ const fixedCostsV6 = [
 ];
 
 
-const defaultFixedCostsV12 = fixedCostsV6.map((x,i)=>({
-  id:"fixed-master-"+i,
-  name:x.name,
-  amount:x.amount,
-  day:1,
-  frequency:
-    x.frequency==="twice" ? "semiannual" :
-    x.frequency==="bimonthly" ? "bimonthly" :
-    x.frequency==="yearly" ? "annual" :
-    x.frequency,
-  startMonth:"2026-01",
-  account:"Standard",
-  active:true,
-  when:x.when
-}));
+const defaultFixedCostsV12 = [{"id": "fixed-master-0", "name": "Netflix", "amount": 9.99, "day": 31, "frequency": "monthly", "startMonth": "2025-01", "account": "Standard", "active": true, "when": "Ende des Monats"}, {"id": "fixed-master-1", "name": "Telekom", "amount": 19.95, "day": 31, "frequency": "monthly", "startMonth": "2025-01", "account": "Standard", "active": true, "when": "Ende des Monats"}, {"id": "fixed-master-2", "name": "Spotify", "amount": 12.99, "day": 1, "frequency": "monthly", "startMonth": "2025-01", "account": "Standard", "active": true, "when": "Anfang des Monats"}, {"id": "fixed-master-3", "name": "Versicherung", "amount": 148.77, "day": 14, "frequency": "monthly", "startMonth": "2025-01", "account": "Standard", "active": true, "when": "Mitte des Monats"}, {"id": "fixed-master-4", "name": "Cheerleading", "amount": 24.0, "day": 1, "frequency": "monthly", "startMonth": "2025-01", "account": "Standard", "active": true, "when": "Anfang des Monats"}, {"id": "fixed-master-5", "name": "FSV", "amount": 31.5, "day": 1, "frequency": "semiannual", "startMonth": "2025-04", "account": "Standard", "active": true, "when": "April & Oktober"}, {"id": "fixed-master-6", "name": "HanseMerkur", "amount": 25.0, "day": 14, "frequency": "annual", "startMonth": "2025-09", "account": "Standard", "active": true, "when": "Mitte September"}, {"id": "fixed-master-7", "name": "Cheerleading Jahresbeitrag", "amount": 59.0, "day": 1, "frequency": "annual", "startMonth": "2025-04", "account": "Standard", "active": true, "when": "April"}, {"id": "fixed-master-8", "name": "Reitverein", "amount": 50.0, "day": 1, "frequency": "annual", "startMonth": "2025-03", "account": "Standard", "active": true, "when": "März"}, {"id": "fixed-master-9", "name": "Friseur", "amount": 25.0, "day": 1, "frequency": "bimonthly", "startMonth": "2025-01", "account": "Standard", "active": true, "when": "alle 2 Monate"}];
 
 const passiveCapitalTargetsV6 = [
 [0.16,2595.56],[0.17,2757.78],[0.18,2920.00],[0.19,3082.22],[0.20,3244.44],
@@ -42,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -120,6 +106,20 @@ const defaultData = {
 let data = loadData();
 guaranteeMasterData();
 localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+
+function normalizeFixedCostsV19(){
+  data.settings=data.settings||{};
+  if(Number(data.settings.fixedCostSchemaVersion||0)>=19) return;
+  const defaults=new Map(defaultFixedCostsV12.map(x=>[x.id,x]));
+  data.fixedCosts=(data.fixedCosts||[]).map(x=>{
+    const d=defaults.get(x.id);
+    return d ? {...x,day:d.day,frequency:d.frequency,startMonth:d.startMonth,when:d.when} : x;
+  });
+  data.settings.fixedCostSchemaVersion=19;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+}
+normalizeFixedCostsV19();
+
 let deferredPrompt = null;
 
 const $ = id => document.getElementById(id);
@@ -399,52 +399,43 @@ function monthLabel(ym){
   return new Intl.DateTimeFormat("de-DE",{month:"long",year:"numeric"}).format(new Date(y,m-1,1));
 }
 
-function currentMonthKey(){
-  const d=new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+function fixedCostAmountForMonth(ym){
+  return fixedForMonth(ym).reduce((s,x)=>s-Math.abs(Number(x.amount)||0),0);
 }
-function lastDayOfMonth(year,monthIndex){
-  return new Date(year,monthIndex+1,0).getDate();
+function currentIncomeMasterRow(){
+  const ym=monthISO();
+  return incomeRows().find(x=>x.month===ym) || [...incomeRows()].reverse().find(x=>Number(x.total||0)!==0);
 }
-function resolveFixedCostDay(cost,year,monthIndex){
-  const explicit=Number(cost.day);
-  if(Number.isInteger(explicit)&&explicit>=1&&explicit<=31){
-    return Math.min(explicit,lastDayOfMonth(year,monthIndex));
-  }
-  const when=String(cost.when||"").toLowerCase();
-  if(when.includes("anfang")) return 1;
-  if(when.includes("mitte")) return 14;
-  if(when.includes("ende")) return lastDayOfMonth(year,monthIndex);
-  const m=when.match(/\b([1-9]|[12]\d|3[01])\b/);
-  if(m) return Math.min(Number(m[1]),lastDayOfMonth(year,monthIndex));
-  return null;
+function currentAmexMasterRow(){
+  const ym=monthISO();
+  return amexRows().find(x=>x.month===ym) || [...amexRows()].reverse().find(x=>Number(x.expenses||0)!==0);
 }
-function getCurrentIncomeRow(){
-  const key=currentMonthKey();
-  return (data.v7?.incomeHistory||[]).find(x=>x.month===key)
-    || [...(data.v7?.incomeHistory||[])].reverse().find(x=>Number(x.total||0)!==0)
-    || null;
+function cumulativeAmexAverages(){
+  const rows=[...amexRows()].sort((a,b)=>a.month.localeCompare(b.month));
+  let sum=0;
+  return new Map(rows.map((r,i)=>{
+    sum+=Math.abs(Number(r.expenses)||0);
+    return [r.month,sum/(i+1)];
+  }));
 }
-function getCurrentAmexRow(){
-  const key=currentMonthKey();
-  return (data.v7?.amexHistory||[]).find(x=>x.month===key)
-    || [...(data.v7?.amexHistory||[])].reverse().find(x=>Number(x.expenses||0)!==0)
-    || null;
-}
-function calculatePassiveMetrics(){
-  const key=currentMonthKey();
-  const current=(data.capitalHistory||[]).find(x=>x.month===key)
-    || [...(data.capitalHistory||[])].reverse().find(x=>x && (Number(x.trInterest||0)!==0 || Number(x.dividend||0)!==0))
-    || {};
-  const interest=Number(current.trInterest||0)+Number(current.sparkasseInterest||0);
-  const dividend=Number(current.dividend||0);
+function passiveDetails(){
+  const now=new Date();
+  const days=daysInMonth(now.getFullYear(),now.getMonth()+1);
+  const interest=(data.assets||[])
+    .filter(a=>a.type==="cash"||a.type==="bank")
+    .reduce((s,a)=>s+(Number(a.balance)||0)*(Number(a.rate)||0)/100/365*days,0);
+  const dividend=Number(data.metrics?.currentMonthlyDividend||data.capitalMetrics?.monthlyDividend||0);
   const monthly=interest+dividend;
-  const days=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
-  return {interest,dividend,monthly,daily:days?monthly/days:0};
+  return {interest,dividend,monthly,daily:monthly/days,annual:monthly*12,days};
 }
-function dynamicAmexAverage(){
-  const vals=(data.v7?.amexHistory||[]).map(x=>Number(x.expenses)).filter(Number.isFinite);
-  return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+function dynamicAverageSaving(){
+  const inc=new Map(incomeRows().map(x=>[x.month,Number(x.salary||0)+Number(x.bonus||0)+Number(x.tips||0)+Number(x.parents||0)+fixedCostAmountForMonth(x.month)]));
+  const matches=amexRows().filter(x=>inc.has(x.month));
+  if(!matches.length) return {amount:0,rate:0};
+  const surplus=matches.map(x=>inc.get(x.month)-Math.abs(Number(x.expenses)||0));
+  const amount=surplus.reduce((a,b)=>a+b,0)/surplus.length;
+  const avgIncome=matches.reduce((s,x)=>s+inc.get(x.month),0)/matches.length;
+  return {amount,rate:avgIncome?amount/avgIncome*100:0};
 }
 
 function renderAll(){
@@ -457,20 +448,24 @@ document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>
 
 function renderDashboard(){
   $("headerMonth").textContent=monthLabel(monthISO());
-  const wealth=totalWealth(), expenses=currentMonthExpenseTotal(), income=currentMonthIncomeTotal(), passive=passiveAnnual();
+  const wealth=totalWealth();
+  const amexRow=currentAmexMasterRow(), incomeRow=currentIncomeMasterRow(), p=passiveDetails();
+  const expenses=Math.abs(Number(amexRow?.expenses||0));
+  const income=incomeRow ? Number(incomeRow.salary||0)+Number(incomeRow.bonus||0)+Number(incomeRow.tips||0)+Number(incomeRow.parents||0)+fixedCostAmountForMonth(incomeRow.month) : 0;
+  const passive=p.annual;
   $("totalWealth").textContent=fmt(wealth);
   const allHist=data.assets.flatMap(a=>(a.history||[]).map(h=>({date:h.date,total:null})));
   $("wealthChange").textContent=data.assets.some(a=>(a.history||[]).length>1)?"Kontostände mit Historie":"Noch keine ausreichende Historie";
   $("monthExpenses").textContent=fmt(expenses);
   $("monthIncome").textContent=fmt(income);
   $("monthBalance").textContent=`Monatssaldo: ${fmt(income-expenses)}`;
-  $("passiveMonth").textContent=`${fmt(passive/12)}/Monat`;
-  $("passiveYear").textContent=`${fmt(passive)}/Jahr`;
+  $("passiveMonth").textContent=`${fmt(p.monthly)}/Monat`;
+  $("passiveYear").textContent=`${fmt(p.annual)}/Jahr`;
   const fixed=monthlyAverageFixed();
-  const pct=fixed?Math.min(100,(passive/12)/fixed*100):0;
+  const pct=fixed?Math.min(100,p.monthly/fixed*100):0;
   $("passiveProgress").style.width=`${pct}%`;
   $("breakEvenPassive").textContent=`${pct.toFixed(1).replace(".",",")} %`;
-  const withSalary=fixed?Math.min(100,(passive/12+income)/fixed*100):0;
+  const withSalary=fixed?Math.min(100,(p.monthly+income)/fixed*100):0;
   $("breakEvenWithSalary").textContent=fixed
     ? `Mit dem in diesem Monat erfassten Gehalt wären ${withSalary.toFixed(1).replace(".",",")} % der durchschnittlichen Fixkosten gedeckt.`
     : "Noch keine aktiven Fixkosten vorhanden.";
@@ -761,7 +756,7 @@ function fuelRows(){ ensureV7Data(); return data.v7.fuelEntries; }
 function saveIncomeRow(month){
   const row=incomeRows().find(x=>x.month===month);
   if(!row)return;
-  ["salary","bonus","tips","parents","costs"].forEach(key=>{
+  ["salary","bonus","tips","parents"].forEach(key=>{
     const el=document.querySelector(`[data-income-month="${month}"][data-income-field="${key}"]`);
     if(el)row[key]=Number(el.value)||0;
   });
@@ -782,42 +777,40 @@ let editingIncomeMonth = null;
 let editingAmexMonth = null;
 
 function renderIncomeRowV9(x){
-  const editing = editingIncomeMonth === x.month;
+  const editing=editingIncomeMonth===x.month;
+  const fixed=fixedCostAmountForMonth(x.month);
+  const sum=Number(x.salary||0)+Number(x.bonus||0)+Number(x.tips||0)+Number(x.parents||0)+fixed;
   if(!editing){
     return `<tr>
       <td>${monthLabel(x.month)}</td>
-      <td>${fmt(x.salary)}</td>
-      <td>${fmt(x.bonus)}</td>
-      <td>${fmt(x.tips)}</td>
-      <td>${fmt(x.parents)}</td>
-      <td>${fmt(x.costs)}</td>
-      <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
+      <td>${fmt(x.salary)}</td><td>${fmt(x.bonus)}</td><td>${fmt(x.tips)}</td><td>${fmt(x.parents)}</td>
+      <td>${fmt(fixed)}</td><td><strong>${fmt(sum)}</strong></td>
       <td><button class="edit-income" data-month="${x.month}" type="button">Bearbeiten</button></td>
     </tr>`;
   }
   return `<tr>
     <td>${monthLabel(x.month)}</td>
-    ${["salary","bonus","tips","parents","costs"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`).join("")}
-    <td><strong>${fmt(x.salary+x.bonus+x.tips+x.parents+x.costs)}</strong></td>
+    ${["salary","bonus","tips","parents"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`).join("")}
+    <td>${fmt(fixed)}</td><td><strong>${fmt(sum)}</strong></td>
     <td><button class="save-income" data-month="${x.month}" type="button">Speichern</button> <button class="cancel-income" type="button">Abbrechen</button></td>
   </tr>`;
 }
 
 function renderAmexRowV9(x){
   const editing=editingAmexMonth===x.month;
-  const avg=dynamicAmexAverage();
+  const avg=cumulativeAmexAverages().get(x.month)||0;
   if(!editing){
     return `<tr>
       <td>${monthLabel(x.month)}</td>
       <td>${fmt(Math.abs(Number(x.expenses||0)))}</td>
-      <td>${fmt(Math.abs(avg))}</td>
+      <td>${fmt(avg)}</td>
       <td><button class="edit-amex" data-month="${x.month}" type="button">Bearbeiten</button></td>
     </tr>`;
   }
   return `<tr>
     <td>${monthLabel(x.month)}</td>
-    <td><input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="expenses" value="${x.expenses==null?"":Number(x.expenses).toFixed(2)}"></td>
-    <td>${fmt(Math.abs(avg))}</td>
+    <td><input class="inline-input" type="number" step="0.01" data-amex-month="${x.month}" data-amex-field="expenses" value="${Number(x.expenses||0).toFixed(2)}"></td>
+    <td>${fmt(avg)}</td>
     <td><button class="save-amex" data-month="${x.month}" type="button">Speichern</button> <button class="cancel-amex" type="button">Abbrechen</button></td>
   </tr>`;
 }
@@ -825,7 +818,7 @@ function renderAmexRowV9(x){
 function saveAmexRow(month){
   const row=amexRows().find(x=>x.month===month);
   if(!row)return;
-  ["expenses","average","expenseDay","incomeDay","passiveDay","netDay","saving"].forEach(key=>{
+  ["expenses"].forEach(key=>{
     const el=document.querySelector(`[data-amex-month="${month}"][data-amex-field="${key}"]`);
     row[key]=el && el.value!=="" ? Number(el.value) : null;
   });
@@ -906,6 +899,7 @@ function renderV6(){
   const cmc=$("capitalMetricCards");
   if(cmc){
     const m=data.capitalMetrics||{};
+    const p=passiveDetails();
     const items=[
       ["Aktueller Vermögenswert",fmt(m.netWorth||0)],
       ["Kapital t=0",fmt(m.initialCapital||0)],
@@ -915,11 +909,10 @@ function renderV6(){
       ["Gewinn Aktien",fmt(m.stockProfit||0)],
       ["Gewinn Zinsen",fmt(m.interestProfit||0)],
       ["Gewinn Dividende",fmt(m.dividendProfit||0)],
-      ["Zinsen pro Tag",fmt(m.dailyInterest||0)],
-      ["Dividende pro Tag",fmt(m.dailyDividend||0)],
-      ["Dividende pro Monat",fmt(m.monthlyDividend||0)],
-      ["Passiv pro Tag",fmt(m.dailyPassive||0)],
-      ["Passiv pro Monat",fmt(m.monthlyPassive||0)]
+      ["Zinsen aktueller Monat",fmt(p.interest)],
+      ["Dividende aktueller Monat",fmt(p.dividend)],
+      ["Passiv pro Tag",fmt(p.daily)],
+      ["Passiv pro Monat",fmt(p.monthly)]
     ];
     cmc.innerHTML=items.map(([k,v])=>`<div class="stat-card"><span>${k}</span><strong>${v}</strong></div>`).join("");
   }
@@ -935,9 +928,9 @@ function renderV6(){
   const wealth=totalWealth();
   const validExpenses=amexRows().filter(x=>x.month>="2025-06");
   const avgExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses),0)/validExpenses.length;
-  const avgSaving=validExpenses.reduce((s,x)=>s+Number(x.saving||0),0)/validExpenses.length;
-  const avgIncome=incomeRows().reduce((s,x)=>s+x.total,0)/incomeRows().length;
-  const savingRate=avgIncome ? avgSaving/avgIncome*100 : 0;
+  const saving=dynamicAverageSaving();
+  const avgSaving=saving.amount;
+  const savingRate=saving.rate;
   const activeFixed=(data.fixedCosts||[]).filter(x=>x.active!==false);
   const monthlyFixed=activeFixed.reduce((s,x)=>{
     if(x.frequency==="bimonthly")return s+Math.abs(x.amount)/2;
@@ -945,9 +938,10 @@ function renderV6(){
     if(x.frequency==="monthly")return s+Math.abs(x.amount);
     return s+Math.abs(x.amount)/12;
   },0);
-  const interestDay=Number(data.metrics?.currentDailyInterest||0.17);
-  const dividendDay=Number(data.metrics?.currentDailyDividend||0.05);
-  const passiveMonthly=(interestDay+dividendDay)*30.4375;
+  const passive=passiveDetails();
+  const interestDay=passive.interest/passive.days;
+  const dividendDay=passive.dividend/passive.days;
+  const passiveMonthly=passive.monthly;
   const coverage=monthlyFixed?passiveMonthly/monthlyFixed*100:0;
 
   const set=(id,val)=>{const el=$(id);if(el)el.textContent=val};
@@ -967,11 +961,11 @@ function renderV6(){
   const ih=$("incomeHistoryBody");
   if(ih)ih.innerHTML=incomeRows().map(renderIncomeRowV9).join("");
 
-  set("avgExpenses",fmt(avgExp));
-  const avgDailyExp=validExpenses.reduce((s,x)=>s+Math.abs(x.expenses)/daysInMonthKey(x.month),0)/validExpenses.length;
-  const avgDailyIncome=validExpenses.filter(x=>x.incomeDay).reduce((s,x)=>s+x.incomeDay,0)/validExpenses.filter(x=>x.incomeDay).length;
-  set("avgExpensesDaily",fmt(avgDailyExp));
-  set("avgIncomeDaily",fmt(avgDailyIncome));
+  const currentAmex=currentAmexMasterRow();
+  const currentAvg=currentAmex?cumulativeAmexAverages().get(currentAmex.month)||0:0;
+  set("avgExpenses",fmt(Math.abs(Number(currentAmex?.expenses||0))));
+  set("avgExpensesDaily",fmt(currentAvg));
+  set("avgIncomeDaily",monthLabel(currentAmex?.month||monthISO()));
   set("avgMonthlySaving",fmt(avgSaving));
 
   const eh=$("expenseHistoryBody");
@@ -981,12 +975,18 @@ function renderV6(){
   set("fixedYearlyTotal",fmt(monthlyFixed*12));
   set("nextFixedCount",String(activeFixed.length));
   const fl=$("fixedCostListV6");
-  if(fl)fl.innerHTML=activeFixed.map(x=>`<div class="list-item"><div><h3>${esc(x.name)}</h3><p>${esc(x.when||frequencyLabel(x.frequency)||"")}</p></div><strong>${fmt(-Math.abs(x.amount))}</strong></div>`).join("");
+  if(fl)fl.innerHTML=activeFixed.map(x=>`<div class="list-item">
+    <div><h3>${esc(x.name)}</h3><p>Tag ${Math.min(Number(x.day)||1,31)} · ${esc(x.when||frequencyLabel(x.frequency)||"")}</p></div>
+    <div class="inline-actions"><strong>${fmt(-Math.abs(x.amount))}</strong>
+    <button class="edit-fixed-day" data-id="${x.id}" type="button">Bearbeiten</button></div>
+  </div>`).join("");
 
-  set("passiveInterestDay",fmt(interestDay));
-  set("passiveDividendDay",fmt(dividendDay));
-  set("passiveTabMonth",fmt(passiveMonthly));
-  set("passiveTabYear",fmt(passiveMonthly*12));
+  set("passiveInterestMonth",fmt(passive.interest));
+  set("passiveDividendMonth",fmt(passive.dividend));
+  set("passiveTotalDay",fmt(passive.daily));
+  set("passiveTabMonth",fmt(passive.monthly));
+  set("passiveTabYear",fmt(passive.annual));
+  set("passiveCoverage",(monthlyFixed?passive.monthly/monthlyFixed*100:0).toFixed(1).replace(".",",")+" %");
   const pt=$("passiveTargetsBody");
   const trCash=tradeRepublicCashBalance();
   if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>{
@@ -1019,19 +1019,15 @@ function renderV6(){
   const pgb=$("priorityGoalsBody");
   if(pgb){
     const goalRows=Array.isArray(data.priorityGoals)&&data.priorityGoals.length?data.priorityGoals:priorityGoalsV10;
-    pgb.innerHTML=goalRows.map(r=>`<tr>
-      <td>${r[0]??""}</td>
-      <td>${esc(r[1])}</td>
-      <td>${esc(r[2])}</td>
-      <td>${r[3]==null?"–":fmt(r[3])}</td>
-      <td>${r[4]==null?"–":fmt(r[4])}</td>
-      <td>${r[5]==null?"–":fmt(r[5])}</td>
-      <td>${r[6]==null?"–":fmt(r[6])}</td>
-      <td>${r[7]==null?"–":fmt(r[7])}</td>
-      <td>${r[8]==null?"–":fmt(r[8])}</td>
+    pgb.innerHTML=goalRows.map((r,i)=>`<tr>
+      <td>${r[0]??""}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td>
+      <td>${r[3]==null?"–":fmt(r[3])}</td><td>${r[4]==null?"–":fmt(r[4])}</td>
+      <td>${r[5]==null?"–":fmt(r[5])}</td><td>${r[6]==null?"–":fmt(r[6])}</td>
+      <td>${r[7]==null?"–":fmt(r[7])}</td><td>${r[8]==null?"–":fmt(r[8])}</td>
       <td>${r[9]==null?"–":Number(r[9]).toFixed(2).replace(".",",")+" %"}</td>
       <td>${r[10]==null?"–":Number(r[10]).toFixed(2).replace(".",",")+" %"}</td>
       <td>${r[11]==null?"–":fmt(r[11])}</td>
+      <td><button class="edit-priority-goal" data-index="${i}" type="button">Bearbeiten</button></td>
     </tr>`).join("");
   }
   const pgf=$("priorityGoalsFoot");
@@ -1132,146 +1128,33 @@ localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 renderAll();
 
 
-function renderDashboardCurrentMonthV18(){
-  const income=getCurrentIncomeRow();
-  const amex=getCurrentAmexRow();
-  const incomeValue=income?Number(income.total||0):0;
-  const amexValue=amex?Math.abs(Number(amex.expenses||0)):0;
-
-  ["dashIncome","dashboardIncome","currentIncome","incomeCurrent","salaryDashboard"].forEach(id=>{
-    const el=$(id); if(el) el.textContent=fmt(incomeValue);
-  });
-  ["dashAmex","dashboardAmex","currentAmex","amexCurrent","amexDue"].forEach(id=>{
-    const el=$(id); if(el) el.textContent=fmt(amexValue);
-  });
-
-  document.querySelectorAll("[data-dashboard-income]").forEach(el=>el.textContent=fmt(incomeValue));
-  document.querySelectorAll("[data-dashboard-amex]").forEach(el=>el.textContent=fmt(amexValue));
-}
-
-
-
-let editingFixedCostId=null;
-function renderFixedCostsV18(){
-  const body=$("fixedCostsBody")||$("fixedBody")||$("fixedCostsTableBody");
-  if(!body) return;
-  const now=new Date(), y=now.getFullYear(), m=now.getMonth();
-  body.innerHTML=(data.fixedCosts||[]).map(x=>{
-    const day=resolveFixedCostDay(x,y,m);
-    const editing=editingFixedCostId===x.id;
-    if(!editing){
-      return `<tr>
-        <td>${esc(x.name||"")}</td>
-        <td>${fmt(x.amount||0)}</td>
-        <td>${day?`${String(day).padStart(2,"0")}.${String(m+1).padStart(2,"0")}.${y}`:esc(x.when||"–")}</td>
-        <td>${esc(x.frequency||"")}</td>
-        <td><button type="button" class="edit-fixed" data-id="${x.id}">Bearbeiten</button></td>
-      </tr>`;
-    }
-    return `<tr>
-      <td><input class="inline-input" data-fixed-field="name" data-id="${x.id}" value="${esc(x.name||"")}"></td>
-      <td><input class="inline-input" type="number" step="0.01" data-fixed-field="amount" data-id="${x.id}" value="${Number(x.amount||0)}"></td>
-      <td><input class="inline-input" type="number" min="1" max="31" data-fixed-field="day" data-id="${x.id}" value="${x.day??day??""}"></td>
-      <td><input class="inline-input" data-fixed-field="frequency" data-id="${x.id}" value="${esc(x.frequency||"")}"></td>
-      <td><button type="button" class="save-fixed" data-id="${x.id}">Speichern</button> <button type="button" class="cancel-fixed">Abbrechen</button></td>
-    </tr>`;
-  }).join("");
-}
 document.addEventListener("click",e=>{
-  const edit=e.target.closest(".edit-fixed");
-  if(edit){editingFixedCostId=edit.dataset.id;renderFixedCostsV18();}
-  const cancel=e.target.closest(".cancel-fixed");
-  if(cancel){editingFixedCostId=null;renderFixedCostsV18();}
-  const save=e.target.closest(".save-fixed");
-  if(save){
-    const id=save.dataset.id;
-    const row=(data.fixedCosts||[]).find(x=>String(x.id)===String(id));
+  const fixedBtn=e.target.closest(".edit-fixed-day");
+  if(fixedBtn){
+    const row=(data.fixedCosts||[]).find(x=>x.id===fixedBtn.dataset.id);
     if(row){
-      document.querySelectorAll(`[data-id="${CSS.escape(id)}"][data-fixed-field]`).forEach(inp=>{
-        const f=inp.dataset.fixedField;
-        row[f]=f==="amount"||f==="day"?Number(inp.value):inp.value;
-      });
-      saveData();
+      const val=prompt(`Abbuchungstag für ${row.name} (1–31):`,String(row.day||1));
+      if(val!==null){
+        const day=Math.max(1,Math.min(31,Number(val)||1));
+        row.day=day; saveData(); toast("Abbuchungstag gespeichert");
+      }
     }
-    editingFixedCostId=null;renderFixedCostsV18();renderAll();
   }
-});
-
-
-
-function renderPassiveV18(){
-  const p=calculatePassiveMetrics();
-  const mapping={
-    passiveMonth:p.monthly,
-    passiveYear:p.monthly*12,
-    passiveDay:p.daily,
-    interestMonth:p.interest,
-    dividendMonth:p.dividend
-  };
-  Object.entries(mapping).forEach(([id,val])=>{const el=$(id);if(el)el.textContent=fmt(val);});
-  document.querySelectorAll("[data-passive-month]").forEach(el=>el.textContent=fmt(p.monthly));
-  document.querySelectorAll("[data-passive-day]").forEach(el=>el.textContent=fmt(p.daily));
-}
-
-
-
-let editingGoalIndex=null;
-function renderGoalsV18(){
-  const body=$("goalsBody")||$("savingsGoalsBody")||$("priorityGoalsBody");
-  if(!body) return;
-  body.innerHTML=(data.goals||[]).map((g,i)=>{
-    const editing=editingGoalIndex===i;
-    if(!editing){
-      return `<tr>
-        <td>${g.priority??""}</td><td>${esc(g.category||"")}</td><td>${esc(g.name||g.title||g.subcategory||"")}</td>
-        <td>${fmt(g.min??g.targetMin??0)}</td><td>${fmt(g.max??g.targetMax??0)}</td>
-        <td>${fmt(g.annualMin??g.lkMinPa??0)}</td><td>${fmt(g.annualMax??g.lkMaxPa??0)}</td>
-        <td>${fmt(g.monthlyMin??g.lkMinPm??0)}</td><td>${fmt(g.monthlyMax??g.lkMaxPm??0)}</td>
-        <td>${fmt(g.available??g.current??0)}</td>
-        <td><button type="button" class="edit-goal" data-index="${i}">Bearbeiten</button></td>
-      </tr>`;
-    }
+  const goalBtn=e.target.closest(".edit-priority-goal");
+  if(goalBtn){
+    const i=Number(goalBtn.dataset.index);
+    const rows=Array.isArray(data.priorityGoals)&&data.priorityGoals.length?data.priorityGoals:priorityGoalsV10;
+    const r=rows[i];
+    if(!r)return;
     const fields=[
-      ["priority","number"],["category","text"],["name","text"],["min","number"],["max","number"],
-      ["annualMin","number"],["annualMax","number"],["monthlyMin","number"],["monthlyMax","number"],["available","number"]
+      ["Priorität",0],["Kategorie",1],["Unterkategorie",2],["Einmalig min",3],["Einmalig max",4],
+      ["LK min p.a.",5],["LK max p.a.",6],["LK min p.m.",7],["LK max p.m.",8],["Verfügbar",11]
     ];
-    return `<tr>${fields.map(([f,t])=>`<td><input class="inline-input" type="${t}" step="${t==="number"?"0.01":""}" data-goal-field="${f}" data-index="${i}" value="${esc(g[f]??(f==="name"?(g.title||g.subcategory||""):""))}"></td>`).join("")}
-      <td><button type="button" class="save-goal" data-index="${i}">Speichern</button> <button type="button" class="cancel-goal">Abbrechen</button></td></tr>`;
-  }).join("");
-}
-document.addEventListener("click",e=>{
-  const edit=e.target.closest(".edit-goal");
-  if(edit){editingGoalIndex=Number(edit.dataset.index);renderGoalsV18();}
-  const cancel=e.target.closest(".cancel-goal");
-  if(cancel){editingGoalIndex=null;renderGoalsV18();}
-  const save=e.target.closest(".save-goal");
-  if(save){
-    const i=Number(save.dataset.index), g=data.goals?.[i];
-    if(g){
-      document.querySelectorAll(`[data-index="${i}"][data-goal-field]`).forEach(inp=>{
-        const f=inp.dataset.goalField;
-        g[f]=inp.type==="number"?Number(inp.value):inp.value;
-      });
-      saveData();
+    for(const [label,idx] of fields){
+      const val=prompt(label,r[idx]??"");
+      if(val===null) return;
+      r[idx]=[0,3,4,5,6,7,8,11].includes(idx) ? (val===""?null:Number(String(val).replace(",","."))) : val;
     }
-    editingGoalIndex=null;renderGoalsV18();renderAll();
+    data.priorityGoals=rows; saveData(); toast("Sparziel gespeichert");
   }
 });
-
-
-const _renderAllV18=typeof renderAll==="function"?renderAll:null;
-if(_renderAllV18){
-  renderAll=function(){
-    _renderAllV18();
-    renderDashboardCurrentMonthV18();
-    renderFixedCostsV18();
-    renderPassiveV18();
-    renderGoalsV18();
-  };
-}
-setTimeout(()=>{
-  renderDashboardCurrentMonthV18();
-  renderFixedCostsV18();
-  renderPassiveV18();
-  renderGoalsV18();
-},0);
