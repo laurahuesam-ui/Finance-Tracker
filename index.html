@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 22</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 19</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -84,6 +84,12 @@
           <h2>Kontenübersicht</h2>
         </div>
         <div id="assetSummary" class="list"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-head">
+          <h2>Nächste Fixkosten</h2>
+        </div>
+        <div id="nextFixedCosts" class="list"></div>
       </article>
     </div>
 
@@ -266,7 +272,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 22</span>
+      <span class="badge">Version 19</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>

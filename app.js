@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 22;
+const APP_VERSION = 19;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -438,52 +438,8 @@ function dynamicAverageSaving(){
   return {amount,rate:avgIncome?amount/avgIncome*100:0};
 }
 
-
-function sharedFinanceMetricsV21(){
-  const p=passiveDetails();
-  const fixed=Math.abs(monthlyAverageFixed());
-  const amex=currentAmexMasterRow();
-  return {
-    amexCurrent:Math.abs(Number(amex?.expenses||0)),
-    passiveMonth:Number(p.monthly||0),
-    passiveDay:Number(p.daily||0),
-    passiveYear:Number(p.annual||0),
-    interestMonth:Number(p.interest||0),
-    dividendMonth:Number(p.dividend||0),
-    fixedCoveragePct:fixed ? Number(p.monthly||0)/fixed*100 : 0
-  };
-}
-function syncSharedFinanceDisplaysV21(){
-  const m=sharedFinanceMetricsV21();
-
-  const amexEl=$("amexMonthTotal");
-  if(amexEl) amexEl.textContent=fmt(m.amexCurrent);
-
-  const coverage=m.fixedCoveragePct.toFixed(1).replace(".",",")+" %";
-  const breakEven=$("breakEvenPassive");
-  if(breakEven) breakEven.textContent=coverage;
-  const passiveCoverage=$("passiveCoverage");
-  if(passiveCoverage) passiveCoverage.textContent=coverage;
-  const bar=$("passiveProgress");
-  if(bar) bar.style.width=`${Math.min(100,m.fixedCoveragePct)}%`;
-
-  const mappings={
-    passiveMonth:[m.passiveMonth,"/Monat"],
-    passiveYear:[m.passiveYear,"/Jahr"],
-    passiveTabMonth:[m.passiveMonth,""],
-    passiveTabYear:[m.passiveYear,""],
-    passiveInterestMonth:[m.interestMonth,""],
-    passiveDividendMonth:[m.dividendMonth,""],
-    passiveTotalDay:[m.passiveDay,""]
-  };
-  Object.entries(mappings).forEach(([id,[value,suffix]])=>{
-    const el=$(id);
-    if(el) el.textContent=fmt(value)+suffix;
-  });
-}
-
 function renderAll(){
-  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();syncSharedFinanceDisplaysV21();
+  renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
 }
 document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===btn));
@@ -516,6 +472,9 @@ function renderDashboard(){
   $("assetSummary").innerHTML=data.assets.length?data.assets.map(a=>`
     <div class="list-item"><div><h3>${esc(a.name)}</h3><p>${typeLabel(a.type)} · ${Number(a.rate||0).toFixed(2).replace(".",",")} % p. a.</p></div>
     <strong>${fmt(a.balance)}</strong></div>`).join(""):'<div class="empty">Noch keine Vermögenswerte.</div>';
+  const next=[...data.fixedCosts].filter(x=>x.active).map(x=>({...x,next:nextDueDate(x)})).sort((a,b)=>a.next-b.next).slice(0,6);
+  $("nextFixedCosts").innerHTML=next.length?next.map(x=>`
+    <div class="list-item"><div><h3>${esc(x.name)}</h3><p>${x.next.toLocaleDateString("de-DE")} · ${esc(x.account)}</p></div><strong>${fmt(x.amount)}</strong></div>`).join(""):'<div class="empty">Keine Fixkosten angelegt.</div>';
   const m=data.metrics||{};
   const c=capitalStats();
   $("interestProfit").textContent=fmt(m.interestProfit);
@@ -1088,7 +1047,7 @@ function renderV6(){
     </tr>`;
   }
 
-  const milestones=[5000,10000,25000,50000,100000,250000,500000,1000000];
+  const milestones=[5000,10000,25000,50000,100000];
   const c=capitalStats();
   const ml=$("milestoneList");
   if(ml)ml.innerHTML=milestones.map(target=>{
