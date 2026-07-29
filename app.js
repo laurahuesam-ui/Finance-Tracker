@@ -1384,3 +1384,17 @@ function updateAssetRateFieldV23(){
 setTimeout(updateAssetRateFieldV23,0);
 
 setTimeout(renderDynamicStockProfitV23,0);
+
+function updateFixedCostsPerDayCardV23(){
+  const el = $("fixedCostsPerDay");
+  if(el && typeof totalFixedCostsPerDay === "function"){
+    el.textContent = fmt(totalFixedCostsPerDay());
+  }
+}
+
+const __oldRenderAllFix = renderAll;
+renderAll = function(){
+  __oldRenderAllFix();
+  updateFixedCostsPerDayCardV23();
+};
+setTimeout(updateFixedCostsPerDayCardV23,0);
