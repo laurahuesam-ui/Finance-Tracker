@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 36;
+const APP_VERSION = 37;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -613,6 +613,16 @@ function syncFirstSavingsGoalV22(){
   return rows;
 }
 
+
+function capitalMonthsSinceT0V37(){
+  const startYear=2025, startMonth=6; // Juni 2025
+  const now=new Date();
+  return Math.max(1,(now.getFullYear()-startYear)*12 + ((now.getMonth()+1)-startMonth));
+}
+function capitalAveragePerMonthV37(capitalDifference){
+  return Number(capitalDifference||0)/capitalMonthsSinceT0V37();
+}
+
 function renderAll(){
   renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
 }
@@ -659,7 +669,7 @@ function renderDashboard(){
   $("monthlyDividend").textContent=`aktuell ${fmt(s.monthlyDividend)}/Monat · ${fmt(s.monthlyDividend/s.days)}/Tag`;
   $("stockProfit").textContent=fmt(m.stockProfit||0);
   $("capitalGrowth").textContent=`${s.capitalIncreasePct.toFixed(2).replace(".",",")} %`;
-  $("capitalDelta").textContent=`${s.capitalDifference>=0?"+":""}${fmt(s.capitalDifference)} seit Juni 2025 · aktuelles Vermögen ${fmt(s.totalWealthValue)}`;
+  $("capitalDelta").textContent=`${s.capitalDifference>=0?"+":""}${fmt(s.capitalDifference)} seit Juni 2025 · Ø ${fmt(capitalAveragePerMonthV37(s.capitalDifference))} pro Monat · aktuelles Vermögen ${fmt(s.totalWealthValue)}`;
   const lifetime=lifetimeCapitalStats();
   const lifetimeEl=$("lifetimeCapitalDelta");
   if(lifetimeEl) lifetimeEl.textContent=`Langfristig seit Mai 2023: ${fmt(lifetime.current)} aufgebaut · rechnerisch Ø ${fmt(lifetime.monthly)}/Monat. Für Prognosen wird weiterhin nur die dokumentierte Historie ab Juni 2025 verwendet.`;
@@ -1114,6 +1124,7 @@ function renderV6(){
       ["Aktueller Vermögenswert",fmt(s.totalWealthValue)],
       ["Kapital t=0",fmt(s.initialCapital)],
       ["Kapitaldifferenz",fmt(s.capitalDifference)],
+      ["Steigerung Durchschnitt pro Monat",fmt(capitalAveragePerMonthV37(s.capitalDifference))],
       ["Kapitalsteigerung",s.capitalIncreasePct.toFixed(2).replace(".",",")+" %"],
       ["Aktueller Aktienwert",fmt(s.stockValue)],
       ["Gewinn Aktien",fmt(dynamicStockProfitV23())],
@@ -1493,14 +1504,14 @@ function renderAuthoritativeV26(){
   setTextV26("interestProfit",fmt(s.interestProfit));setTextV26("dailyInterest",`aktuell ${fmt(s.monthlyInterest/s.days)}/Tag · ${fmt(s.monthlyInterest)}/Monat`);
   setTextV26("dividendProfit",fmt(s.dividendProfit));setTextV26("monthlyDividend",`aktuell ${fmt(s.monthlyDividend)}/Monat · ${fmt(s.monthlyDividend/s.days)}/Tag`);
   setTextV26("stockProfit",fmt(s.stockProfit));setTextV26("dashboardStockValue",`aktueller Aktienwert: ${fmt(s.stockValue)}`);
-  setTextV26("capitalGrowth",`${s.capitalIncreasePct.toFixed(2).replace(".",",")} %`);setTextV26("capitalDelta",`${s.capitalDifference>=0?"+":""}${fmt(s.capitalDifference)} seit Juni 2025 · aktuelles Vermögen ${fmt(s.totalWealth)}`);
+  setTextV26("capitalGrowth",`${s.capitalIncreasePct.toFixed(2).replace(".",",")} %`);setTextV26("capitalDelta",`${s.capitalDifference>=0?"+":""}${fmt(s.capitalDifference)} seit Juni 2025 · Ø ${fmt(capitalAveragePerMonthV37(s.capitalDifference))} pro Monat · aktuelles Vermögen ${fmt(s.totalWealth)}`);
   // Dashboard AMEX status selected/current
   const paid=!!data.amexPaid?.[amex?.month]; const status=$("amexStatus");if(status)status.innerHTML=paid?'<span class="badge success">abgebucht</span>':'<span class="badge warn">noch offen · ungefähr am 10. des Folgemonats</span>';
   // Capital history and metric cards
   const rows=liveCapitalRowsV26();
   ["financeHistoryBody","capitalMasterBody"].forEach(id=>{const body=$(id);if(body)body.innerHTML=rows.map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${x.sparkasse==null?"–":fmt(x.sparkasse)}</td><td>${fmt(x.sparkasseInterest||0)}</td><td>${x.tradeRepublic==null?"–":fmt(x.tradeRepublic)}</td><td>${fmt(x.trInterest||0)}</td><td>${fmt(x.dividend||0)}</td><td>${fmt(x.total||0)}</td></tr>`).join("")});
   setTextV26("historyTotalProfit",`Zinsen + Dividenden gesamt: ${fmt(s.interestProfit+s.dividendProfit)}`);
-  const cm=$("capitalMetricCards");if(cm){const items=[["Aktueller Vermögenswert",fmt(s.totalWealth)],["Kapital t=0",fmt(s.initialCapital)],["Kapitaldifferenz",fmt(s.capitalDifference)],["Kapitalsteigerung",s.capitalIncreasePct.toFixed(2).replace(".",",")+" %"],["Aktueller Aktienwert",fmt(s.stockValue)],["Gewinn Aktien",fmt(s.stockProfit)],["Gewinn Zinsen",fmt(s.interestProfit)],["Gewinn Dividende",fmt(s.dividendProfit)],["Zinsen aktueller Monat",fmt(s.monthlyInterest)],["Dividende aktueller Monat",fmt(s.monthlyDividend)],["Passiv pro Tag",fmt(s.passiveDaily)],["Passiv pro Monat",fmt(s.passiveMonthly)],["Fixkosten gedeckt",s.fixedCoveragePct.toFixed(1).replace(".",",")+" %"]];cm.innerHTML=items.map(([k,v])=>`<div class="stat-card"><span>${k}</span><strong>${v}</strong></div>`).join("")}
+  const cm=$("capitalMetricCards");if(cm){const items=[["Aktueller Vermögenswert",fmt(s.totalWealth)],["Kapital t=0",fmt(s.initialCapital)],["Kapitaldifferenz",fmt(s.capitalDifference)],["Steigerung Durchschnitt pro Monat",fmt(capitalAveragePerMonthV37(s.capitalDifference))],["Kapitalsteigerung",s.capitalIncreasePct.toFixed(2).replace(".",",")+" %"],["Aktueller Aktienwert",fmt(s.stockValue)],["Gewinn Aktien",fmt(s.stockProfit)],["Gewinn Zinsen",fmt(s.interestProfit)],["Gewinn Dividende",fmt(s.dividendProfit)],["Zinsen aktueller Monat",fmt(s.monthlyInterest)],["Dividende aktueller Monat",fmt(s.monthlyDividend)],["Passiv pro Tag",fmt(s.passiveDaily)],["Passiv pro Monat",fmt(s.passiveMonthly)],["Fixkosten gedeckt",s.fixedCoveragePct.toFixed(1).replace(".",",")+" %"]];cm.innerHTML=items.map(([k,v])=>`<div class="stat-card"><span>${k}</span><strong>${v}</strong></div>`).join("")}
   // Fixkosten
   setTextV26("fixedMonthlyAverage",`Ø ${fmt(s.fixedMonthly)}/Monat`);setTextV26("fixedCostsDailyTotal",fmt(s.fixedDaily));setTextV26("fixedMonthlyTotal",fmt(s.fixedMonthly));setTextV26("fixedYearlyTotal",fmt(s.fixedAnnual));setTextV26("nextFixedCount",fmt(s.fixedDaily));
   // Income/AMEX analysis
