@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 26;
+const APP_VERSION = 27;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -1471,3 +1471,83 @@ setTimeout(()=>{renderAll();},0);
 // AMEX dashboard selector always reads the same master rows as AMEX & Tanken.
 function renderAmexCard(){const selected=$("amexMonthSelect")?.value||currentAmexV26()?.month||monthISO();const row=amexRows().find(r=>r.month===selected);setTextV26("amexMonthTotal",fmt(Math.abs(Number(row?.expenses||0))));const paid=!!data.amexPaid?.[selected];const st=$("amexStatus");if(st)st.innerHTML=paid?'<span class="badge success">abgebucht</span>':'<span class="badge warn">noch offen · ungefähr am 10. des Folgemonats</span>';}
 
+
+
+function incomeRowsForYearV27(year){
+  return incomeRows().filter(r=>String(r.month||"").startsWith(`${year}-`));
+}
+function incomeGrossBeforeFixedV27(row){
+  return Number(row.salary||0)+Number(row.bonus||0)+Number(row.tips||0)+Number(row.parents||0);
+}
+function incomeAfterFixedV27(row){
+  return incomeGrossBeforeFixedV27(row)+fixedCostAmountForMonth(row.month);
+}
+function forecast2026V27(){
+  const rows=incomeRowsForYearV27(2026).sort((a,b)=>a.month.localeCompare(b.month));
+  const annualIncome=rows.reduce((sum,r)=>sum+incomeGrossBeforeFixedV27(r),0);
+  const annualFixed=Math.abs(rows.reduce((sum,r)=>sum+fixedCostAmountForMonth(r.month),0));
+  const amex2026=amexRows().filter(r=>String(r.month||"").startsWith("2026-"));
+  const annualAmex=amex2026.reduce((sum,r)=>sum+Math.abs(Number(r.expenses||0)),0);
+  const annualExpenses=annualFixed+annualAmex;
+
+  const f=financeV26 ? financeV26() : null;
+  const passiveAnnual=f ? Number(f.passiveAnnual||0) : 0;
+  const wealthNow=f ? Number(f.totalWealth||f.totalWealthValue||0) : totalWealth();
+
+  // Projection: current wealth + all 2026 income - all known 2026 expenses + passive income.
+  const yearEndWealth=wealthNow+annualIncome-annualExpenses+passiveAnnual;
+
+  return {annualIncome,annualFixed,annualAmex,annualExpenses,passiveAnnual,yearEndWealth};
+}
+function renderForecastV27(){
+  const f=forecast2026V27();
+  const map={
+    forecastIncome2026:f.annualIncome,
+    forecastExpenses:f.annualExpenses,
+    forecastPassive:f.passiveAnnual,
+    forecastWealthEnd:f.yearEndWealth
+  };
+  Object.entries(map).forEach(([id,val])=>{
+    const el=$(id); if(el) el.textContent=fmt(val);
+  });
+
+  // Fallback by data attributes.
+  document.querySelectorAll("[data-forecast-income-2026]").forEach(el=>el.textContent=fmt(f.annualIncome));
+  document.querySelectorAll("[data-forecast-expenses]").forEach(el=>el.textContent=fmt(f.annualExpenses));
+  document.querySelectorAll("[data-forecast-passive]").forEach(el=>el.textContent=fmt(f.passiveAnnual));
+  document.querySelectorAll("[data-forecast-wealth-end]").forEach(el=>el.textContent=fmt(f.yearEndWealth));
+}
+function renderDashboardV27(){
+  const currentIncome=currentIncomeMasterRow();
+  const currentIncomeValue=currentIncome ? incomeGrossBeforeFixedV27(currentIncome) : 0;
+  const currentAmex=currentAmexMasterRow();
+  const amexValue=Math.abs(Number(currentAmex?.expenses||0));
+  const fixedDaily=totalFixedCostsPerDay();
+  const surplus=currentIncomeValue - amexValue - Math.abs(fixedCostAmountForMonth(currentIncome?.month||monthISO()));
+
+  ["dashIncome","dashboardIncome","currentIncome","incomeCurrent","salaryDashboard"].forEach(id=>{
+    const el=$(id); if(el) el.textContent=fmt(currentIncomeValue);
+  });
+  ["monthBalance","dashboardMonthBalance"].forEach(id=>{
+    const el=$(id); if(el) el.textContent=`Monatsüberschuss: ${fmt(surplus)}`;
+  });
+  document.querySelectorAll("[data-dashboard-income-current]").forEach(el=>el.textContent=fmt(currentIncomeValue));
+  document.querySelectorAll("[data-dashboard-fixed-daily]").forEach(el=>el.textContent=fmt(fixedDaily));
+
+  // Replace any old AMEX dashboard value elements with fixed daily costs.
+  ["dashAmex","dashboardAmex","currentAmex","amexCurrent","amexDue"].forEach(id=>{
+    const el=$(id); if(el) el.textContent=fmt(fixedDaily);
+  });
+}
+
+
+const __renderAllV27 = renderAll;
+renderAll = function(){
+  __renderAllV27();
+  renderDashboardV27();
+  renderForecastV27();
+};
+setTimeout(()=>{
+  renderDashboardV27();
+  renderForecastV27();
+},0);
