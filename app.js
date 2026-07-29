@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 24;
+const APP_VERSION = 25;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -731,9 +731,10 @@ function renderAssets(){
   $("assetList").innerHTML=data.assets.length?data.assets.map(a=>{
     const annual=Number(a.balance)*Number(a.rate||0)/100;
     const yieldName=a.type==="stocks"?"Dividendenrendite":"Zinssatz";
+    const monthlyDividend=isTradeRepublicStockV24(a)?Number(a.monthlyDividend||annual/12):annual/12;
     return `<div class="list-item">
       <div><h3>${esc(a.name)}</h3><p>${typeLabel(a.type)} · ${yieldName}: ${Number(a.rate||0).toFixed(2).replace(".",",")} % p. a.</p>
-      <p>Dynamisch übernommen: ${fmt(annual/12)}/Monat · ${fmt(annual)}/Jahr</p></div>
+      <p>${isTradeRepublicStockV24(a)?`Dividende: ${fmt(monthlyDividend)}/Monat · `:"Dynamisch übernommen: "+fmt(annual/12)+"/Monat · "}${fmt(annual)}/Jahr</p></div>
       <div class="item-actions"><strong>${fmt(a.balance)}</strong>
       <button class="secondary" onclick="openAssetUpdate('${a.id}')">Aktualisieren</button>
       <button class="danger" onclick="removeItem('assets','${a.id}')">Löschen</button></div>
@@ -741,15 +742,38 @@ function renderAssets(){
 }
 window.openAssetUpdate=id=>{
   const a=data.assets.find(x=>x.id===id);if(!a)return;
+  const trStock=isTradeRepublicStockV24(a);
+  const currentMonthlyDividend=Number(a.monthlyDividend||((Number(a.balance||0)*Number(a.rate||0)/100)/12)||0);
   openModal(`<h2>${esc(a.name)} aktualisieren</h2>
     <form id="assetUpdateForm" class="form-grid">
       <label>Datum<input id="assetUpdateDate" type="date" value="${todayISO()}" required></label>
       <label>Neuer Stand<input id="assetUpdateBalance" type="number" step="0.01" value="${a.balance}" required></label>
-      <label>${a.type==="stocks"?"Neue Dividendenrendite":"Neuer Zinssatz"} p. a. (%)<input id="assetUpdateRate" type="number" min="0" step="0.01" value="${a.rate||0}" required></label>
+      ${trStock
+        ? `<label>Neue Dividende pro Monat (€)<input id="assetUpdateDividendMonth" type="number" min="0" step="0.01" value="${currentMonthlyDividend.toFixed(2)}" required></label>
+           <div class="stat"><span>Berechnete Dividendenrendite p. a.</span><strong id="assetUpdateCalculatedYield">${Number(a.rate||0).toFixed(2).replace(".",",")} %</strong></div>`
+        : `<label>Neuer Zinssatz p. a. (%)<input id="assetUpdateRate" type="number" min="0" step="0.01" value="${a.rate||0}" required></label>`}
       <button type="submit">Speichern</button>
     </form>`);
+  if(trStock){
+    const recalc=()=>{
+      const balance=Number($("assetUpdateBalance").value||0);
+      const monthly=Number($("assetUpdateDividendMonth").value||0);
+      const annualYield=balance>0?monthly*12/balance*100:0;
+      $("assetUpdateCalculatedYield").textContent=`${annualYield.toFixed(2).replace(".",",")} %`;
+    };
+    $("assetUpdateBalance").addEventListener("input",recalc);
+    $("assetUpdateDividendMonth").addEventListener("input",recalc);
+    recalc();
+  }
   $("assetUpdateForm").addEventListener("submit",e=>{
-    e.preventDefault();a.balance=Number($("assetUpdateBalance").value);a.rate=Number($("assetUpdateRate").value);
+    e.preventDefault();
+    a.balance=Number($("assetUpdateBalance").value);
+    if(trStock){
+      a.monthlyDividend=Number($("assetUpdateDividendMonth").value||0);
+      a.rate=a.balance>0?a.monthlyDividend*12/a.balance*100:0;
+    }else{
+      a.rate=Number($("assetUpdateRate").value);
+    }
     a.history=a.history||[];a.history.push({date:$("assetUpdateDate").value,balance:a.balance});
     closeModal();saveData();toast("Kontostand aktualisiert");
   });
