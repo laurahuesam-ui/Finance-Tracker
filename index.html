@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 25</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 26</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -41,9 +41,9 @@
         <small id="wealthChange">Noch keine Historie</small>
       </article>
       <article class="card">
-        <span>Veränderung Kontostände</span>
+        <span>AMEX aktueller Monat</span>
         <strong id="monthExpenses">0,00 €</strong>
-        <small>aus Kontoständen + fälligen Fixkosten</small>
+        <small>aus AMEX &amp; Tanken übernommen</small>
       </article>
       <article class="card">
         <span>Gehalt diesen Monat</span>
@@ -96,7 +96,7 @@
     <div class="grid cards finance-kpis">
       <article class="card"><span>Gewinn Zinsen</span><strong id="interestProfit">39,84 €</strong><small id="dailyInterest">aktuell 0,17 €/Tag</small></article>
       <article class="card"><span>Gewinn Dividenden</span><strong id="dividendProfit">14,63 €</strong><small id="monthlyDividend">aktuell 1,65 €/Monat</small></article>
-      <article class="card"><span>Gewinn Aktien</span><strong id="stockProfit">45,90 €</strong><small>aktueller Aktienwert: 768,63 €</small></article>
+      <article class="card"><span>Gewinn Aktien</span><strong id="stockProfit">45,90 €</strong><small id="dashboardStockValue">aktueller Aktienwert: –</small></article>
       <article class="card"><span>Kapitalsteigerung</span><strong id="capitalGrowth">64,94 %</strong><small id="capitalDelta">+1.549,83 € seit Beginn</small></article>
     </div>
 
@@ -266,7 +266,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 25</span>
+      <span class="badge">Version 26</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
