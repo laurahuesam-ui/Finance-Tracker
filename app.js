@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 34;
+const APP_VERSION = 36;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -159,6 +159,22 @@ function syncHistoricalIncomeCostsV34(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
 syncHistoricalIncomeCostsV34();
+
+const correctedIncomeFixedCostsV35 = {"2026-05": -240.7, "2026-06": -215.7, "2026-07": -240.7, "2026-08": -215.7, "2026-09": -265.7, "2026-10": -247.2, "2026-11": -240.7, "2026-12": -215.7};
+function applyCorrectedIncomeFixedCostsV35(){
+  const rows=data.v7?.incomeHistory||data.incomeHistory||[];
+  rows.forEach(r=>{
+    if(Object.prototype.hasOwnProperty.call(correctedIncomeFixedCostsV35,r.month)){
+      r.costs=correctedIncomeFixedCostsV35[r.month];
+      r.total=Number(r.salary||0)+Number(r.bonus||0)+Number(r.tips||0)+Number(r.parents||0)+Number(r.costs||0);
+    }
+  });
+  data.settings=data.settings||{};
+  data.settings.correctedIncomeFixedCostsVersion=35;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+}
+applyCorrectedIncomeFixedCostsV35();
+
 let deferredPrompt = null;
 
 const $ = id => document.getElementById(id);
@@ -1676,3 +1692,20 @@ renderAll=function(){
   renderGlobalCoverageV34();
 };
 setTimeout(()=>{syncHistoricalIncomeCostsV34();renderAll();},0);
+
+
+const correctedIncomeFixedCostsV36={"2026-05": -215.7, "2026-06": -240.7, "2026-07": -215.7, "2026-08": -240.7, "2026-09": -240.7, "2026-10": -272.2, "2026-11": -215.7, "2026-12": -240.7};
+(function(){
+ const rows=data?.v7?.incomeHistory||data?.incomeHistory||[];
+ rows.forEach(r=>{
+   if(correctedIncomeFixedCostsV36[r.month]!==undefined){
+      r.costs=correctedIncomeFixedCostsV36[r.month];
+      r.total=Number(r.salary||0)+Number(r.bonus||0)+Number(r.tips||0)+Number(r.parents||0)+Number(r.costs||0);
+   }
+ });
+ if(data){
+   data.settings=data.settings||{};
+   data.settings.correctedIncomeFixedCostsVersion=36;
+   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+ }
+})();
