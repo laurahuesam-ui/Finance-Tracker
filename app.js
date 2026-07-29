@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 23;
+const APP_VERSION = 24;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -714,12 +714,17 @@ function renderIncome(){
 $("assetForm").addEventListener("submit",e=>{
   e.preventDefault();
   const bal=Number($("assetBalance").value);
-  data.assets.push({id:uid(),name:$("assetName").value,type:$("assetType").value,balance:bal,rate:Number($("assetRate").value),history:[{date:todayISO(),balance:bal}]});
-  e.target.reset();$("assetRate").value = (["stock","stocks","equity","fund","etf"].includes(String(a.type||"").toLowerCase()) && String(a.name||"").toLowerCase().includes("trade republic"))
-      ? Number(a.monthlyDividend||((Number(a.balance||0)*Number(a.rate||0)/100)/12)).toFixed(2)
-      : Number(a.rate||0).toFixed(2);
-    $("assetRate").dataset.annualRate=String(a.rate||0);
-    updateAssetRateFieldV23();saveData();toast("Vermögenswert gespeichert");
+  const raw=Number($("assetRate").value||0);
+  const trStock=isTradeRepublicStockV24();
+  const rate=trStock ? (bal>0 ? raw*12/bal*100 : 0) : raw;
+  data.assets.push({
+    id:uid(),name:$("assetName").value,type:$("assetType").value,balance:bal,
+    rate,monthlyDividend:trStock?raw:0,history:[{date:todayISO(),balance:bal}]
+  });
+  e.target.reset();
+  $("assetRate").value="0";
+  updateAssetYieldInputV24();
+  saveData();toast("Vermögenswert gespeichert");
 });
 function renderAssets(){
   $("assetTotal").textContent=fmt(totalWealth());
@@ -1398,3 +1403,22 @@ renderAll = function(){
   updateFixedCostsPerDayCardV23();
 };
 setTimeout(updateFixedCostsPerDayCardV23,0);
+
+
+function isTradeRepublicStockV24(asset){
+  const type=String(asset?.type ?? $("assetType")?.value ?? "").toLowerCase();
+  const name=String(asset?.name ?? $("assetName")?.value ?? "").toLowerCase();
+  return ["stock","stocks","equity","fund","etf","aktie","aktien"].includes(type) && name.includes("trade republic");
+}
+function updateAssetYieldInputV24(asset=null){
+  const input=$("assetRate"), text=$("assetRateLabelText");
+  if(!input||!text)return;
+  const tr=isTradeRepublicStockV24(asset);
+  text.textContent=tr?"Dividende pro Monat":"Zinssatz (%)";
+  input.dataset.mode=tr?"monthlyDividend":"rate";
+  if(asset){
+    input.value=tr ? Number(asset.monthlyDividend||((Number(asset.balance||0)*Number(asset.rate||0)/100)/12)||0).toFixed(2) : Number(asset.rate||0).toFixed(2);
+  }
+}
+["assetType","assetName"].forEach(id=>{const el=$(id);if(el){el.addEventListener("input",()=>updateAssetYieldInputV24());el.addEventListener("change",()=>updateAssetYieldInputV24());}});
+setTimeout(()=>updateAssetYieldInputV24(),0);
