@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 33;
+const APP_VERSION = 34;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -139,21 +139,26 @@ function migrateIncomeParentsV22(){
 migrateIncomeParentsV22();
 
 
-const historicalIncomeFixedCostsV33 = {"2025-06": -35.93, "2025-07": -35.93, "2025-08": -35.93, "2025-09": -60.93, "2025-10": -137.08, "2025-11": -920.42, "2025-12": -181.42, "2026-01": -187.42, "2026-02": -191.7, "2026-03": -247.2, "2026-04": -303.7};
-function applyHistoricalIncomeFixedCostsV33(){
-  data.settings=data.settings||{};
+
+
+
+const HISTORICAL_INCOME_COSTS_V34={"2025-06": -35.93, "2025-07": -35.93, "2025-08": -35.93, "2025-09": -60.93, "2025-10": -137.08, "2025-11": -920.42, "2025-12": -181.42, "2026-01": -187.42, "2026-02": -191.7, "2026-03": -247.2, "2026-04": -303.7};
+function historicalIncomeCostV34(month){
+  return Object.prototype.hasOwnProperty.call(HISTORICAL_INCOME_COSTS_V34,month)
+    ? Number(HISTORICAL_INCOME_COSTS_V34[month]) : null;
+}
+function syncHistoricalIncomeCostsV34(){
   const rows=data.v7?.incomeHistory||data.incomeHistory||[];
   rows.forEach(r=>{
-    if(Object.prototype.hasOwnProperty.call(historicalIncomeFixedCostsV33,r.month)){
-      r.costs=historicalIncomeFixedCostsV33[r.month];
-      r.total=Number(r.salary||0)+Number(r.bonus||0)+Number(r.tips||0)+Number(r.parents||0)+Number(r.costs||0);
+    const exact=historicalIncomeCostV34(r.month);
+    if(exact!==null){
+      r.costs=exact;
+      r.total=Number(r.salary||0)+Number(r.bonus||0)+Number(r.tips||0)+Number(r.parents||0)+exact;
     }
   });
-  data.settings.historicalIncomeFixedCostsVersion=33;
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
-applyHistoricalIncomeFixedCostsV33();
-
+syncHistoricalIncomeCostsV34();
 let deferredPrompt = null;
 
 const $ = id => document.getElementById(id);
@@ -950,7 +955,7 @@ function saveIncomeRow(month){
     const el=document.querySelector(`[data-income-month="${month}"][data-income-field="${key}"]`);
     if(el)row[key]=Number(el.value)||0;
   });
-  row.total=incomeTotalV26(row);
+  row.total=incomeTotalV34(row);
   editingIncomeMonth=null;
   saveData();
 }
@@ -966,9 +971,21 @@ function tradeRepublicCashBalance(){
 let editingIncomeMonth = null;
 let editingAmexMonth = null;
 
+
+function incomeCostForMonthV34(row){
+  if(!row) return 0;
+  const exact=historicalIncomeCostV34(row.month);
+  if(exact!==null) return exact;
+  if(Number.isFinite(Number(row.costs))) return Number(row.costs);
+  return -fixedForMonthValueV26(row.month);
+}
+function incomeTotalV34(row){
+  if(!row) return 0;
+  return Number(row.salary||0)+Number(row.bonus||0)+Number(row.tips||0)+Number(row.parents||0)+incomeCostForMonthV34(row);
+}
 function renderIncomeRowV9(x){
   const editing=editingIncomeMonth===x.month;
-  const fixed=-fixedForMonthValueV26(x.month), sum=incomeTotalV26(x);
+  const fixed=incomeCostForMonthV34(x), sum=incomeTotalV34(x);
   if(!editing)return `<tr><td>${monthLabel(x.month)}</td><td>${fmt(x.salary)}</td><td>${fmt(x.bonus)}</td><td>${fmt(x.tips)}</td><td>${fmt(x.parents)}</td><td>${fmt(fixed)}</td><td><strong>${fmt(sum)}</strong></td><td><button class="edit-income" data-month="${x.month}" type="button">Bearbeiten</button></td></tr>`;
   return `<tr><td>${monthLabel(x.month)}</td>${["salary","bonus","tips","parents"].map(k=>`<td><input class="inline-input" type="number" step="0.01" data-income-month="${x.month}" data-income-field="${k}" value="${Number(x[k]||0).toFixed(2)}"></td>`).join("")}<td>${fmt(fixed)}</td><td><strong>${fmt(sum)}</strong></td><td><button class="save-income" data-month="${x.month}" type="button">Speichern</button> <button class="cancel-income" type="button">Abbrechen</button></td></tr>`;
 }
@@ -1377,7 +1394,7 @@ function fixedAnnualV26(){return (data.fixedCosts||[]).filter(x=>x.active!==fals
 function fixedMonthlyV26(){return fixedAnnualV26()/12}
 function fixedDailyV26(){return fixedAnnualV26()/365}
 function fixedForMonthValueV26(ym){return fixedForMonth(ym).reduce((s,x)=>s+Math.abs(Number(x.amount||0)),0)}
-function incomeTotalV26(row){if(!row)return 0;return Number(row.salary||0)+Number(row.bonus||0)+Number(row.tips||0)+Number(row.parents||0)-fixedForMonthValueV26(row.month)}
+function incomeTotalV26(row){return incomeTotalV34(row)}
 function currentIncomeV26(){const rows=incomeRows();return rows.find(x=>x.month===monthISO())||[...rows].reverse().find(x=>Number(x.salary||0)||Number(x.bonus||0)||Number(x.tips||0)||Number(x.parents||0))||null}
 function currentAmexV26(){const rows=amexRows();return rows.find(x=>x.month===monthISO())||[...rows].reverse().find(x=>Number(x.expenses||0))||null}
 function amexCumulativeMapV26(){const rows=[...amexRows()].sort((a,b)=>a.month.localeCompare(b.month));let sum=0;return new Map(rows.map((r,i)=>{sum+=Math.abs(Number(r.expenses||0));return [r.month,sum/(i+1)]}))}
@@ -1583,10 +1600,10 @@ function averageMonthlySurplusV30(){
 
 
 function passiveForecastSourceV32(){
-  const s=financeV26();
-  const fixedMonthly=Number(monthlyAverageFixed());
-  const passiveMonthly=Number(s.passiveMonthly||0);
-  const coverage=fixedMonthly?passiveMonthly/fixedMonthly*100:0;
+  const s=globalFinanceMetricsV34();
+  const fixedMonthly=s.fixedMonthly;
+  const passiveMonthly=s.passiveMonthly;
+  const coverage=s.fixedCoveragePct;
   const wealth=Number(s.totalWealth||0);
   const annualRate=wealth?passiveMonthly*12/wealth:0;
   const milestones=[5,10,25,50,75,100].map(targetPct=>{
@@ -1633,31 +1650,29 @@ renderAll=function(){
 setTimeout(renderPassiveForecastV32,0);
 
 
-function globalFixedCoverageV33(){
-  const monthlyFixed = typeof monthlyAverageFixed==="function"
-    ? Number(monthlyAverageFixed()||0)
-    : 0;
-  const passive = typeof passiveDetails==="function"
-    ? passiveDetails()
-    : {monthly:0};
-  const passiveMonthly = Number(passive.monthly||0);
-  const percent = monthlyFixed ? passiveMonthly/monthlyFixed*100 : 0;
-  return {monthlyFixed,passiveMonthly,percent};
+
+
+function globalFinanceMetricsV34(){
+  const s=financeV26();
+  const fixedMonthly=Number(s.fixedMonthly||0);
+  const passiveMonthly=Number(s.passiveMonthly||0);
+  const fixedCoveragePct=fixedMonthly?passiveMonthly/fixedMonthly*100:0;
+  return {...s,fixedMonthly,passiveMonthly,fixedCoveragePct};
 }
-function renderGlobalFixedCoverageV33(){
-  const g=globalFixedCoverageV33();
-  const text=`${g.percent.toFixed(1).replace(".",",")} %`;
-  ["fixedCostsPassiveCoverage","passiveForecastStartCoverage","passiveCoverage","breakEvenPassive","v6Coverage"].forEach(id=>{
-    const el=$(id);
-    if(el) el.textContent=text;
+function renderGlobalCoverageV34(){
+  const g=globalFinanceMetricsV34();
+  const text=`${g.fixedCoveragePct.toFixed(1).replace('.',',')} %`;
+  ['fixedCostsPassiveCoverage','passiveCoverage','passiveForecastStartCoverage','breakEvenPassive','v6Coverage'].forEach(id=>{
+    const el=$(id); if(el) el.textContent=text;
   });
-  const bar=$("passiveProgress");
-  if(bar) bar.style.width=`${Math.max(0,Math.min(100,g.percent))}%`;
+  const bar=$('passiveProgress');
+  if(bar) bar.style.width=`${Math.max(0,Math.min(100,g.fixedCoveragePct))}%`;
 }
 
-const __renderAllV33=renderAll;
+const __renderAllV34=renderAll;
 renderAll=function(){
-  __renderAllV33();
-  renderGlobalFixedCoverageV33();
+  syncHistoricalIncomeCostsV34();
+  __renderAllV34();
+  renderGlobalCoverageV34();
 };
-setTimeout(renderGlobalFixedCoverageV33,0);
+setTimeout(()=>{syncHistoricalIncomeCostsV34();renderAll();},0);
