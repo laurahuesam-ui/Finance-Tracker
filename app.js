@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 29;
+const APP_VERSION = 30;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -1232,7 +1232,7 @@ function renderV6(){
     const projectedPassive=passiveMonthly*12;
     const projectedEnd=wealth+Math.max(0,avgSaving)*(12-new Date().getMonth()-1);
     yf.innerHTML=`
-      <div class="stat"><span>Einkommen 2026</span><strong>${fmt(projectedIncome)}</strong></div>
+      <div class="stat"><span>Einnahmen 2026</span><strong>${fmt(projectedIncome)}</strong></div>
       <div class="stat"><span>Ausgaben hochgerechnet</span><strong>${fmt(projectedExpenses)}</strong></div>
       <div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(projectedPassive)}</strong></div>
       <div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(projectedEnd)}</strong></div>`;
@@ -1502,7 +1502,7 @@ function renderForecastV28(){
   const yf=$("yearForecast");
   if(!yf)return;
   yf.innerHTML=`
-    <div class="stat"><span>Einkommen 2026</span><strong>${fmt(f.annualIncome)}</strong></div>
+    <div class="stat"><span>Einnahmen 2026</span><strong>${fmt(f.annualIncome)}</strong></div>
     <div class="stat"><span>Ausgaben 2026 (AMEX)</span><strong>${fmt(f.annualExpenses)}</strong></div>
     <div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(f.passiveAnnual)}</strong></div>
     <div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(f.yearEndWealth)}</strong></div>`;
@@ -1551,3 +1551,66 @@ if(typeof forecast2026V27==="function"){
     return f;
   }
 }
+
+
+function averageMonthlySurplusV30(){
+  const incomes=new Map(incomeRows().map(r=>[
+    r.month,
+    Number.isFinite(Number(r.total)) ? Number(r.total) :
+      Number(r.salary||0)+Number(r.bonus||0)+Number(r.tips||0)+Number(r.parents||0)+fixedCostAmountForMonth(r.month)
+  ]));
+  const rows=amexRows().filter(r=>incomes.has(r.month));
+  if(!rows.length)return 0;
+  return rows.reduce((sum,r)=>sum+incomes.get(r.month)-Math.abs(Number(r.expenses||0)),0)/rows.length;
+}
+function passiveForecastV30(){
+  const f=typeof financeV26==="function"?financeV26():{};
+  const wealth=Number(f.totalWealth??f.totalWealthValue??(typeof totalWealth==="function"?totalWealth():0));
+  const monthlyFixed=Number(f.monthlyFixed??(typeof monthlyAverageFixed==="function"?monthlyAverageFixed():0));
+  const p=typeof passiveDetails==="function"?passiveDetails():{};
+  const passiveMonthly=Number(f.passiveMonthly??p.monthly??0);
+  const annualRate=wealth>0?passiveMonthly*12/wealth:0;
+  const milestones=[5,10,25,50,75,100].map(pct=>{
+    const targetMonthly=monthlyFixed*pct/100;
+    const targetWealth=annualRate>0?targetMonthly*12/annualRate:Infinity;
+    let years=Infinity;
+    if(targetWealth<=wealth)years=0;
+    else if(annualRate>0&&wealth>0)years=Math.log(targetWealth/wealth)/Math.log(1+annualRate);
+    return {pct,targetMonthly,targetWealth,years};
+  });
+  return {wealth,monthlyFixed,passiveMonthly,annualRate,milestones};
+}
+function durationLabelV30(years){
+  if(!Number.isFinite(years))return "nicht erreichbar";
+  if(years<=0)return "bereits erreicht";
+  const y=Math.floor(years),m=Math.round((years-y)*12);
+  if(y===0)return `${m} Monate`;
+  return m?`${y} J. ${m} Mon.`:`${y} Jahre`;
+}
+function renderV30(){
+  const f=typeof financeV26==="function"?financeV26():{};
+  const monthlyFixed=Number(f.monthlyFixed??(typeof monthlyAverageFixed==="function"?monthlyAverageFixed():0));
+  const p=typeof passiveDetails==="function"?passiveDetails():{};
+  const passiveMonthly=Number(f.passiveMonthly??p.monthly??0);
+  const coverage=monthlyFixed?passiveMonthly/monthlyFixed*100:0;
+  const cov=$("overviewFixedCoverage");
+  if(cov)cov.textContent=`${coverage.toFixed(1).replace(".",",")} %`;
+  const avg=$("avgMonthlySaving");
+  if(avg)avg.textContent=fmt(averageMonthlySurplusV30());
+  const pf=passiveForecastV30();
+  const set=(id,v)=>{const el=$(id);if(el)el.textContent=v;};
+  set("passiveForecastStartWealth",fmt(pf.wealth));
+  set("passiveForecastRate",`${(pf.annualRate*100).toFixed(2).replace(".",",")} %`);
+  set("passiveForecastStartPassive",fmt(pf.passiveMonthly));
+  set("passiveForecastStartCoverage",`${coverage.toFixed(1).replace(".",",")} %`);
+  const body=$("passiveForecastBody");
+  if(body)body.innerHTML=pf.milestones.map(m=>`<tr>
+    <td>${m.pct} % der Fixkosten</td>
+    <td>${Number.isFinite(m.targetWealth)?fmt(m.targetWealth):"–"}</td>
+    <td>${durationLabelV30(m.years)}</td>
+    <td>${fmt(m.targetMonthly)}</td>
+  </tr>`).join("");
+}
+const __renderAllV30=renderAll;
+renderAll=function(){__renderAllV30();renderV30();};
+setTimeout(renderV30,0);

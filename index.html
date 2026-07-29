@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 29</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 30</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -275,6 +275,7 @@
       <div class="stat"><span>Passiv pro Monat</span><strong id="v6PassiveMonthly">–</strong></div>
       <div class="stat"><span>Fixkosten pro Monat</span><strong id="v6FixedMonthly">–</strong></div>
       <div class="stat"><span>Fixkosten passiv gedeckt</span><strong id="v6Coverage">–</strong></div>
+      <div class="stat"><span>Fixkosten gedeckt aktuell</span><strong id="overviewFixedCoverage">–</strong></div>
     </div>
   </article>
   <article class="panel">
@@ -374,6 +375,21 @@
     <div class="table-wrap"><table>
       <thead><tr><th>Ziel pro Tag</th><th>Noch fehlend auf TR-Tagesgeld</th></tr></thead>
       <tbody id="passiveTargetsBody"></tbody>
+    </table></div>
+  </article>
+
+  <article class="panel">
+    <h2>Zinseszins-Prognose</h2>
+    <p class="muted">Nur mit aktuellem Vermögen, aktuellen Zinssätzen und aktueller Dividende. Zusätzliche Einzahlungen sind nicht eingerechnet.</p>
+    <div class="stats-grid">
+      <div class="stat"><span>Aktuelles Vermögen</span><strong id="passiveForecastStartWealth">–</strong></div>
+      <div class="stat"><span>Effektive Rendite p. a.</span><strong id="passiveForecastRate">–</strong></div>
+      <div class="stat"><span>Passiv pro Monat</span><strong id="passiveForecastStartPassive">–</strong></div>
+      <div class="stat"><span>Fixkosten gedeckt</span><strong id="passiveForecastStartCoverage">–</strong></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Meilenstein</th><th>Benötigtes Vermögen</th><th>Dauer</th><th>Passiv pro Monat</th></tr></thead>
+      <tbody id="passiveForecastBody"></tbody>
     </table></div>
   </article>
 </section>
