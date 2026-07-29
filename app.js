@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 22;
+const APP_VERSION = 23;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -437,6 +437,18 @@ function cumulativeAmexAverages(){
   }));
 }
 
+
+function dynamicStockProfitV23(){
+  const assets=Array.isArray(data.assets)?data.assets:[];
+  return assets
+    .filter(a=>["stock","stocks","equity","fund","etf"].includes(String(a.type||"").toLowerCase()))
+    .reduce((sum,a)=>{
+      const current=Number(a.balance||0);
+      const invested=Number(a.investedAmount ?? a.costBasis ?? a.purchaseValue ?? current);
+      return sum + (current-invested);
+    },0);
+}
+
 function financeSourceOfTruth(){
   const now=new Date();
   const ym=monthISO();
@@ -703,7 +715,11 @@ $("assetForm").addEventListener("submit",e=>{
   e.preventDefault();
   const bal=Number($("assetBalance").value);
   data.assets.push({id:uid(),name:$("assetName").value,type:$("assetType").value,balance:bal,rate:Number($("assetRate").value),history:[{date:todayISO(),balance:bal}]});
-  e.target.reset();$("assetRate").value=0;saveData();toast("Vermögenswert gespeichert");
+  e.target.reset();$("assetRate").value = (["stock","stocks","equity","fund","etf"].includes(String(a.type||"").toLowerCase()) && String(a.name||"").toLowerCase().includes("trade republic"))
+      ? Number(a.monthlyDividend||((Number(a.balance||0)*Number(a.rate||0)/100)/12)).toFixed(2)
+      : Number(a.rate||0).toFixed(2);
+    $("assetRate").dataset.annualRate=String(a.rate||0);
+    updateAssetRateFieldV23();saveData();toast("Vermögenswert gespeichert");
 });
 function renderAssets(){
   $("assetTotal").textContent=fmt(totalWealth());
@@ -1035,7 +1051,7 @@ function renderV6(){
       ["Kapitaldifferenz",fmt(s.capitalDifference)],
       ["Kapitalsteigerung",s.capitalIncreasePct.toFixed(2).replace(".",",")+" %"],
       ["Aktueller Aktienwert",fmt(s.stockValue)],
-      ["Gewinn Aktien",fmt(m.stockProfit||0)],
+      ["Gewinn Aktien",fmt(dynamicStockProfitV23())],
       ["Gewinn Zinsen",fmt(s.interestProfit)],
       ["Gewinn Dividende",fmt(s.dividendProfit)],
       ["Zinsen aktueller Monat",fmt(s.monthlyInterest)],
@@ -1318,13 +1334,53 @@ setTimeout(renderSharedFinanceValuesV20,0);
 
 function renderFixedCostsDailyDashboardV22(){
   const value=totalFixedCostsPerDay();
-  ["nextFixedTotal","fixedCostsDaily","dashboardFixedDaily","nextFixedCosts"].forEach(id=>{const el=$(id);if(el)el.textContent=fmt(value);});
-  document.querySelectorAll("[data-fixed-costs-daily]").forEach(el=>el.textContent=fmt(value));
+  const el=$("fixedCostsDailyTotal");
+  if(el) el.textContent=fmt(value);
 }
 const _renderAllV22=renderAll;
 renderAll=function(){
   syncFirstSavingsGoalV22();
   _renderAllV22();
   renderFixedCostsDailyDashboardV22();
+  renderDynamicStockProfitV23();
 };
 setTimeout(()=>{syncFirstSavingsGoalV22();renderFixedCostsDailyDashboardV22();},0);
+
+
+function renderDynamicStockProfitV23(){
+  const value=dynamicStockProfitV23();
+  ["stockProfit","dashboardStockProfit","capitalStockProfit"].forEach(id=>{
+    const el=$(id); if(el) el.textContent=fmt(value);
+  });
+  document.querySelectorAll("[data-stock-profit]").forEach(el=>el.textContent=fmt(value));
+}
+
+
+function isTradeRepublicStockV23(){
+  const type=String($("assetType")?.value||"").toLowerCase();
+  const name=String($("assetName")?.value||"").toLowerCase();
+  return ["stock","stocks","equity","fund","etf"].includes(type) && name.includes("trade republic");
+}
+function updateAssetRateFieldV23(){
+  const label=$("assetRateLabel");
+  const input=$("assetRate");
+  if(!label||!input) return;
+  if(isTradeRepublicStockV23()){
+    label.childNodes[0].nodeValue="Dividende pro Monat ";
+    input.dataset.mode="monthlyDividend";
+    const balance=Number($("assetBalance")?.value||0);
+    const annualRate=Number(input.dataset.annualRate||0);
+    if(!input.matches(":focus") && !input.value && balance>0 && annualRate>0){
+      input.value=(balance*annualRate/100/12).toFixed(2);
+    }
+  }else{
+    label.childNodes[0].nodeValue="Zinssatz (%) ";
+    input.dataset.mode="rate";
+  }
+}
+["assetType","assetName","assetBalance"].forEach(id=>{
+  const el=$(id); if(el) el.addEventListener("input",updateAssetRateFieldV23);
+});
+setTimeout(updateAssetRateFieldV23,0);
+
+setTimeout(renderDynamicStockProfitV23,0);
