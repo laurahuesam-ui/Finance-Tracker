@@ -1,5 +1,5 @@
 
-const defaultIncomeHistoryV7 = [{"month": "2025-06", "salary": 426.53, "bonus": 50, "tips": 150, "parents": 100, "costs": -35.93, "total": 790.6}, {"month": "2025-07", "salary": 237.31, "bonus": 50, "tips": 125, "parents": 100, "costs": -35.93, "total": 591.38}, {"month": "2025-08", "salary": 599.89, "bonus": 50, "tips": 200, "parents": 100, "costs": -35.93, "total": 1013.96}, {"month": "2025-09", "salary": 617.17, "bonus": 50, "tips": 200, "parents": 100, "costs": -60.93, "total": 1006.24}, {"month": "2025-10", "salary": 667.81, "bonus": 50, "tips": 250, "parents": 100, "costs": -137.08, "total": 1030.73}, {"month": "2025-11", "salary": 719.6, "bonus": 50, "tips": 225, "parents": 100, "costs": -920.42, "total": 274.18}, {"month": "2025-12", "salary": 761.84, "bonus": 50, "tips": 250, "parents": 100, "costs": -181.42, "total": 1065.42}, {"month": "2026-01", "salary": 735.94, "bonus": 50, "tips": 225, "parents": 100, "costs": -187.42, "total": 923.52}, {"month": "2026-02", "salary": 506.8, "bonus": 50, "tips": 125, "parents": 100, "costs": -191.7, "total": 590.1}, {"month": "2026-03", "salary": 595.92, "bonus": 50, "tips": 225, "parents": 100, "costs": -247.2, "total": 723.72}, {"month": "2026-04", "salary": 920.26, "bonus": 50, "tips": 300, "parents": 100, "costs": -303.7, "total": 1066.56}, {"month": "2026-05", "salary": 1014.08, "bonus": 50, "tips": 300, "parents": 100, "costs": -215.7, "total": 1248.38}, {"month": "2026-06", "salary": 514.92, "bonus": 50, "tips": 300, "parents": 100, "costs": -215.7, "total": 749.22}, {"month": "2026-07", "salary": 679.5, "bonus": 50, "tips": 300, "parents": 100, "costs": -215.7, "total": 913.8}, {"month": "2026-08", "salary": 910.0, "bonus": 50, "tips": 300, "parents": 100, "costs": -215.7, "total": 1144.3}, {"month": "2026-09", "salary": 840.0, "bonus": 50, "tips": 300, "parents": 100, "costs": -215.7, "total": 1074.3}, {"month": "2026-10", "salary": 840.0, "bonus": 50, "tips": 300, "parents": 100, "costs": -215.7, "total": 1074.3}, {"month": "2026-11", "salary": 840.0, "bonus": 50, "tips": 300, "parents": 100, "costs": -215.7, "total": 1074.3}, {"month": "2026-12", "salary": 840.0, "bonus": 50, "tips": 300, "parents": 100, "costs": -215.7, "total": 1074.3}];
+const defaultIncomeHistoryV7 = [{"month": "2025-06", "salary": 426.53, "bonus": 50, "tips": 150, "parents": 105, "costs": -35.93, "total": 790.6}, {"month": "2025-07", "salary": 237.31, "bonus": 50, "tips": 125, "parents": 105, "costs": -35.93, "total": 591.38}, {"month": "2025-08", "salary": 599.89, "bonus": 50, "tips": 200, "parents": 105, "costs": -35.93, "total": 1013.96}, {"month": "2025-09", "salary": 617.17, "bonus": 50, "tips": 200, "parents": 105, "costs": -60.93, "total": 1006.24}, {"month": "2025-10", "salary": 667.81, "bonus": 50, "tips": 250, "parents": 105, "costs": -137.08, "total": 1030.73}, {"month": "2025-11", "salary": 719.6, "bonus": 50, "tips": 225, "parents": 105, "costs": -920.42, "total": 274.18}, {"month": "2025-12", "salary": 761.84, "bonus": 50, "tips": 250, "parents": 105, "costs": -181.42, "total": 1065.42}, {"month": "2026-01", "salary": 735.94, "bonus": 50, "tips": 225, "parents": 105, "costs": -187.42, "total": 923.52}, {"month": "2026-02", "salary": 506.8, "bonus": 50, "tips": 125, "parents": 105, "costs": -191.7, "total": 590.1}, {"month": "2026-03", "salary": 595.92, "bonus": 50, "tips": 225, "parents": 105, "costs": -247.2, "total": 723.72}, {"month": "2026-04", "salary": 920.26, "bonus": 50, "tips": 300, "parents": 105, "costs": -303.7, "total": 1066.56}, {"month": "2026-05", "salary": 1014.08, "bonus": 50, "tips": 300, "parents": 105, "costs": -215.7, "total": 1248.38}, {"month": "2026-06", "salary": 514.92, "bonus": 50, "tips": 300, "parents": 105, "costs": -215.7, "total": 749.22}, {"month": "2026-07", "salary": 679.5, "bonus": 50, "tips": 300, "parents": 105, "costs": -215.7, "total": 913.8}, {"month": "2026-08", "salary": 910.0, "bonus": 50, "tips": 300, "parents": 105, "costs": -215.7, "total": 1144.3}, {"month": "2026-09", "salary": 840.0, "bonus": 50, "tips": 300, "parents": 105, "costs": -215.7, "total": 1074.3}, {"month": "2026-10", "salary": 840.0, "bonus": 50, "tips": 300, "parents": 105, "costs": -215.7, "total": 1074.3}, {"month": "2026-11", "salary": 840.0, "bonus": 50, "tips": 300, "parents": 105, "costs": -215.7, "total": 1074.3}, {"month": "2026-12", "salary": 840.0, "bonus": 50, "tips": 300, "parents": 105, "costs": -215.7, "total": 1074.3}];
 
 const defaultAmexHistoryV7 = [{"month": "2025-05", "expenses": -942.84, "average": null, "expenseDay": null, "incomeDay": null, "passiveDay": null, "netDay": null, "saving": null}, {"month": "2025-06", "expenses": -332.81, "average": -637.825, "expenseDay": -11.09366667, "incomeDay": 25.92, "passiveDay": 0.109726776, "netDay": 14.94, "saving": 455.5898333}, {"month": "2025-07", "expenses": -485.92, "average": -561.8725, "expenseDay": -15.67483871, "incomeDay": 19.39, "passiveDay": 0.090273224, "netDay": 3.8, "saving": 116.0507527}, {"month": "2025-08", "expenses": -556.42, "average": -559.14625, "expenseDay": -17.94903226, "incomeDay": 33.24, "passiveDay": 0.084808743, "netDay": 15.38, "saving": 469.1011828}, {"month": "2025-09", "expenses": -379.02, "average": -469.083125, "expenseDay": -12.634, "incomeDay": 32.99, "passiveDay": 0.083278689, "netDay": 20.44, "saving": 623.443}, {"month": "2025-10", "expenses": -354.97, "average": -412.0265625, "expenseDay": -11.45064516, "incomeDay": 33.79, "passiveDay": 0.128196721, "netDay": 22.47, "saving": 685.3953226}, {"month": "2025-11", "expenses": -368.61, "average": -390.3182813, "expenseDay": -12.287, "incomeDay": 8.99, "passiveDay": 0.13136612, "netDay": -3.17, "saving": -96.56683333}, {"month": "2025-12", "expenses": -1426.3, "average": -908.3091406, "expenseDay": -46.00967742, "incomeDay": 34.93, "passiveDay": 0.156830601, "netDay": -10.92, "saving": -333.091828}, {"month": "2026-01", "expenses": -633.6, "average": -770.9545703, "expenseDay": -20.43870968, "incomeDay": 30.28, "passiveDay": 0.143934426, "netDay": 9.98, "saving": 304.5293548}, {"month": "2026-02", "expenses": -509.36, "average": -640.1572852, "expenseDay": -18.19142857, "incomeDay": 19.35, "passiveDay": 0.130819672, "netDay": 1.29, "saving": 39.25142857}, {"month": "2026-03", "expenses": -602.85, "average": -621.5036426, "expenseDay": -21.53035714, "incomeDay": 23.73, "passiveDay": 0.173114754, "netDay": 2.37, "saving": 72.32410714}, {"month": "2026-04", "expenses": -363.47, "average": -492.4868213, "expenseDay": -12.98107143, "incomeDay": 34.97, "passiveDay": 0.166229508, "netDay": 22.15, "saving": 675.7073214}, {"month": "2026-05", "expenses": -781.81, "average": -637.1484106, "expenseDay": -27.92178571, "incomeDay": 40.93, "passiveDay": 0.337704918, "netDay": 13.35, "saving": 407.0655357}, {"month": "2026-06", "expenses": -275.2, "average": -456.1742053, "expenseDay": -9.828571429, "incomeDay": 24.56, "passiveDay": 0.224590164, "netDay": 14.96, "saving": 456.2985714}, {"month": "2026-07", "expenses": -642.97, "average": -549.5721027, "expenseDay": -22.96321429, "incomeDay": 29.96, "passiveDay": 0.214754098, "netDay": 7.21, "saving": 219.9719643}];
 
@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 21;
+const APP_VERSION = 22;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -119,6 +119,24 @@ function normalizeFixedCostsV19(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
 normalizeFixedCostsV19();
+
+
+function migrateIncomeParentsV22(){
+  data.settings=data.settings||{};
+  if(Number(data.settings.incomeParentsVersion||0)>=22) return;
+  const rows=data.v7?.incomeHistory||data.incomeHistory||[];
+  rows.forEach(r=>{
+    if(Number(r.parents)===100){
+      r.parents=105;
+      if("total" in r){
+        r.total=Number(r.salary||0)+Number(r.bonus||0)+Number(r.tips||0)+Number(r.parents||0)+Number(r.costs||0);
+      }
+    }
+  });
+  data.settings.incomeParentsVersion=22;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+}
+migrateIncomeParentsV22();
 
 let deferredPrompt = null;
 
@@ -511,6 +529,39 @@ function dynamicAverageSaving(){
   const amount=surplus.reduce((a,b)=>a+b,0)/surplus.length;
   const avgIncome=matches.reduce((s,x)=>s+inc.get(x.month),0)/matches.length;
   return {amount,rate:avgIncome?amount/avgIncome*100:0};
+}
+
+
+function fixedCostAnnualOccurrences(cost){
+  const f=String(cost.frequency||"").toLowerCase();
+  if(f==="monthly" || f.includes("monat")) return 12;
+  if(f==="bimonthly" || f.includes("alle 2 monate")) return 6;
+  if(f==="quarterly" || f.includes("quartal")) return 4;
+  if(f==="semiannual" || f.includes("halbjähr") || f.includes("zweimal") || f.includes("2x")) return 2;
+  if(f==="annual" || f.includes("jähr") || f.includes("jahr")) return 1;
+  return 12;
+}
+function fixedCostDailyAmount(cost){
+  return Math.abs(Number(cost.amount||0))*fixedCostAnnualOccurrences(cost)/365;
+}
+function totalFixedCostsPerDay(){
+  return (data.fixedCosts||[]).filter(x=>x.active!==false).reduce((sum,x)=>sum+fixedCostDailyAmount(x),0);
+}
+function currentAvailableForFirstGoal(){
+  const source=typeof financeSourceOfTruth==="function" ? financeSourceOfTruth() : null;
+  if(source && Number.isFinite(Number(source.totalWealthValue))) return Number(source.totalWealthValue);
+  return typeof totalWealth==="function" ? Number(totalWealth()||0) : 0;
+}
+function syncFirstSavingsGoalV22(){
+  const rows=Array.isArray(data.priorityGoals)&&data.priorityGoals.length?data.priorityGoals:priorityGoalsV10;
+  if(!rows || !rows.length) return rows;
+  const available=currentAvailableForFirstGoal();
+  rows[0][11]=available;
+  const min=Number(rows[0][3]||0), max=Number(rows[0][4]||0);
+  rows[0][9]=min ? available/min*100 : 0;
+  rows[0][10]=max ? available/max*100 : 0;
+  data.priorityGoals=rows;
+  return rows;
 }
 
 function renderAll(){
@@ -1056,7 +1107,7 @@ function renderV6(){
   const fl=$("fixedCostListV6");
   if(fl)fl.innerHTML=activeFixed.map(x=>`<div class="list-item">
     <div><h3>${esc(x.name)}</h3><p>Tag ${Math.min(Number(x.day)||1,31)} · ${esc(x.when||frequencyLabel(x.frequency)||"")}</p></div>
-    <div class="inline-actions"><strong>${fmt(-Math.abs(x.amount))}</strong>
+    <div class="inline-actions"><div><strong>${fmt(-Math.abs(x.amount))}</strong><br><span class="muted">${fmt(fixedCostDailyAmount(x))} pro Tag</span></div>
     <button class="edit-fixed-day" data-id="${x.id}" type="button">Bearbeiten</button></div>
   </div>`).join("");
 
@@ -1097,7 +1148,7 @@ function renderV6(){
 
   const pgb=$("priorityGoalsBody");
   if(pgb){
-    const goalRows=Array.isArray(data.priorityGoals)&&data.priorityGoals.length?data.priorityGoals:priorityGoalsV10;
+    const goalRows=syncFirstSavingsGoalV22();
     pgb.innerHTML=goalRows.map((r,i)=>`<tr>
       <td>${r[0]??""}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td>
       <td>${r[3]==null?"–":fmt(r[3])}</td><td>${r[4]==null?"–":fmt(r[4])}</td>
@@ -1227,7 +1278,7 @@ document.addEventListener("click",e=>{
     if(!r)return;
     const fields=[
       ["Priorität",0],["Kategorie",1],["Unterkategorie",2],["Einmalig min",3],["Einmalig max",4],
-      ["LK min p.a.",5],["LK max p.a.",6],["LK min p.m.",7],["LK max p.m.",8],["Verfügbar",11]
+      ["LK min p.a.",5],["LK max p.a.",6],["LK min p.m.",7],["LK max p.m.",8]
     ];
     for(const [label,idx] of fields){
       const val=prompt(label,r[idx]??"");
@@ -1264,3 +1315,16 @@ function renderSharedFinanceValuesV20(){
 const _renderAllV20=renderAll;
 renderAll=function(){_renderAllV20();renderSharedFinanceValuesV20();};
 setTimeout(renderSharedFinanceValuesV20,0);
+
+function renderFixedCostsDailyDashboardV22(){
+  const value=totalFixedCostsPerDay();
+  ["nextFixedTotal","fixedCostsDaily","dashboardFixedDaily","nextFixedCosts"].forEach(id=>{const el=$(id);if(el)el.textContent=fmt(value);});
+  document.querySelectorAll("[data-fixed-costs-daily]").forEach(el=>el.textContent=fmt(value));
+}
+const _renderAllV22=renderAll;
+renderAll=function(){
+  syncFirstSavingsGoalV22();
+  _renderAllV22();
+  renderFixedCostsDailyDashboardV22();
+};
+setTimeout(()=>{syncFirstSavingsGoalV22();renderFixedCostsDailyDashboardV22();},0);
