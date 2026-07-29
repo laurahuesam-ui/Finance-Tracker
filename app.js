@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 32;
+const APP_VERSION = 33;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -137,6 +137,22 @@ function migrateIncomeParentsV22(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
 migrateIncomeParentsV22();
+
+
+const historicalIncomeFixedCostsV33 = {"2025-06": -35.93, "2025-07": -35.93, "2025-08": -35.93, "2025-09": -60.93, "2025-10": -137.08, "2025-11": -920.42, "2025-12": -181.42, "2026-01": -187.42, "2026-02": -191.7, "2026-03": -247.2, "2026-04": -303.7};
+function applyHistoricalIncomeFixedCostsV33(){
+  data.settings=data.settings||{};
+  const rows=data.v7?.incomeHistory||data.incomeHistory||[];
+  rows.forEach(r=>{
+    if(Object.prototype.hasOwnProperty.call(historicalIncomeFixedCostsV33,r.month)){
+      r.costs=historicalIncomeFixedCostsV33[r.month];
+      r.total=Number(r.salary||0)+Number(r.bonus||0)+Number(r.tips||0)+Number(r.parents||0)+Number(r.costs||0);
+    }
+  });
+  data.settings.historicalIncomeFixedCostsVersion=33;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+}
+applyHistoricalIncomeFixedCostsV33();
 
 let deferredPrompt = null;
 
@@ -1615,3 +1631,33 @@ renderAll=function(){
   renderPassiveForecastV32();
 };
 setTimeout(renderPassiveForecastV32,0);
+
+
+function globalFixedCoverageV33(){
+  const monthlyFixed = typeof monthlyAverageFixed==="function"
+    ? Number(monthlyAverageFixed()||0)
+    : 0;
+  const passive = typeof passiveDetails==="function"
+    ? passiveDetails()
+    : {monthly:0};
+  const passiveMonthly = Number(passive.monthly||0);
+  const percent = monthlyFixed ? passiveMonthly/monthlyFixed*100 : 0;
+  return {monthlyFixed,passiveMonthly,percent};
+}
+function renderGlobalFixedCoverageV33(){
+  const g=globalFixedCoverageV33();
+  const text=`${g.percent.toFixed(1).replace(".",",")} %`;
+  ["fixedCostsPassiveCoverage","passiveForecastStartCoverage","passiveCoverage","breakEvenPassive","v6Coverage"].forEach(id=>{
+    const el=$(id);
+    if(el) el.textContent=text;
+  });
+  const bar=$("passiveProgress");
+  if(bar) bar.style.width=`${Math.max(0,Math.min(100,g.percent))}%`;
+}
+
+const __renderAllV33=renderAll;
+renderAll=function(){
+  __renderAllV33();
+  renderGlobalFixedCoverageV33();
+};
+setTimeout(renderGlobalFixedCoverageV33,0);
