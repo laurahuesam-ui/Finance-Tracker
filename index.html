@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 31</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 32</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -145,9 +145,12 @@
       </form>
     </article>
     <article class="panel">
-      <div class="panel-head"><div class="stat"><span>Fixkosten pro Tag</span><strong id="fixedCostsDailyTotal">–</strong></div>
-      <div class="stat"><span>Fixkosten passiv gedeckt</span><strong id="fixedCostsPassiveCoverage">–</strong></div>
-<h2>Fixkostenübersicht</h2><strong id="fixedMonthlyAverage"></strong></div>
+      <h2>Fixkostenübersicht</h2>
+      <div class="stats-grid">
+        <div class="stat"><span>Fixkosten pro Tag</span><strong id="fixedCostsDailyTotal">–</strong></div>
+        <div class="stat"><span>Fixkosten passiv gedeckt</span><strong id="fixedCostsPassiveCoverage">–</strong></div>
+      </div>
+      <strong id="fixedMonthlyAverage"></strong>
       <div id="fixedList" class="list"></div>
     </article>
   </section>
@@ -387,10 +390,7 @@
       <div class="stat"><span>Passiv pro Monat</span><strong id="passiveForecastStartPassive">–</strong></div>
       <div class="stat"><span>Fixkosten gedeckt</span><strong id="passiveForecastStartCoverage">–</strong></div>
     </div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Meilenstein</th><th>Fortschritt</th><th>Benötigtes Vermögen</th><th>Dauer</th><th>Passiv pro Monat</th></tr></thead>
-      <tbody id="passiveForecastBody"></tbody>
-    </table></div>
+    <div id="passiveForecastBody" class="list"></div>
   </article>
 </section>
 
