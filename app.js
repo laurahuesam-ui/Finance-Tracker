@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 27;
+const APP_VERSION = 29;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -1482,72 +1482,72 @@ function incomeGrossBeforeFixedV27(row){
 function incomeAfterFixedV27(row){
   return incomeGrossBeforeFixedV27(row)+fixedCostAmountForMonth(row.month);
 }
-function forecast2026V27(){
+function forecast2026V28(){
   const rows=incomeRowsForYearV27(2026).sort((a,b)=>a.month.localeCompare(b.month));
-  const annualIncome=rows.reduce((sum,r)=>sum+incomeGrossBeforeFixedV27(r),0);
-  const annualFixed=Math.abs(rows.reduce((sum,r)=>sum+fixedCostAmountForMonth(r.month),0));
+  // "Einkommen" uses the same monthly Summe as the income table:
+  // salary + bonus + tips + parents - fixed costs due in that month.
+  const annualIncome=rows.reduce((sum,r)=>sum+incomeTotalV26(r),0);
   const amex2026=amexRows().filter(r=>String(r.month||"").startsWith("2026-"));
-  const annualAmex=amex2026.reduce((sum,r)=>sum+Math.abs(Number(r.expenses||0)),0);
-  const annualExpenses=annualFixed+annualAmex;
-
-  const f=financeV26 ? financeV26() : null;
-  const passiveAnnual=f ? Number(f.passiveAnnual||0) : 0;
-  const wealthNow=f ? Number(f.totalWealth||f.totalWealthValue||0) : totalWealth();
-
-  // Projection: current wealth + all 2026 income - all known 2026 expenses + passive income.
-  const yearEndWealth=wealthNow+annualIncome-annualExpenses+passiveAnnual;
-
-  return {annualIncome,annualFixed,annualAmex,annualExpenses,passiveAnnual,yearEndWealth};
+  const annualExpenses=amex2026.reduce((sum,r)=>sum+Math.abs(Number(r.expenses||0)),0);
+  const f=financeV26();
+  const passiveAnnual=Number(f.passiveAnnual||0);
+  const currentMonth=new Date().getMonth()+1;
+  const remainingMonths=Math.max(0,12-currentMonth);
+  const knownMonthlySurplus=rows.length ? (annualIncome-annualExpenses)/12 : 0;
+  const yearEndWealth=Number(f.totalWealth||0)+knownMonthlySurplus*remainingMonths+Number(f.passiveMonthly||0)*remainingMonths;
+  return {annualIncome,annualExpenses,passiveAnnual,yearEndWealth};
 }
-function renderForecastV27(){
-  const f=forecast2026V27();
-  const map={
-    forecastIncome2026:f.annualIncome,
-    forecastExpenses:f.annualExpenses,
-    forecastPassive:f.passiveAnnual,
-    forecastWealthEnd:f.yearEndWealth
-  };
-  Object.entries(map).forEach(([id,val])=>{
-    const el=$(id); if(el) el.textContent=fmt(val);
-  });
-
-  // Fallback by data attributes.
-  document.querySelectorAll("[data-forecast-income-2026]").forEach(el=>el.textContent=fmt(f.annualIncome));
-  document.querySelectorAll("[data-forecast-expenses]").forEach(el=>el.textContent=fmt(f.annualExpenses));
-  document.querySelectorAll("[data-forecast-passive]").forEach(el=>el.textContent=fmt(f.passiveAnnual));
-  document.querySelectorAll("[data-forecast-wealth-end]").forEach(el=>el.textContent=fmt(f.yearEndWealth));
+function renderForecastV28(){
+  const f=forecast2026V28();
+  const yf=$("yearForecast");
+  if(!yf)return;
+  yf.innerHTML=`
+    <div class="stat"><span>Einkommen 2026</span><strong>${fmt(f.annualIncome)}</strong></div>
+    <div class="stat"><span>Ausgaben 2026 (AMEX)</span><strong>${fmt(f.annualExpenses)}</strong></div>
+    <div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(f.passiveAnnual)}</strong></div>
+    <div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(f.yearEndWealth)}</strong></div>`;
 }
-function renderDashboardV27(){
-  const currentIncome=currentIncomeMasterRow();
-  const currentIncomeValue=currentIncome ? incomeGrossBeforeFixedV27(currentIncome) : 0;
-  const currentAmex=currentAmexMasterRow();
+function renderDashboardV28(){
+  const currentIncome=currentIncomeV26();
+  const currentIncomeValue=incomeTotalV26(currentIncome);
+  const currentAmex=currentAmexV26();
   const amexValue=Math.abs(Number(currentAmex?.expenses||0));
-  const fixedDaily=totalFixedCostsPerDay();
-  const surplus=currentIncomeValue - amexValue - Math.abs(fixedCostAmountForMonth(currentIncome?.month||monthISO()));
-
-  ["dashIncome","dashboardIncome","currentIncome","incomeCurrent","salaryDashboard"].forEach(id=>{
-    const el=$(id); if(el) el.textContent=fmt(currentIncomeValue);
-  });
-  ["monthBalance","dashboardMonthBalance"].forEach(id=>{
-    const el=$(id); if(el) el.textContent=`Monatsüberschuss: ${fmt(surplus)}`;
-  });
+  const fixedDaily=financeV26().fixedDaily;
+  const surplus=currentIncomeValue-amexValue;
+  setTextV26("monthIncome",fmt(currentIncomeValue));
+  setTextV26("monthBalance",`Monatsüberschuss: ${fmt(surplus)}`);
+  setTextV26("monthExpenses",fmt(fixedDaily));
   document.querySelectorAll("[data-dashboard-income-current]").forEach(el=>el.textContent=fmt(currentIncomeValue));
   document.querySelectorAll("[data-dashboard-fixed-daily]").forEach(el=>el.textContent=fmt(fixedDaily));
-
-  // Replace any old AMEX dashboard value elements with fixed daily costs.
-  ["dashAmex","dashboardAmex","currentAmex","amexCurrent","amexDue"].forEach(id=>{
-    const el=$(id); if(el) el.textContent=fmt(fixedDaily);
-  });
 }
 
 
 const __renderAllV27 = renderAll;
 renderAll = function(){
   __renderAllV27();
-  renderDashboardV27();
-  renderForecastV27();
+  renderDashboardV28();
+  renderForecastV28();
 };
 setTimeout(()=>{
-  renderDashboardV27();
-  renderForecastV27();
+  renderDashboardV28();
+  renderForecastV28();
 },0);
+
+
+// V29: Jahresprognose Einkommen = Summe der Monatsspalte "Summe"
+function income2026FromMonthlyTotalsV29(){
+  const rows=(incomeRows?incomeRows():[])
+    .filter(r=>String(r.month||"").startsWith("2026-"));
+  return rows.reduce((s,r)=>{
+    if(Number.isFinite(Number(r.total))) return s+Number(r.total);
+    return s+Number(r.sum||0);
+  },0);
+}
+if(typeof forecast2026V27==="function"){
+  const __forecast2026V27=forecast2026V27;
+  forecast2026V27=function(){
+    const f=__forecast2026V27();
+    f.annualIncome=income2026FromMonthlyTotalsV29();
+    return f;
+  }
+}
