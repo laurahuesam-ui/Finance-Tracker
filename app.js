@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 37;
+const APP_VERSION = 38;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -1720,3 +1720,166 @@ const correctedIncomeFixedCostsV36={"2026-05": -215.7, "2026-06": -240.7, "2026-
    localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
  }
 })();
+
+
+const INSPECTOR_V38 = {
+  "Aktueller Vermögenswert": {
+    formula:"Summe aller aktuellen Vermögenswerte",
+    code:"totalWealth = Σ Vermögenswert.balance",
+    value:()=>totalWealth(),
+    vars:()=> (data.assets||[]).map(a=>[a.name,Number(a.balance||0)]),
+    usage:["Dashboard","Konten & Vermögen","Sparziele"]
+  },
+  "Kapitaldifferenz": {
+    formula:"Aktuelles Vermögen − Kapital t=0",
+    code:"capitalDifference = totalWealth - initialCapital",
+    value:()=>totalWealth()-Number(data.capitalMetrics?.initialCapital||2386.50),
+    vars:()=>[["Aktuelles Vermögen",totalWealth()],["Kapital t=0",Number(data.capitalMetrics?.initialCapital||2386.50)]],
+    usage:["Dashboard","Kapitalentwicklung","Kapitalsteigerung"]
+  },
+  "Steigerung Durchschnitt pro Monat": {
+    formula:"Kapitaldifferenz ÷ Anzahl Monate seit Juni 2025",
+    code:"averagePerMonth = capitalDifference / monthsSinceStart",
+    value:()=>capitalAveragePerMonthV37(totalWealth()-Number(data.capitalMetrics?.initialCapital||2386.50)),
+    vars:()=>[["Kapitaldifferenz",totalWealth()-Number(data.capitalMetrics?.initialCapital||2386.50)],["Monate seit t=0",capitalMonthsSinceT0V37()]],
+    usage:["Dashboard","Kapitalentwicklung"]
+  },
+  "Kapitalsteigerung": {
+    formula:"Kapitaldifferenz ÷ Kapital t=0 × 100",
+    code:"capitalIncrease = capitalDifference / initialCapital * 100",
+    value:()=> {
+      const i=Number(data.capitalMetrics?.initialCapital||2386.50);
+      return i?(totalWealth()-i)/i*100:0;
+    },
+    vars:()=>[["Kapitaldifferenz",totalWealth()-Number(data.capitalMetrics?.initialCapital||2386.50)],["Kapital t=0",Number(data.capitalMetrics?.initialCapital||2386.50)]],
+    usage:["Dashboard","Kapitalentwicklung"]
+  },
+  "Zinsen aktueller Monat": {
+    formula:"Σ(Kontostand × Zinssatz p. a. ÷ 365 × Tage im Monat)",
+    code:"monthlyInterest = Σ(balance * rate / 100 / 365 * days)",
+    value:()=>Number(passiveDetails().interest||0),
+    vars:()=> {
+      const d=passiveDetails().days||30;
+      return (data.assets||[]).filter(a=>["cash","bank","savings"].includes(String(a.type||"").toLowerCase())).map(a=>[a.name,Number(a.balance||0)*Number(a.rate||0)/100/365*d]);
+    },
+    usage:["Konten & Vermögen","Passiv","Fixkosten gedeckt"]
+  },
+  "Dividende aktueller Monat": {
+    formula:"Summe der monatlichen Dividenden aller Aktienwerte",
+    code:"monthlyDividend = Σ(asset.monthlyDividend)",
+    value:()=>Number(passiveDetails().dividend||0),
+    vars:()=> (data.assets||[]).filter(a=>["stock","stocks","equity","fund","etf"].includes(String(a.type||"").toLowerCase())).map(a=>[a.name,Number(a.monthlyDividend||0)]),
+    usage:["Konten & Vermögen","Passiv","Fixkosten gedeckt"]
+  },
+  "Passiv pro Monat": {
+    formula:"Zinsen aktueller Monat + Dividende aktueller Monat",
+    code:"passiveMonthly = monthlyInterest + monthlyDividend",
+    value:()=>Number(passiveDetails().monthly||0),
+    vars:()=>[["Zinsen",Number(passiveDetails().interest||0)],["Dividende",Number(passiveDetails().dividend||0)]],
+    usage:["Dashboard","Konten & Vermögen","Passiv","Fixkosten gedeckt"]
+  },
+  "Passiv pro Tag": {
+    formula:"Passiv pro Monat ÷ Tage im aktuellen Monat",
+    code:"passiveDaily = passiveMonthly / daysInMonth",
+    value:()=>Number(passiveDetails().daily||0),
+    vars:()=>[["Passiv pro Monat",Number(passiveDetails().monthly||0)],["Tage",Number(passiveDetails().days||30)]],
+    usage:["Dashboard","Konten & Vermögen","Passiv"]
+  },
+  "Fixkosten pro Monat": {
+    formula:"Jahreskosten aller aktiven Fixkosten ÷ 12",
+    code:"monthlyFixed = annualizedFixedCosts / 12",
+    value:()=>Number(monthlyAverageFixed()||0),
+    vars:()=> (data.fixedCosts||[]).filter(x=>x.active!==false).map(x=>[x.name,Math.abs(Number(x.amount||0))*fixedCostAnnualOccurrences(x)/12]),
+    usage:["Fixkosten","Passiv","Fixkosten gedeckt"]
+  },
+  "Fixkosten pro Tag": {
+    formula:"Jahreskosten aller aktiven Fixkosten ÷ 365",
+    code:"dailyFixed = annualizedFixedCosts / 365",
+    value:()=>Number(totalFixedCostsPerDay()||0),
+    vars:()=> (data.fixedCosts||[]).filter(x=>x.active!==false).map(x=>[x.name,fixedCostDailyAmount(x)]),
+    usage:["Dashboard","Fixkosten"]
+  },
+  "Fixkosten passiv gedeckt": {
+    formula:"Passiv pro Monat ÷ Fixkosten pro Monat × 100",
+    code:"coverage = passiveMonthly / monthlyFixed * 100",
+    value:()=>Number(globalFixedCoverageV33().percent||0),
+    vars:()=>[["Passiv pro Monat",Number(passiveDetails().monthly||0)],["Fixkosten pro Monat",Number(monthlyAverageFixed()||0)]],
+    usage:["Fixkosten","Passiv","Break-even"]
+  },
+  "Gewinn Aktien": {
+    formula:"Aktueller Aktienwert − Einstandswert",
+    code:"stockProfit = currentStockValue - costBasis",
+    value:()=>Number(dynamicStockProfitV23()||0),
+    vars:()=> (data.assets||[]).filter(a=>["stock","stocks","equity","fund","etf"].includes(String(a.type||"").toLowerCase())).map(a=>[a.name,Number(a.balance||0)-Number(a.investedAmount??a.costBasis??a.balance??0)]),
+    usage:["Dashboard","Konten & Vermögen"]
+  },
+  "Einnahmen diesen Monat": {
+    formula:"Monatssumme aus der Einkommenshistorie",
+    code:"currentIncome = incomeRow.total",
+    value:()=>Number(currentIncomeMasterRow()?.total||0),
+    vars:()=> {
+      const r=currentIncomeMasterRow()||{};
+      return [["Gehalt",r.salary||0],["Bonus",r.bonus||0],["Trinkgeld",r.tips||0],["Eltern",r.parents||0],["Fixkosten",r.costs||0]];
+    },
+    usage:["Dashboard","Jahresprognose"]
+  }
+};
+
+let developerModeV38=localStorage.getItem("finanzenDeveloperMode")==="1";
+
+function inspectorLabelV38(card){
+  const text=(card.querySelector("span,h2,h3")?.textContent||"").trim();
+  return Object.keys(INSPECTOR_V38).find(k=>text===k||text.includes(k))||null;
+}
+function inspectorFmtV38(label,value){
+  return label.toLowerCase().includes("steigerung")||label.toLowerCase().includes("gedeckt")
+    ? `${Number(value||0).toFixed(2).replace(".",",")} %`
+    : fmt(Number(value||0));
+}
+function applyDeveloperModeV38(){
+  document.body.classList.toggle("developer-mode",developerModeV38);
+  const btn=$("developerModeToggle");
+  if(btn)btn.textContent=`Entwicklermodus: ${developerModeV38?"An":"Aus"}`;
+  document.querySelectorAll(".stat,.stat-card").forEach(card=>{
+    const label=inspectorLabelV38(card);
+    card.classList.toggle("inspectable-card",developerModeV38&&!!label);
+    if(label)card.dataset.calcLabel=label;
+  });
+}
+function openInspectorV38(label,shown){
+  const d=INSPECTOR_V38[label];
+  if(!d)return;
+  $("formulaInspectorTitle").textContent=label;
+  $("formulaInspectorValue").textContent=shown||inspectorFmtV38(label,d.value());
+  const rows=d.vars();
+  $("pane-formula").innerHTML=`<h3>Formel</h3><p>${esc(d.formula)}</p><div class="inspector-list">${rows.map(r=>`<div><span>${esc(r[0])}</span><strong>${inspectorFmtV38(r[0],r[1])}</strong></div>`).join("")}<div><span>Ergebnis</span><strong>${inspectorFmtV38(label,d.value())}</strong></div></div>`;
+  $("pane-variables").innerHTML=`<h3>Variablen</h3><div class="inspector-list">${rows.map(r=>`<div><span>${esc(r[0])}</span><strong>${inspectorFmtV38(r[0],r[1])}</strong></div>`).join("")}</div>`;
+  $("pane-code").innerHTML=`<h3>Code</h3><pre><code>${esc(d.code)}</code></pre>`;
+  $("pane-usage").innerHTML=`<h3>Verwendet von</h3><ul>${d.usage.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`;
+  $("formulaInspectorModal").classList.remove("hidden");
+}
+document.addEventListener("click",e=>{
+  if(e.target.closest("#developerModeToggle")){
+    developerModeV38=!developerModeV38;
+    localStorage.setItem("finanzenDeveloperMode",developerModeV38?"1":"0");
+    applyDeveloperModeV38();
+    return;
+  }
+  if(e.target.closest("#closeFormulaInspector")){
+    $("formulaInspectorModal").classList.add("hidden");
+    return;
+  }
+  const tab=e.target.closest(".inspector-tab");
+  if(tab){
+    document.querySelectorAll(".inspector-tab").forEach(x=>x.classList.toggle("active",x===tab));
+    document.querySelectorAll(".inspector-pane").forEach(x=>x.classList.toggle("active",x.id===`pane-${tab.dataset.pane}`));
+    return;
+  }
+  if(developerModeV38){
+    const card=e.target.closest(".inspectable-card");
+    if(card)openInspectorV38(card.dataset.calcLabel,card.querySelector("strong")?.textContent);
+  }
+});
+const __renderAllV38=renderAll;
+renderAll=function(){__renderAllV38();applyDeveloperModeV38();};
+setTimeout(applyDeveloperModeV38,0);

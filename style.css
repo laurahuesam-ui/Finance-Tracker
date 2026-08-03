@@ -81,3 +81,13 @@ th:first-child,td:first-child{text-align:left}
 .progress-bar{height:100%;background:currentColor;border-radius:999px}
 
 .forecast-details{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:7px;font-size:.9rem;color:var(--muted)}
+
+.developer-mode .inspectable-card{cursor:pointer;outline:1px dashed currentColor;position:relative}
+.developer-mode .inspectable-card::after{content:"ℹ️";position:absolute;top:.4rem;right:.5rem}
+.inspector-card{max-width:760px;width:min(94vw,760px);max-height:88vh;overflow:auto}
+.inspector-value{font-size:1.4rem;font-weight:700}
+.inspector-tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:1rem 0}
+.inspector-pane{display:none}.inspector-pane.active{display:block}
+.inspector-list{display:grid;gap:.5rem}
+.inspector-list>div{display:flex;justify-content:space-between;gap:1rem;padding:.65rem;border:1px solid var(--border,#ddd);border-radius:.5rem}
+.inspector-pane pre{overflow:auto;background:#111;color:#eee;padding:1rem;border-radius:.6rem}
