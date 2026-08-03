@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 38;
+const APP_VERSION = 39;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -687,6 +687,22 @@ function renderGlobalPassiveV38(){
   document.querySelectorAll("[data-global-dividend-month]").forEach(el=>el.textContent=fmt(g.dividend));
   document.querySelectorAll("[data-global-passive-month]").forEach(el=>el.textContent=fmt(g.monthly));
   document.querySelectorAll("[data-global-passive-day]").forEach(el=>el.textContent=fmt(g.daily));
+}
+
+
+function assetDynamicMonthlyV39(asset){
+  const type=String(asset?.type||"").toLowerCase();
+  if(["cash","bank","savings","tagesgeld"].includes(type)){
+    return monthlyInterestByAssetV38(asset);
+  }
+  if(["stock","stocks","equity","fund","etf","aktie","aktien"].includes(type)){
+    return Number(asset?.monthlyDividend||asset?.dividendMonth||0) ||
+      (Number(asset?.balance||0)*Number(asset?.rate||0)/100/12);
+  }
+  return 0;
+}
+function assetDynamicAnnualV39(asset){
+  return assetDynamicMonthlyV39(asset)*12;
 }
 
 function renderAll(){
