@@ -85,4 +85,5 @@ th:first-child,td:first-child{text-align:left}
 .capital-row-input-v40{min-width:95px}
 .edit-capital-row-v40,.save-capital-row-v40,.cancel-capital-row-v40{white-space:nowrap}
 
-.capital-row-input-v41[readonly]{opacity:.7;background:var(--muted-bg,#f3f4f6)}
+.capital-row-input-v42{min-width:95px}
+.edit-capital-row-v42,.save-capital-row-v42,.cancel-capital-row-v42{white-space:nowrap}
