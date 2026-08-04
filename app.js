@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 42;
+const APP_VERSION = 40;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -730,129 +730,6 @@ document.addEventListener("click",event=>{
   if(event.target.closest(".cancel-capital-row-v40")){editingCapitalMonthV40=null;renderCapitalHistoryTableV40();}
 });
 
-
-let editingCapitalMonthV42=null;
-
-function isSparkasseSavingsV42(asset){
-  const name=String(asset?.name||"").toLowerCase();
-  return name.includes("sparkasse") && name.includes("tagesgeld");
-}
-function isTradeRepublicSavingsV42(asset){
-  const name=String(asset?.name||"").toLowerCase();
-  return name.includes("trade republic") &&
-    (name.includes("tagesgeld") || name.includes("cash") || name.includes("verrechnung"));
-}
-function dayAccurateInterestV42(asset){
-  const days=daysInCurrentMonthV38();
-  return Number(asset?.balance||0)*Number(asset?.rate||0)/100/365*days;
-}
-function ensureCurrentCapitalRowV42(){
-  const month=monthISO();
-  const rows=data.capitalHistory||(data.capitalHistory=[]);
-  let row=rows.find(x=>x.month===month);
-  if(!row){
-    row={month,sparkasse:0,sparkasseInterest:0,tradeRepublic:0,trInterest:0,dividend:0,total:0};
-    rows.push(row);
-  }
-
-  const assets=Array.isArray(data.assets)?data.assets:[];
-  const sparkasse=assets.filter(isSparkasseSavingsV42);
-  const tr=assets.filter(isTradeRepublicSavingsV42);
-
-  row.sparkasse=sparkasse.reduce((sum,a)=>sum+Number(a.balance||0),0);
-  row.sparkasseInterest=sparkasse.reduce((sum,a)=>sum+dayAccurateInterestV42(a),0);
-  row.tradeRepublic=tr.reduce((sum,a)=>sum+Number(a.balance||0),0);
-  row.trInterest=tr.reduce((sum,a)=>sum+dayAccurateInterestV42(a),0);
-  row.dividend=Number(row.dividend||0);
-  row.total=row.sparkasseInterest+row.trInterest+row.dividend;
-  return row;
-}
-function capitalRowsV42(){
-  ensureCurrentCapitalRowV42();
-  return (data.capitalHistory||[])
-    .map(row=>({
-      ...row,
-      total:Number(row.sparkasseInterest||0)+Number(row.trInterest||0)+Number(row.dividend||0)
-    }))
-    .sort((a,b)=>String(a.month).localeCompare(String(b.month)));
-}
-function capitalHistoryRowV42(row){
-  const editing=editingCapitalMonthV42===row.month;
-  const current=row.month===monthISO();
-
-  if(!editing){
-    return `<tr>
-      <td>${monthLabel(row.month)}</td>
-      <td>${row.sparkasse==null?"–":fmt(row.sparkasse)}</td>
-      <td>${fmt(row.sparkasseInterest||0)}</td>
-      <td>${row.tradeRepublic==null?"–":fmt(row.tradeRepublic)}</td>
-      <td>${fmt(row.trInterest||0)}</td>
-      <td>${fmt(row.dividend||0)}</td>
-      <td>${fmt(Number(row.sparkasseInterest||0)+Number(row.trInterest||0)+Number(row.dividend||0))}</td>
-      <td><button type="button" class="edit-capital-row-v42" data-month="${row.month}">Bearbeiten</button></td>
-    </tr>`;
-  }
-
-  const input=(field,value,readonly=false)=>`<input
-    class="inline-input capital-row-input-v42"
-    type="number" step="0.01"
-    data-month="${row.month}" data-field="${field}"
-    value="${value==null?"":Number(value).toFixed(2)}"
-    ${readonly?"readonly":""}>`;
-
-  return `<tr>
-    <td>${monthLabel(row.month)}</td>
-    <td>${input("sparkasse",row.sparkasse,current)}</td>
-    <td>${input("sparkasseInterest",row.sparkasseInterest,current)}</td>
-    <td>${input("tradeRepublic",row.tradeRepublic,current)}</td>
-    <td>${input("trInterest",row.trInterest,current)}</td>
-    <td>${input("dividend",row.dividend,false)}</td>
-    <td><strong>${fmt(Number(row.sparkasseInterest||0)+Number(row.trInterest||0)+Number(row.dividend||0))}</strong><br><small>automatisch</small></td>
-    <td>
-      <button type="button" class="save-capital-row-v42" data-month="${row.month}">Speichern</button>
-      <button type="button" class="cancel-capital-row-v42">Abbrechen</button>
-    </td>
-  </tr>`;
-}
-function renderCapitalHistoryTableV42(){
-  const body=$("capitalMasterBody");
-  if(!body)return;
-  body.innerHTML=capitalRowsV42().map(capitalHistoryRowV42).join("");
-}
-function saveCapitalHistoryRowV42(month){
-  const row=(data.capitalHistory||[]).find(x=>x.month===month);
-  if(!row)return;
-  const current=month===monthISO();
-
-  document.querySelectorAll(`.capital-row-input-v42[data-month="${month}"]`).forEach(input=>{
-    const field=input.dataset.field;
-    if(current && field!=="dividend")return;
-    row[field]=input.value===""?null:Number(input.value);
-  });
-
-  if(current)ensureCurrentCapitalRowV42();
-  row.total=Number(row.sparkasseInterest||0)+Number(row.trInterest||0)+Number(row.dividend||0);
-  editingCapitalMonthV42=null;
-  saveData();
-}
-document.addEventListener("click",event=>{
-  const edit=event.target.closest(".edit-capital-row-v42");
-  if(edit){
-    editingCapitalMonthV42=edit.dataset.month;
-    renderCapitalHistoryTableV42();
-    return;
-  }
-  const save=event.target.closest(".save-capital-row-v42");
-  if(save){
-    saveCapitalHistoryRowV42(save.dataset.month);
-    return;
-  }
-  if(event.target.closest(".cancel-capital-row-v42")){
-    editingCapitalMonthV42=null;
-    renderCapitalHistoryTableV42();
-  }
-});
-
 function renderAll(){
   renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
 }
@@ -896,7 +773,7 @@ function renderDashboard(){
   $("interestProfit").textContent=fmt(s.interestProfit);
   $("dailyInterest").textContent=`aktuell ${fmt(s.monthlyInterest/s.days)}/Tag · ${fmt(s.monthlyInterest)}/Monat`;
   $("dividendProfit").textContent=fmt(s.dividendProfit);
-  $("monthlyDividend").textContent=`durchschnittlich ${fmt(s.monthlyDividend)}/Monat · ${fmt(s.monthlyDividend/s.days)}/Tag`;
+  $("monthlyDividend").textContent=`aktuell ${fmt(s.monthlyDividend)}/Monat · ${fmt(s.monthlyDividend/s.days)}/Tag`;
   $("stockProfit").textContent=fmt(m.stockProfit||0);
   $("capitalGrowth").textContent=`${s.capitalIncreasePct.toFixed(2).replace(".",",")} %`;
   $("capitalDelta").textContent=`${s.capitalDifference>=0?"+":""}${fmt(s.capitalDifference)} seit Juni 2025 · Ø ${fmt(capitalAveragePerMonthV37(s.capitalDifference))} pro Monat · aktuelles Vermögen ${fmt(s.totalWealthValue)}`;
@@ -1721,7 +1598,7 @@ function renderAuthoritativeV26(){
   setTextV26("amexMonthTotal",fmt(amexAmount));
   const sel=$("amexMonthSelect");if(sel){const months=amexRows().map(r=>r.month).sort().reverse();sel.innerHTML=months.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join("");sel.value=amex?.month||months[0]||monthISO();}
   setTextV26("interestProfit",fmt(s.interestProfit));setTextV26("dailyInterest",`aktuell ${fmt(s.monthlyInterest/s.days)}/Tag · ${fmt(s.monthlyInterest)}/Monat`);
-  setTextV26("dividendProfit",fmt(s.dividendProfit));setTextV26("monthlyDividend",`durchschnittlich ${fmt(s.monthlyDividend)}/Monat · ${fmt(s.monthlyDividend/s.days)}/Tag`);
+  setTextV26("dividendProfit",fmt(s.dividendProfit));setTextV26("monthlyDividend",`aktuell ${fmt(s.monthlyDividend)}/Monat · ${fmt(s.monthlyDividend/s.days)}/Tag`);
   setTextV26("stockProfit",fmt(s.stockProfit));setTextV26("dashboardStockValue",`aktueller Aktienwert: ${fmt(s.stockValue)}`);
   setTextV26("capitalGrowth",`${s.capitalIncreasePct.toFixed(2).replace(".",",")} %`);setTextV26("capitalDelta",`${s.capitalDifference>=0?"+":""}${fmt(s.capitalDifference)} seit Juni 2025 · Ø ${fmt(capitalAveragePerMonthV37(s.capitalDifference))} pro Monat · aktuelles Vermögen ${fmt(s.totalWealth)}`);
   // Dashboard AMEX status selected/current
@@ -1950,10 +1827,3 @@ setTimeout(renderGlobalPassiveV38,0);
 const __renderAllV40=renderAll;
 renderAll=function(){__renderAllV40();renderCapitalHistoryTableV40();};
 setTimeout(renderCapitalHistoryTableV40,0);
-
-const __renderAllV42=renderAll;
-renderAll=function(){
-  __renderAllV42();
-  renderCapitalHistoryTableV42();
-};
-setTimeout(renderCapitalHistoryTableV42,0);
