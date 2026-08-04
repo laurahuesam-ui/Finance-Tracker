@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 39;
+const APP_VERSION = 40;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -705,6 +705,31 @@ function assetDynamicAnnualV39(asset){
   return assetDynamicMonthlyV39(asset)*12;
 }
 
+
+let editingCapitalMonthV40=null;
+function capitalHistoryRowV40(row){
+  const editing=editingCapitalMonthV40===row.month;
+  if(!editing){
+    return `<tr><td>${monthLabel(row.month)}</td><td>${row.sparkasse==null?"–":fmt(row.sparkasse)}</td><td>${row.sparkasseInterest==null?"–":fmt(row.sparkasseInterest)}</td><td>${row.tradeRepublic==null?"–":fmt(row.tradeRepublic)}</td><td>${row.trInterest==null?"–":fmt(row.trInterest)}</td><td>${row.dividend==null?"–":fmt(row.dividend)}</td><td>${row.total==null?"–":fmt(row.total)}</td><td><button type="button" class="edit-capital-row-v40" data-month="${row.month}">Bearbeiten</button></td></tr>`;
+  }
+  const fields=["sparkasse","sparkasseInterest","tradeRepublic","trInterest","dividend","total"];
+  return `<tr><td>${monthLabel(row.month)}</td>${fields.map(field=>`<td><input class="inline-input capital-row-input-v40" type="number" step="0.01" data-month="${row.month}" data-field="${field}" value="${row[field]==null?"":Number(row[field]).toFixed(2)}"></td>`).join("")}<td><button type="button" class="save-capital-row-v40" data-month="${row.month}">Speichern</button> <button type="button" class="cancel-capital-row-v40">Abbrechen</button></td></tr>`;
+}
+function renderCapitalHistoryTableV40(){
+  const body=$("capitalMasterBody"); if(!body)return;
+  body.innerHTML=(data.capitalHistory||[]).slice().sort((a,b)=>String(a.month).localeCompare(String(b.month))).map(capitalHistoryRowV40).join("");
+}
+function saveCapitalHistoryRowV40(month){
+  const row=(data.capitalHistory||[]).find(x=>x.month===month); if(!row)return;
+  document.querySelectorAll(`.capital-row-input-v40[data-month="${month}"]`).forEach(input=>{row[input.dataset.field]=input.value===""?null:Number(input.value);});
+  editingCapitalMonthV40=null; saveData();
+}
+document.addEventListener("click",event=>{
+  const edit=event.target.closest(".edit-capital-row-v40"); if(edit){editingCapitalMonthV40=edit.dataset.month;renderCapitalHistoryTableV40();return;}
+  const save=event.target.closest(".save-capital-row-v40"); if(save){saveCapitalHistoryRowV40(save.dataset.month);return;}
+  if(event.target.closest(".cancel-capital-row-v40")){editingCapitalMonthV40=null;renderCapitalHistoryTableV40();}
+});
+
 function renderAll(){
   renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
 }
@@ -1186,18 +1211,7 @@ function reloadAuthoritativeMasterDataV17(){
 
 
 function renderV6(){
-  const cmb=$("capitalMasterBody");
-  if(cmb){
-    cmb.innerHTML=liveCapitalHistoryRows().map(x=>`<tr>
-      <td>${monthLabel(x.month)}</td>
-      <td>${x.sparkasse==null?"–":fmt(x.sparkasse)}</td>
-      <td>${x.sparkasseInterest==null?"–":fmt(x.sparkasseInterest)}</td>
-      <td>${x.tradeRepublic==null?"–":fmt(x.tradeRepublic)}</td>
-      <td>${x.trInterest==null?"–":fmt(x.trInterest)}</td>
-      <td>${x.dividend==null?"–":fmt(x.dividend)}</td>
-      <td>${x.total==null?"–":fmt(x.total)}</td>
-    </tr>`).join("");
-  }
+  renderCapitalHistoryTableV40();
   const cmc=$("capitalMetricCards");
   if(cmc){
     const m=data.capitalMetrics||{};
@@ -1809,3 +1823,7 @@ renderAll=function(){
   renderGlobalPassiveV38();
 };
 setTimeout(renderGlobalPassiveV38,0);
+
+const __renderAllV40=renderAll;
+renderAll=function(){__renderAllV40();renderCapitalHistoryTableV40();};
+setTimeout(renderCapitalHistoryTableV40,0);

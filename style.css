@@ -81,3 +81,6 @@ th:first-child,td:first-child{text-align:left}
 .progress-bar{height:100%;background:currentColor;border-radius:999px}
 
 .forecast-details{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:7px;font-size:.9rem;color:var(--muted)}
+
+.capital-row-input-v40{min-width:95px}
+.edit-capital-row-v40,.save-capital-row-v40,.cancel-capital-row-v40{white-space:nowrap}
