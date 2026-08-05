@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 47;
+const APP_VERSION = 41;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -807,11 +807,6 @@ document.addEventListener("click",event=>{
   if(event.target.closest(".cancel-capital-row-v40")){editingCapitalMonthV40=null;renderCapitalHistoryTableV40();}
 });
 
-
-function fmtPercentV43(value){
-  return `${Number(value||0).toFixed(2).replace(".",",")} %`;
-}
-
 function renderAll(){
   renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
 }
@@ -838,10 +833,10 @@ function renderDashboard(){
   const fixed=monthlyAverageFixed();
   const pct=fixed?Math.min(100,p.monthly/fixed*100):0;
   $("passiveProgress").style.width=`${pct}%`;
-  $("breakEvenPassive").textContent=fmtPercentV43(globalFixedCoverageV33 ? globalFixedCoverageV33().percent : 0);
+  $("breakEvenPassive").textContent=`${pct.toFixed(1).replace(".",",")} %`;
   const withSalary=fixed?Math.min(100,(p.monthly+income)/fixed*100):0;
   $("breakEvenWithSalary").textContent=fixed
-    ? `Mit dem in diesem Monat erfassten Gehalt wären ${withSalary.toFixed(2).replace(".",",")} % der durchschnittlichen Fixkosten gedeckt.`
+    ? `Mit dem in diesem Monat erfassten Gehalt wären ${withSalary.toFixed(1).replace(".",",")} % der durchschnittlichen Fixkosten gedeckt.`
     : "Noch keine aktiven Fixkosten vorhanden.";
   $("assetSummary").innerHTML=data.assets.length?data.assets.map(a=>`
     <div class="list-item"><div><h3>${esc(a.name)}</h3><p>${typeLabel(a.type)} · ${Number(a.rate||0).toFixed(2).replace(".",",")} % p. a.</p></div>
@@ -1039,7 +1034,7 @@ function renderGoals(){
       estimated.setDate(estimated.getDate()+remaining/avg*30.4375);
     }
     return `<article class="panel goal-card">
-      <div class="goal-top"><div><h2>${esc(g.name)}</h2><p class="muted">${fmt(current)} von ${fmt(target)} · automatisch aus Gesamtvermögen</p></div><strong>${pct.toFixed(2).replace(".",",")} %</strong></div>
+      <div class="goal-top"><div><h2>${esc(g.name)}</h2><p class="muted">${fmt(current)} von ${fmt(target)} · automatisch aus Gesamtvermögen</p></div><strong>${pct.toFixed(1).replace(".",",")} %</strong></div>
       <div class="progress"><div style="width:${pct}%"></div></div>
       <div class="goal-stats">
         <div class="stat"><span>Wunschdatum</span><strong>${new Date(g.targetDate+"T12:00:00").toLocaleDateString("de-DE")}</strong></div>
@@ -1312,7 +1307,7 @@ function renderV6(){
       ["Dividende aktueller Monat",fmt(globalMonthlyDividendV38())],
       ["Passiv pro Tag",fmt(globalPassiveV38().daily)],
       ["Passiv pro Monat",fmt(globalPassiveV38().monthly)],
-      ["Fixkosten gedeckt",s.fixedCoveragePct.toFixed(2).replace(".",",")+" %"]
+      ["Fixkosten gedeckt",s.fixedCoveragePct.toFixed(1).replace(".",",")+" %"]
     ];
     cmc.innerHTML=items.map(([k,v])=>`<div class="stat-card"><span>${k}</span><strong>${v}</strong></div>`).join("");
   }
@@ -1347,10 +1342,10 @@ function renderV6(){
   const set=(id,val)=>{const el=$(id);if(el)el.textContent=val};
   set("v6TotalWealth",fmt(wealth));
   set("v6AvgSaving",fmt(avgSaving)+"/Monat");
-  set("v6SavingRate",savingRate.toFixed(2).replace(".",",")+" %");
+  set("v6SavingRate",savingRate.toFixed(1).replace(".",",")+" %");
   set("v6PassiveMonthly",fmt(passiveMonthly));
   set("v6FixedMonthly",fmt(monthlyFixed));
-  set("v6Coverage",coverage.toFixed(2).replace(".",",")+" %");
+  set("v6Coverage",coverage.toFixed(1).replace(".",",")+" %");
 
   const salary2025=incomeRows().filter(x=>x.month.startsWith("2025")).reduce((s,x)=>s+x.salary,0);
   const salary2026=incomeRows().filter(x=>x.month.startsWith("2026")).reduce((s,x)=>s+x.salary,0);
@@ -1386,7 +1381,7 @@ function renderV6(){
   set("passiveTotalDay",fmt(passive.daily));
   set("passiveTabMonth",fmt(passive.monthly));
   set("passiveTabYear",fmt(passive.annual));
-  set("passiveCoverage",financeSourceOfTruth().fixedCoveragePct.toFixed(2).replace(".",",")+" %");
+  set("passiveCoverage",financeSourceOfTruth().fixedCoveragePct.toFixed(1).replace(".",",")+" %");
   const pt=$("passiveTargetsBody");
   const trCash=tradeRepublicCashBalance();
   if(pt)pt.innerHTML=passiveCapitalTargetsV6.map(([daily,capital])=>{
@@ -1460,7 +1455,7 @@ function renderV6(){
       d.setDate(d.getDate()+remaining/c.monthly*30.4375);
       eta=d.toLocaleDateString("de-DE");
     }
-    return `<div class="list-item"><div style="width:100%"><div class="milestone-row"><strong>${fmt(target)}</strong><span>${pct.toFixed(2).replace(".",",")} % · ${eta}</span></div><div class="progress"><div style="width:${pct}%"></div></div></div></div>`;
+    return `<div class="list-item"><div style="width:100%"><div class="milestone-row"><strong>${fmt(target)}</strong><span>${pct.toFixed(1).replace(".",",")} % · ${eta}</span></div><div class="progress"><div style="width:${pct}%"></div></div></div></div>`;
   }).join("");
 
   const yf=$("yearForecast");
@@ -1674,9 +1669,9 @@ function renderAuthoritativeV26(){
   setTextV26("monthIncome",fmt(incomeAmount));
   setTextV26("monthBalance",`Monatssaldo: ${fmt(incomeAmount-amexAmount)}`);
   setTextV26("passiveMonth",`${fmt(s.passiveMonthly)}/Monat`); setTextV26("passiveYear",`${fmt(s.passiveAnnual)}/Jahr`);
-  setTextV26("breakEvenPassive",`${s.fixedCoveragePct.toFixed(2).replace(".",",")} %`);
+  setTextV26("breakEvenPassive",`${s.fixedCoveragePct.toFixed(1).replace(".",",")} %`);
   const pp=$("passiveProgress");if(pp)pp.style.width=`${Math.max(0,Math.min(100,s.fixedCoveragePct))}%`;
-  setTextV26("breakEvenWithSalary",s.fixedMonthly?`Mit dem aktuellen Einkommen wären ${((s.passiveMonthly+incomeAmount)/s.fixedMonthly*100).toFixed(2).replace(".",",")} % der durchschnittlichen Fixkosten gedeckt.`:"Noch keine aktiven Fixkosten vorhanden.");
+  setTextV26("breakEvenWithSalary",s.fixedMonthly?`Mit dem aktuellen Einkommen wären ${((s.passiveMonthly+incomeAmount)/s.fixedMonthly*100).toFixed(1).replace(".",",")} % der durchschnittlichen Fixkosten gedeckt.`:"Noch keine aktiven Fixkosten vorhanden.");
   setTextV26("amexMonthTotal",fmt(amexAmount));
   const sel=$("amexMonthSelect");if(sel){const months=amexRows().map(r=>r.month).sort().reverse();sel.innerHTML=months.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join("");sel.value=amex?.month||months[0]||monthISO();}
   setTextV26("interestProfit",fmt(s.interestProfit));setTextV26("dailyInterest",`aktuell ${fmt(s.monthlyInterest/s.days)}/Tag · ${fmt(s.monthlyInterest)}/Monat`);
@@ -1689,7 +1684,7 @@ function renderAuthoritativeV26(){
   const rows=liveCapitalRowsV26();
   const fh=$("financeHistoryBody");if(fh)fh.innerHTML=rows.map(x=>`<tr><td>${monthLabel(x.month)}</td><td>${x.sparkasse==null?"–":fmt(x.sparkasse)}</td><td>${fmt(x.sparkasseInterest||0)}</td><td>${x.tradeRepublic==null?"–":fmt(x.tradeRepublic)}</td><td>${fmt(x.trInterest||0)}</td><td>${fmt(x.dividend||0)}</td><td>${fmt(x.total||0)}</td></tr>`).join(""); renderCapitalHistoryTableV41();
   setTextV26("historyTotalProfit",`Zinsen + Dividenden gesamt: ${fmt(s.interestProfit+s.dividendProfit)}`);
-  const cm=$("capitalMetricCards");if(cm){const items=[["Aktueller Vermögenswert",fmt(s.totalWealth)],["Kapital t=0",fmt(s.initialCapital)],["Kapitaldifferenz",fmt(s.capitalDifference)],["Steigerung Durchschnitt pro Monat",fmt(capitalAveragePerMonthV37(s.capitalDifference))],["Kapitalsteigerung",s.capitalIncreasePct.toFixed(2).replace(".",",")+" %"],["Aktueller Aktienwert",fmt(s.stockValue)],["Gewinn Aktien",fmt(s.stockProfit)],["Gewinn Zinsen",fmt(s.interestProfit)],["Gewinn Dividende",fmt(s.dividendProfit)],["Zinsen aktueller Monat",fmt(globalMonthlyInterestV38())],["Dividende aktueller Monat",fmt(globalMonthlyDividendV38())],["Passiv pro Tag",fmt(globalPassiveV38().daily)],["Passiv pro Monat",fmt(globalPassiveV38().monthly)],["Fixkosten gedeckt",s.fixedCoveragePct.toFixed(2).replace(".",",")+" %"]];cm.innerHTML=items.map(([k,v])=>`<div class="stat-card"><span>${k}</span><strong>${v}</strong></div>`).join("")}
+  const cm=$("capitalMetricCards");if(cm){const items=[["Aktueller Vermögenswert",fmt(s.totalWealth)],["Kapital t=0",fmt(s.initialCapital)],["Kapitaldifferenz",fmt(s.capitalDifference)],["Steigerung Durchschnitt pro Monat",fmt(capitalAveragePerMonthV37(s.capitalDifference))],["Kapitalsteigerung",s.capitalIncreasePct.toFixed(2).replace(".",",")+" %"],["Aktueller Aktienwert",fmt(s.stockValue)],["Gewinn Aktien",fmt(s.stockProfit)],["Gewinn Zinsen",fmt(s.interestProfit)],["Gewinn Dividende",fmt(s.dividendProfit)],["Zinsen aktueller Monat",fmt(globalMonthlyInterestV38())],["Dividende aktueller Monat",fmt(globalMonthlyDividendV38())],["Passiv pro Tag",fmt(globalPassiveV38().daily)],["Passiv pro Monat",fmt(globalPassiveV38().monthly)],["Fixkosten gedeckt",s.fixedCoveragePct.toFixed(1).replace(".",",")+" %"]];cm.innerHTML=items.map(([k,v])=>`<div class="stat-card"><span>${k}</span><strong>${v}</strong></div>`).join("")}
   // Fixkosten
   setTextV26("fixedMonthlyAverage",`Ø ${fmt(s.fixedMonthly)}/Monat`);setTextV26("fixedCostsDailyTotal",fmt(s.fixedDaily));setTextV26("fixedMonthlyTotal",fmt(s.fixedMonthly));setTextV26("fixedYearlyTotal",fmt(s.fixedAnnual));setTextV26("nextFixedCount",fmt(s.fixedDaily));
   // Income/AMEX analysis
@@ -1697,11 +1692,11 @@ function renderAuthoritativeV26(){
   const amap=amexCumulativeMapV26();setTextV26("avgExpenses",fmt(amexAmount));setTextV26("avgExpensesDaily",fmt(amap.get(amex?.month)||0));setTextV26("avgIncomeDaily",monthLabel(amex?.month||monthISO()));setTextV26("avgMonthlySaving",fmt(saving.amount));
   const eh=$("expenseHistoryBody");if(eh)eh.innerHTML=amexRows().map(r=>{const editing=editingAmexMonth===r.month;return editing?renderAmexRowV9(r):`<tr><td>${monthLabel(r.month)}</td><td>${fmt(Math.abs(Number(r.expenses||0)))}</td><td>${fmt(amap.get(r.month)||0)}</td><td><button class="edit-amex" data-month="${r.month}" type="button">Bearbeiten</button></td></tr>`}).join("");
   // Passive
-  setTextV26("passiveInterestMonth",fmt(s.monthlyInterest));setTextV26("passiveDividendMonth",fmt(s.monthlyDividend));setTextV26("passiveTotalDay",fmt(s.passiveDaily));setTextV26("passiveTabMonth",fmt(s.passiveMonthly));setTextV26("passiveTabYear",fmt(s.passiveAnnual));setTextV26("passiveCoverage",s.fixedCoveragePct.toFixed(2).replace(".",",")+" %");
+  setTextV26("passiveInterestMonth",fmt(s.monthlyInterest));setTextV26("passiveDividendMonth",fmt(s.monthlyDividend));setTextV26("passiveTotalDay",fmt(s.passiveDaily));setTextV26("passiveTabMonth",fmt(s.passiveMonthly));setTextV26("passiveTabYear",fmt(s.passiveAnnual));setTextV26("passiveCoverage",s.fixedCoveragePct.toFixed(1).replace(".",",")+" %");
   // Goals
   const goals=syncFirstGoalV26(), gb=$("priorityGoalsBody");if(gb)gb.innerHTML=goals.map((r,i)=>`<tr><td>${r[0]??""}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${r[3]==null?"–":fmt(r[3])}</td><td>${r[4]==null?"–":fmt(r[4])}</td><td>${r[5]==null?"–":fmt(r[5])}</td><td>${r[6]==null?"–":fmt(r[6])}</td><td>${r[7]==null?"–":fmt(r[7])}</td><td>${r[8]==null?"–":fmt(r[8])}</td><td>${r[9]==null?"–":Number(r[9]).toFixed(2).replace(".",",")+" %"}</td><td>${r[10]==null?"–":Number(r[10]).toFixed(2).replace(".",",")+" %"}</td><td>${r[11]==null?"–":fmt(r[11])}</td><td><button class="edit-priority-goal" data-index="${i}" type="button">Bearbeiten</button></td></tr>`).join("");
   // General overview cards
-  setTextV26("v6TotalWealth",fmt(s.totalWealth));setTextV26("v6AvgSaving",fmt(saving.amount)+"/Monat");setTextV26("v6SavingRate",saving.rate.toFixed(2).replace(".",",")+" %");setTextV26("v6PassiveMonthly",fmt(s.passiveMonthly));setTextV26("v6FixedMonthly",fmt(s.fixedMonthly));setTextV26("v6Coverage",s.fixedCoveragePct.toFixed(2).replace(".",",")+" %");
+  setTextV26("v6TotalWealth",fmt(s.totalWealth));setTextV26("v6AvgSaving",fmt(saving.amount)+"/Monat");setTextV26("v6SavingRate",saving.rate.toFixed(1).replace(".",",")+" %");setTextV26("v6PassiveMonthly",fmt(s.passiveMonthly));setTextV26("v6FixedMonthly",fmt(s.fixedMonthly));setTextV26("v6Coverage",s.fixedCoveragePct.toFixed(1).replace(".",",")+" %");
 }
 const renderAllV26Base=renderAll;
 renderAll=function(){renderAllV26Base();renderAuthoritativeV26();};
@@ -1832,16 +1827,16 @@ function durationDateLabelV32(years){
 }
 function renderPassiveForecastV32(){
   const p=passiveForecastSourceV32();
-  setTextV26('fixedCostsPassiveCoverage',p.coverage.toFixed(2).replace('.',',')+' %');
-  setTextV26('passiveCoverage',p.coverage.toFixed(2).replace('.',',')+' %');
-  setTextV26('passiveForecastStartCoverage',p.coverage.toFixed(2).replace('.',',')+' %');
+  setTextV26('fixedCostsPassiveCoverage',p.coverage.toFixed(1).replace('.',',')+' %');
+  setTextV26('passiveCoverage',p.coverage.toFixed(1).replace('.',',')+' %');
+  setTextV26('passiveForecastStartCoverage',p.coverage.toFixed(1).replace('.',',')+' %');
   setTextV26('passiveForecastStartWealth',fmt(p.wealth));
   setTextV26('passiveForecastRate',(p.annualRate*100).toFixed(2).replace('.',',')+' %');
   setTextV26('passiveForecastStartPassive',fmt(p.passiveMonthly));
   const body=$('passiveForecastBody');
   if(body){
     body.innerHTML=p.milestones.map(m=>`<div class="list-item"><div style="width:100%">
-      <div class="milestone-row"><strong>${m.targetPct} % der Fixkosten</strong><span>${m.progress.toFixed(2).replace('.',',')} % · ${durationDateLabelV32(m.years)}</span></div>
+      <div class="milestone-row"><strong>${m.targetPct} % der Fixkosten</strong><span>${m.progress.toFixed(1).replace('.',',')} % · ${durationDateLabelV32(m.years)}</span></div>
       <div class="progress"><div style="width:${m.progress}%"></div></div>
       <div class="forecast-details"><span>Benötigtes Vermögen: ${Number.isFinite(m.targetWealth)?fmt(m.targetWealth):'–'}</span><span>Passiv pro Monat: ${fmt(m.targetPassive)}</span></div>
     </div></div>`).join('');
@@ -1866,7 +1861,7 @@ function globalFinanceMetricsV34(){
 }
 function renderGlobalCoverageV34(){
   const g=globalFinanceMetricsV34();
-  const text=`${g.fixedCoveragePct.toFixed(2).replace('.',',')} %`;
+  const text=`${g.fixedCoveragePct.toFixed(1).replace('.',',')} %`;
   ['fixedCostsPassiveCoverage','passiveCoverage','passiveForecastStartCoverage','breakEvenPassive','v6Coverage'].forEach(id=>{
     const el=$(id); if(el) el.textContent=text;
   });
@@ -1909,41 +1904,3 @@ setTimeout(renderGlobalPassiveV38,0);
 const __renderAllV40=renderAll;
 renderAll=function(){__renderAllV40();renderCapitalHistoryTableV40();};
 setTimeout(renderCapitalHistoryTableV40,0);
-
-
-function renderAllCoveragePercentagesV43(){
-  let pct=0;
-  if(typeof globalFixedCoverageV33==="function"){
-    pct=Number(globalFixedCoverageV33().percent||0);
-  }else if(typeof passiveCoveragePctV31==="function"){
-    pct=Number(passiveCoveragePctV31()||0);
-  }else if(typeof financeV26==="function"){
-    const f=financeV26();
-    pct=Number(f.fixedCoveragePct||0);
-  }
-
-  const text=fmtPercentV43(pct);
-  [
-    "fixedCostsPassiveCoverage",
-    "passiveForecastStartCoverage",
-    "passiveCoverage",
-    "breakEvenPassive",
-    "v6Coverage",
-    "overviewFixedCoverage"
-  ].forEach(id=>{
-    const el=$(id);
-    if(el) el.textContent=text;
-  });
-
-  document.querySelectorAll("[data-fixed-coverage-percent]").forEach(el=>{
-    el.textContent=text;
-  });
-}
-
-
-const __renderAllV43=renderAll;
-renderAll=function(){
-  __renderAllV43();
-  renderAllCoveragePercentagesV43();
-};
-setTimeout(renderAllCoveragePercentagesV43,0);
