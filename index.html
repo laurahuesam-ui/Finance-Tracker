@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 49</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 50</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -391,6 +391,17 @@
       <div class="stat"><span>Fixkosten gedeckt</span><strong id="passiveForecastStartCoverage">–</strong></div>
     </div>
     <div id="passiveForecastBody" class="list"></div>
+  </article>
+
+  <article class="panel">
+    <h2>Zinsziele</h2>
+    <p class="muted">Wie viel auf dem Trade-Republic-Tagesgeldkonto noch fehlt, um den jeweiligen Tageszins zu erreichen.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tageszinsen</th><th>Zielkapital</th><th>Noch fehlend</th></tr></thead>
+        <tbody id="interestGoalsBody"></tbody>
+      </table>
+    </div>
   </article>
 </section>
 
