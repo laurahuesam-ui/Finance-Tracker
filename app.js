@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 42;
+const APP_VERSION = 43;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -807,6 +807,11 @@ document.addEventListener("click",event=>{
   if(event.target.closest(".cancel-capital-row-v40")){editingCapitalMonthV40=null;renderCapitalHistoryTableV40();}
 });
 
+
+function fmtPercentV43(value){
+  return `${Number(value||0).toFixed(2).replace(".",",")} %`;
+}
+
 function renderAll(){
   renderDashboard();renderBalances();renderFixed();renderIncome();renderAssets();renderGoals();renderAmexMonths();renderV6();renderFinanceHistory();
 }
@@ -833,10 +838,10 @@ function renderDashboard(){
   const fixed=monthlyAverageFixed();
   const pct=fixed?Math.min(100,p.monthly/fixed*100):0;
   $("passiveProgress").style.width=`${pct}%`;
-  $("breakEvenPassive").textContent=`${pct.toFixed(2).replace(".",",")} %`;
+  $("breakEvenPassive").textContent=fmtPercentV43(globalFixedCoverageV33 ? globalFixedCoverageV33().percent : 0);
   const withSalary=fixed?Math.min(100,(p.monthly+income)/fixed*100):0;
   $("breakEvenWithSalary").textContent=fixed
-    ? `Mit dem in diesem Monat erfassten Gehalt wären ${withSalary.toFixed(1).replace(".",",")} % der durchschnittlichen Fixkosten gedeckt.`
+    ? `Mit dem in diesem Monat erfassten Gehalt wären ${withSalary.toFixed(2).replace(".",",")} % der durchschnittlichen Fixkosten gedeckt.`
     : "Noch keine aktiven Fixkosten vorhanden.";
   $("assetSummary").innerHTML=data.assets.length?data.assets.map(a=>`
     <div class="list-item"><div><h3>${esc(a.name)}</h3><p>${typeLabel(a.type)} · ${Number(a.rate||0).toFixed(2).replace(".",",")} % p. a.</p></div>
@@ -1671,7 +1676,7 @@ function renderAuthoritativeV26(){
   setTextV26("passiveMonth",`${fmt(s.passiveMonthly)}/Monat`); setTextV26("passiveYear",`${fmt(s.passiveAnnual)}/Jahr`);
   setTextV26("breakEvenPassive",`${s.fixedCoveragePct.toFixed(2).replace(".",",")} %`);
   const pp=$("passiveProgress");if(pp)pp.style.width=`${Math.max(0,Math.min(100,s.fixedCoveragePct))}%`;
-  setTextV26("breakEvenWithSalary",s.fixedMonthly?`Mit dem aktuellen Einkommen wären ${((s.passiveMonthly+incomeAmount)/s.fixedMonthly*100).toFixed(1).replace(".",",")} % der durchschnittlichen Fixkosten gedeckt.`:"Noch keine aktiven Fixkosten vorhanden.");
+  setTextV26("breakEvenWithSalary",s.fixedMonthly?`Mit dem aktuellen Einkommen wären ${((s.passiveMonthly+incomeAmount)/s.fixedMonthly*100).toFixed(2).replace(".",",")} % der durchschnittlichen Fixkosten gedeckt.`:"Noch keine aktiven Fixkosten vorhanden.");
   setTextV26("amexMonthTotal",fmt(amexAmount));
   const sel=$("amexMonthSelect");if(sel){const months=amexRows().map(r=>r.month).sort().reverse();sel.innerHTML=months.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join("");sel.value=amex?.month||months[0]||monthISO();}
   setTextV26("interestProfit",fmt(s.interestProfit));setTextV26("dailyInterest",`aktuell ${fmt(s.monthlyInterest/s.days)}/Tag · ${fmt(s.monthlyInterest)}/Monat`);
@@ -1861,7 +1866,7 @@ function globalFinanceMetricsV34(){
 }
 function renderGlobalCoverageV34(){
   const g=globalFinanceMetricsV34();
-  const text=`${g.fixedCoveragePct.toFixed(1).replace('.',',')} %`;
+  const text=`${g.fixedCoveragePct.toFixed(2).replace('.',',')} %`;
   ['fixedCostsPassiveCoverage','passiveCoverage','passiveForecastStartCoverage','breakEvenPassive','v6Coverage'].forEach(id=>{
     const el=$(id); if(el) el.textContent=text;
   });
@@ -1904,3 +1909,41 @@ setTimeout(renderGlobalPassiveV38,0);
 const __renderAllV40=renderAll;
 renderAll=function(){__renderAllV40();renderCapitalHistoryTableV40();};
 setTimeout(renderCapitalHistoryTableV40,0);
+
+
+function renderAllCoveragePercentagesV43(){
+  let pct=0;
+  if(typeof globalFixedCoverageV33==="function"){
+    pct=Number(globalFixedCoverageV33().percent||0);
+  }else if(typeof passiveCoveragePctV31==="function"){
+    pct=Number(passiveCoveragePctV31()||0);
+  }else if(typeof financeV26==="function"){
+    const f=financeV26();
+    pct=Number(f.fixedCoveragePct||0);
+  }
+
+  const text=fmtPercentV43(pct);
+  [
+    "fixedCostsPassiveCoverage",
+    "passiveForecastStartCoverage",
+    "passiveCoverage",
+    "breakEvenPassive",
+    "v6Coverage",
+    "overviewFixedCoverage"
+  ].forEach(id=>{
+    const el=$(id);
+    if(el) el.textContent=text;
+  });
+
+  document.querySelectorAll("[data-fixed-coverage-percent]").forEach(el=>{
+    el.textContent=text;
+  });
+}
+
+
+const __renderAllV43=renderAll;
+renderAll=function(){
+  __renderAllV43();
+  renderAllCoveragePercentagesV43();
+};
+setTimeout(renderAllCoveragePercentagesV43,0);
