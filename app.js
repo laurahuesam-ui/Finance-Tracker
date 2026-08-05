@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 55;
+const APP_VERSION = 56;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -117,7 +117,43 @@ function renderIncome(){
   }).join('');
 }
 let editingAmex=null;function renderAmex(){const av=cumulativeAmex(),cur=currentAmex();set('avgExpenses',fmt(Math.abs(cur?.expenses||0)));set('avgExpensesDaily',fmt(av.get(cur?.month)||0));set('avgIncomeDaily',monthLabel(cur?.month));set('avgMonthlySaving',fmt(avgSurplus()));const b=$('expenseHistoryBody');if(b)b.innerHTML=data.amexHistory.map(r=>editingAmex===r.month?`<tr><td>${monthLabel(r.month)}</td><td><input class="inline-input" id="amexEditValue" type="number" step="0.01" value="${r.expenses}"></td><td>${fmt(av.get(r.month))}</td><td><button data-save-amex="${r.month}">Speichern</button><button data-cancel-amex>Abbrechen</button></td></tr>`:`<tr><td>${monthLabel(r.month)}</td><td>${fmt(Math.abs(r.expenses))}</td><td>${fmt(av.get(r.month))}</td><td><button data-edit-amex="${r.month}">Bearbeiten</button></td></tr>`).join('');renderFuel()}
-function renderFuel(){const rows=[...data.fuelEntries].sort((a,b)=>a.date.localeCompare(b.date)),total=rows.reduce((s,x)=>s+x.amount,0);set('fuelCurrentTotal',fmt(total));set('fuelAvgEntry',rows.length?fmt(total/rows.length):'–');const months=new Set(rows.map(x=>x.date.slice(0,7)));set('fuelAvgMonth',months.size?fmt(total/months.size):'–');let gaps=[];for(let i=1;i<rows.length;i++)gaps.push((new Date(rows[i].date)-new Date(rows[i-1].date))/86400000);set('fuelAvgGap',gaps.length?`${(gaps.reduce((a,b)=>a+b,0)/gaps.length).toFixed(1).replace('.',',')} Tage`:'–');const b=$('fuelEntriesBody');if(b)b.innerHTML=rows.map(x=>`<tr><td>${new Date(x.date+'T12:00').toLocaleDateString('de-DE')}</td><td>${fmt(x.amount)}</td><td>${esc(x.note)}</td><td><button data-delete-fuel="${x.id}">Löschen</button></td></tr>`).join('')}
+let editingFuel=null;
+function renderFuel(){
+  const rows=[...data.fuelEntries].sort((a,b)=>a.date.localeCompare(b.date));
+  const total=rows.reduce((s,x)=>s+Number(x.amount||0),0);
+  set('fuelCurrentTotal',fmt(total));
+  set('fuelAvgEntry',rows.length?fmt(total/rows.length):'–');
+  const months=new Set(rows.map(x=>x.date.slice(0,7)));
+  set('fuelAvgMonth',months.size?fmt(total/months.size):'–');
+  const gaps=[];
+  for(let i=1;i<rows.length;i++)gaps.push((new Date(rows[i].date)-new Date(rows[i-1].date))/86400000);
+  set('fuelAvgGap',gaps.length?`${(gaps.reduce((a,b)=>a+b,0)/gaps.length).toFixed(1).replace('.',',')} Tage`:'–');
+
+  const b=$('fuelEntriesBody');
+  if(!b)return;
+  b.innerHTML=rows.map(x=>{
+    if(editingFuel!==x.id){
+      return `<tr>
+        <td>${new Date(x.date+'T12:00').toLocaleDateString('de-DE')}</td>
+        <td>${fmt(x.amount)}</td>
+        <td>${esc(x.note||'')}</td>
+        <td>
+          <button data-edit-fuel="${x.id}">Bearbeiten</button>
+          <button data-delete-fuel="${x.id}">Löschen</button>
+        </td>
+      </tr>`;
+    }
+    return `<tr>
+      <td><input class="inline-input" type="date" data-fuel-field="date" value="${x.date||''}"></td>
+      <td><input class="inline-input" type="number" step="0.01" data-fuel-field="amount" value="${Number(x.amount||0)}"></td>
+      <td><input class="inline-input" type="text" data-fuel-field="note" value="${esc(x.note||'')}"></td>
+      <td>
+        <button data-save-fuel="${x.id}">Speichern</button>
+        <button data-cancel-fuel>Abbrechen</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
 function renderFixed(){const p=passive();set('fixedMonthlyTotal',fmt(fixedMonthly()));set('fixedYearlyTotal',fmt(fixedAnnual()));set('nextFixedCount',fmt(fixedDaily()));set('fixedCostsPassiveCoverage',pct(p.coverage));set('fixedCostsDailyTotal',fmt(fixedDaily()));const b=$('fixedCostListV6');if(b)b.innerHTML=data.fixedCosts.map(x=>`<div class="list-item fixed-cost-item"><div><h3>${esc(x.name)}</h3><p>Tag ${x.day} · ${esc(x.when)}</p></div><div class="fixed-cost-values"><strong>${fmt(-x.amount)}</strong><small>${fmt(x.amount*annualOccurrences(x.frequency)/365)} pro Tag</small><button data-edit-fixed="${x.id}">Bearbeiten</button></div></div>`).join('')}
 function renderAssets(){const c=capitalMetrics(),p=passive();set('assetTotal',fmt(c.wealth));const b=$('assetList');if(b)b.innerHTML=data.assets.map(a=>{const month=a.type==='stock'?Number(a.monthlyDividend||0):interestForAsset(a);const annual=month*12;return`<div class="list-item"><div><h3>${esc(a.name)}</h3><p>${a.type==='stock'?`Aktien · durchschnittliche Dividende: ${fmt(month)}/Monat · Rendite ${pct(a.balance?month*12/a.balance*100:0)}`:`Tagesgeldkonto · Zinssatz: ${pct(a.rate)}`}</p><small>Dynamisch übernommen: ${fmt(month)}/Monat · ${fmt(annual)}/Jahr</small></div><div><strong>${fmt(a.balance)}</strong><button data-edit-asset="${a.id}">Aktualisieren</button></div></div>`}).join('');const cards=[['Aktueller Vermögenswert',c.wealth],['Kapital t=0',START_CAPITAL],['Kapitaldifferenz',c.diff],['Steigerung Durchschnitt pro Monat',c.avg],['Kapitalsteigerung',pct(c.growth)],['Aktueller Aktienwert',stockValue()],['Gewinn Aktien',stockProfit()],['Gewinn Zinsen',c.interestProfit],['Gewinn Dividende',c.dividendProfit],['Zinsen aktueller Monat',p.interest],['Durchschnittliche Dividende pro Monat',p.dividend],['Passiv pro Tag',p.daily],['Passiv pro Monat',p.monthly],['Fixkosten gedeckt',pct(p.coverage)]];const cm=$('capitalMetricCards');if(cm)cm.innerHTML=cards.map(([k,v])=>`<div class="stat"><span>${k}</span><strong>${typeof v==='string'?v:fmt(v)}</strong></div>`).join('');renderCapitalTable()}
 let editingCapital=null;function renderCapitalTable(){syncCurrentCapital();const b=$('capitalMasterBody');if(!b)return;b.innerHTML=[...data.capitalHistory].sort((a,b)=>a.month.localeCompare(b.month)).map(r=>{const current=r.month===currentMonth();if(editingCapital!==r.month)return`<tr><td>${monthLabel(r.month)}</td><td>${r.sparkasse==null?'–':fmt(r.sparkasse)}</td><td>${fmt(r.sparkasseInterest)}</td><td>${r.tradeRepublic==null?'–':fmt(r.tradeRepublic)}</td><td>${r.trInterest==null?'–':fmt(r.trInterest)}</td><td>${r.dividend==null?'–':fmt(r.dividend)}</td><td>${r.total==null?'–':fmt(r.total)}</td><td><button data-edit-capital="${r.month}">Bearbeiten</button></td></tr>`;const fields=current?['dividend']:['sparkasse','sparkasseInterest','tradeRepublic','trInterest','dividend'];return`<tr><td>${monthLabel(r.month)}</td>${['sparkasse','sparkasseInterest','tradeRepublic','trInterest','dividend'].map(k=>`<td>${fields.includes(k)?`<input class="inline-input" data-cap-field="${k}" value="${r[k]??''}" type="number" step="0.01">`:fmt(r[k])}</td>`).join('')}<td>${fmt(r.total)}</td><td><button data-save-capital="${r.month}">Speichern</button><button data-cancel-capital>Abbrechen</button></td></tr>`}).join('')}
@@ -153,8 +189,37 @@ document.addEventListener('click',e=>{const d=e.target.dataset;if(d.editIncome){
       r.total=Number(r.salary||0)+Number(r.bonus||0)+Number(r.tips||0)+Number(r.parents||0)+Number(r.costs||0);
       editingIncome=null;
       save();
-    }if(d.editAmex){editingAmex=d.editAmex;renderAmex()}if(d.cancelAmex!==undefined){editingAmex=null;renderAmex()}if(d.saveAmex){data.amexHistory.find(x=>x.month===d.saveAmex).expenses=Number($('amexEditValue').value)||0;editingAmex=null;save()}if(d.deleteFuel){data.fuelEntries=data.fuelEntries.filter(x=>x.id!==d.deleteFuel);save()}if(d.editCapital){editingCapital=d.editCapital;renderCapitalTable()}if(d.cancelCapital!==undefined){editingCapital=null;renderCapitalTable()}if(d.saveCapital){const r=data.capitalHistory.find(x=>x.month===d.saveCapital);document.querySelectorAll('[data-cap-field]').forEach(x=>r[x.dataset.capField]=Number(x.value)||0);r.total=Number(r.sparkasseInterest||0)+Number(r.trInterest||0)+Number(r.dividend||0);editingCapital=null;save()}if(d.editFixed){const x=data.fixedCosts.find(v=>v.id===d.editFixed);modal(`<h2>${esc(x.name)} bearbeiten</h2><label>Tag<input id="mDay" type="number" min="1" max="31" value="${x.day}"></label><label>Betrag<input id="mAmount" type="number" step="0.01" value="${x.amount}"></label><button id="mSaveFixed">Speichern</button>`);$('mSaveFixed').onclick=()=>{x.day=Number($('mDay').value)||1;x.amount=Number($('mAmount').value)||0;closeModal();save()}}if(d.editAsset){const a=data.assets.find(v=>v.id===d.editAsset);const stock=a.type==='stock';modal(`<h2>${esc(a.name)} aktualisieren</h2><label>Neuer Stand<input id="mBal" type="number" step="0.01" value="${a.balance}"></label><label>${stock?'Dividende pro Monat':'Zinssatz p. a. (%)'}<input id="mYield" type="number" step="0.01" value="${stock?a.monthlyDividend:a.rate}"></label>${stock?`<p>Berechnete Dividendenrendite: <strong id="mRendite"></strong></p>`:''}<button id="mSaveAsset">Speichern</button>`);const upd=()=>{if(stock)set('mRendite',pct(Number($('mBal').value)?Number($('mYield').value)*12/Number($('mBal').value)*100:0))};if(stock){$('mBal').oninput=upd;$('mYield').oninput=upd;upd()}$('mSaveAsset').onclick=()=>{a.balance=Number($('mBal').value)||0;if(stock)a.monthlyDividend=Number($('mYield').value)||0;else a.rate=Number($('mYield').value)||0;closeModal();save()}}if(d.editGoal!==undefined){const r=data.priorityGoals[Number(d.editGoal)];const name=prompt('Unterkategorie',r[2]);if(name===null)return;r[2]=name;const min=prompt('Einmalige Kosten min',r[3]??'');if(min===null)return;r[3]=Number(String(min).replace(',','.'))||0;const max=prompt('Einmalige Kosten max',r[4]??'');if(max===null)return;r[4]=Number(String(max).replace(',','.'))||0;save()}});
-$('closeModal').onclick=closeModal;$('addFuelEntry').onclick=()=>{const amount=prompt('Tankbetrag');if(amount===null)return;data.fuelEntries.push({id:Date.now().toString(),date:new Date().toISOString().slice(0,10),amount:Number(String(amount).replace(',','.'))||0,note:''});save()};
+    }if(d.editAmex){editingAmex=d.editAmex;renderAmex()}if(d.cancelAmex!==undefined){editingAmex=null;renderAmex()}if(d.saveAmex){data.amexHistory.find(x=>x.month===d.saveAmex).expenses=Number($('amexEditValue').value)||0;editingAmex=null;save()}if(d.editFuel){editingFuel=d.editFuel;renderFuel()}
+if(d.cancelFuel!==undefined){editingFuel=null;renderFuel()}
+if(d.saveFuel){
+  const r=data.fuelEntries.find(x=>x.id===d.saveFuel);
+  document.querySelectorAll('[data-fuel-field]').forEach(x=>{
+    r[x.dataset.fuelField]=x.dataset.fuelField==='amount'?(Number(x.value)||0):x.value;
+  });
+  editingFuel=null;
+  save();
+}
+if(d.deleteFuel){data.fuelEntries=data.fuelEntries.filter(x=>x.id!==d.deleteFuel);save()}if(d.editCapital){editingCapital=d.editCapital;renderCapitalTable()}if(d.cancelCapital!==undefined){editingCapital=null;renderCapitalTable()}if(d.saveCapital){const r=data.capitalHistory.find(x=>x.month===d.saveCapital);document.querySelectorAll('[data-cap-field]').forEach(x=>r[x.dataset.capField]=Number(x.value)||0);r.total=Number(r.sparkasseInterest||0)+Number(r.trInterest||0)+Number(r.dividend||0);editingCapital=null;save()}if(d.editFixed){const x=data.fixedCosts.find(v=>v.id===d.editFixed);modal(`<h2>${esc(x.name)} bearbeiten</h2><label>Tag<input id="mDay" type="number" min="1" max="31" value="${x.day}"></label><label>Betrag<input id="mAmount" type="number" step="0.01" value="${x.amount}"></label><button id="mSaveFixed">Speichern</button>`);$('mSaveFixed').onclick=()=>{x.day=Number($('mDay').value)||1;x.amount=Number($('mAmount').value)||0;closeModal();save()}}if(d.editAsset){const a=data.assets.find(v=>v.id===d.editAsset);const stock=a.type==='stock';modal(`<h2>${esc(a.name)} aktualisieren</h2><label>Neuer Stand<input id="mBal" type="number" step="0.01" value="${a.balance}"></label><label>${stock?'Dividende pro Monat':'Zinssatz p. a. (%)'}<input id="mYield" type="number" step="0.01" value="${stock?a.monthlyDividend:a.rate}"></label>${stock?`<p>Berechnete Dividendenrendite: <strong id="mRendite"></strong></p>`:''}<button id="mSaveAsset">Speichern</button>`);const upd=()=>{if(stock)set('mRendite',pct(Number($('mBal').value)?Number($('mYield').value)*12/Number($('mBal').value)*100:0))};if(stock){$('mBal').oninput=upd;$('mYield').oninput=upd;upd()}$('mSaveAsset').onclick=()=>{a.balance=Number($('mBal').value)||0;if(stock)a.monthlyDividend=Number($('mYield').value)||0;else a.rate=Number($('mYield').value)||0;closeModal();save()}}if(d.editGoal!==undefined){const r=data.priorityGoals[Number(d.editGoal)];const name=prompt('Unterkategorie',r[2]);if(name===null)return;r[2]=name;const min=prompt('Einmalige Kosten min',r[3]??'');if(min===null)return;r[3]=Number(String(min).replace(',','.'))||0;const max=prompt('Einmalige Kosten max',r[4]??'');if(max===null)return;r[4]=Number(String(max).replace(',','.'))||0;save()}});
+$('closeModal').onclick=closeModal;$('addFuelEntry').onclick=()=>{
+  modal(`<h2>Tankvorgang hinzufügen</h2>
+    <label>Datum<input id="newFuelDate" type="date" value="${new Date().toISOString().slice(0,10)}"></label>
+    <label>Betrag<input id="newFuelAmount" type="number" step="0.01"></label>
+    <label>Notiz<input id="newFuelNote" type="text"></label>
+    <div class="inline-actions">
+      <button id="saveNewFuel" type="button">Speichern</button>
+      <button id="cancelNewFuel" type="button">Abbrechen</button>
+    </div>`);
+  $('saveNewFuel').onclick=()=>{
+    const date=$('newFuelDate').value;
+    const amount=Number($('newFuelAmount').value)||0;
+    const note=$('newFuelNote').value||'';
+    if(!date||!amount)return;
+    data.fuelEntries.push({id:Date.now().toString(),date,amount,note});
+    closeModal();
+    save();
+  };
+  $('cancelNewFuel').onclick=closeModal;
+};
 $('exportBackup').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='finanzen-backup.json';a.click();URL.revokeObjectURL(a.href)};
 $('importBackup').onchange=async e=>{try{const x=JSON.parse(await e.target.files[0].text());data={...clone(DEFAULTS),...x};save()}catch{alert('Backup ungültig')}};
 $('deleteAll').onclick=()=>{if(confirm('Alle Daten auf Stammdaten zurücksetzen?')){data=clone(DEFAULTS);save()}};
