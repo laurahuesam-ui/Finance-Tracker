@@ -85,39 +85,4 @@ th:first-child,td:first-child{text-align:left}
 .capital-row-input-v40{min-width:95px}
 .edit-capital-row-v40,.save-capital-row-v40,.cancel-capital-row-v40{white-space:nowrap}
 
-.inline-actions,.card-row,.stat-row,.summary-row,.milestone-meta-v50{
-  display:flex;
-  align-items:center;
-  gap:.5rem;
-  flex-wrap:wrap;
-}
-button+button,.badge+span,strong+span,span+strong{
-  margin-left:.35rem;
-}
-.milestone-v50{
-  display:grid;
-  grid-template-columns:minmax(110px,auto) 1fr auto;
-  gap:.75rem;
-  align-items:center;
-}
-.milestone-progress-v50{
-  grid-column:2;
-  min-width:140px;
-}
-.milestone-meta-v50{
-  grid-column:3;
-  justify-self:end;
-  white-space:nowrap;
-  text-align:right;
-}
-@media (max-width:700px){
-  .milestone-v50{
-    grid-template-columns:1fr auto;
-  }
-  .milestone-progress-v50{
-    grid-column:1 / -1;
-  }
-  .milestone-meta-v50{
-    grid-column:2;
-  }
-}
+.milestone-row-v51{display:grid;grid-template-columns:140px minmax(140px,1fr) auto;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fbfcfe}.milestone-row-v51 span{white-space:nowrap;text-align:right;color:var(--muted)}.milestone-row-v51+.milestone-row-v51{margin-top:8px}@media(max-width:650px){.milestone-row-v51{grid-template-columns:1fr auto}.milestone-row-v51 .progress{grid-column:1/-1}.milestone-row-v51 span{grid-column:2;grid-row:1}}

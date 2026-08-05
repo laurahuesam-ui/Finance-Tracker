@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 50</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 51</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -269,7 +269,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 28</span>
+      <span class="badge">Version 51</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
@@ -393,16 +393,7 @@
     <div id="passiveForecastBody" class="list"></div>
   </article>
 
-  <article class="panel">
-    <h2>Zinsziele</h2>
-    <p class="muted">Wie viel auf dem Trade-Republic-Tagesgeldkonto noch fehlt, um den jeweiligen Tageszins zu erreichen.</p>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Tageszinsen</th><th>Zielkapital</th><th>Noch fehlend</th></tr></thead>
-        <tbody id="interestGoalsBody"></tbody>
-      </table>
-    </div>
-  </article>
+  <article class="panel"><div class="panel-head"><h2>Zinsziele</h2><span class="muted">bezogen auf das Trade-Republic-Tagesgeldkonto</span></div><div class="table-wrap"><table><thead><tr><th>Tageszinsen</th><th>Zielkapital</th><th>Noch fehlend</th></tr></thead><tbody id="interestGoalsBody"></tbody></table></div></article>
 </section>
 
 </main>
