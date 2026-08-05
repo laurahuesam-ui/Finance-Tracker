@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 44;
+const APP_VERSION = 43;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -1947,72 +1947,3 @@ renderAll=function(){
   renderAllCoveragePercentagesV43();
 };
 setTimeout(renderAllCoveragePercentagesV43,0);
-
-
-function fixedCoveragePercentV44(){
-  if(typeof globalFixedCoverageV33==="function"){
-    return Number(globalFixedCoverageV33().percent||0);
-  }
-  if(typeof passiveCoveragePctV31==="function"){
-    return Number(passiveCoveragePctV31()||0);
-  }
-  if(typeof financeV26==="function"){
-    return Number(financeV26().fixedCoveragePct||0);
-  }
-  return 0;
-}
-
-function renderFixedCoverageEverywhereV44(){
-  const pct=fixedCoveragePercentV44();
-  const shortText=`${pct.toFixed(2).replace(".",",")} %`;
-  const dashboardText=`${shortText} durch Zinsen und Dividenden gedeckt`;
-
-  // Übersicht, Fixkosten und Passiv
-  [
-    "v6Coverage",
-    "fixedCostsPassiveCoverage",
-    "passiveForecastStartCoverage",
-    "passiveCoverage",
-    "breakEvenPassive",
-    "overviewFixedCoverage"
-  ].forEach(id=>{
-    const el=$(id);
-    if(el) el.textContent=shortText;
-  });
-
-  // Dashboard-Textzeile
-  [
-    "passiveCoverageText",
-    "dashboardCoverageText",
-    "fixedCoverageText"
-  ].forEach(id=>{
-    const el=$(id);
-    if(el) el.textContent=dashboardText;
-  });
-
-  // Fallback über sichtbare Texte, falls ältere IDs verwendet werden.
-  document.querySelectorAll("p,span,strong,div").forEach(el=>{
-    const txt=(el.textContent||"").trim();
-
-    if(/^\d+,\d % durch Zinsen und Dividenden gedeckt$/.test(txt) ||
-       /^\d+\.\d % durch Zinsen und Dividenden gedeckt$/.test(txt)){
-      el.textContent=dashboardText;
-    }
-
-    if((txt==="Fixkosten passiv gedeckt" || txt==="Fixkosten gedeckt") && el.nextElementSibling){
-      const next=el.nextElementSibling;
-      if(/^\d+[,.]\d %$/.test((next.textContent||"").trim())){
-        next.textContent=shortText;
-      }
-    }
-  });
-}
-
-
-const __renderAllV44=renderAll;
-renderAll=function(){
-  __renderAllV44();
-  renderFixedCoverageEverywhereV44();
-  requestAnimationFrame(renderFixedCoverageEverywhereV44);
-};
-setTimeout(renderFixedCoverageEverywhereV44,0);
