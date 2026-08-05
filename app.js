@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 56;
+const APP_VERSION = 57;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -180,6 +180,12 @@ function enforceConfirmedIncomeFixedCostsV55(){
   });
 }
 
+
+function backupDateStampV57(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
 function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()}
 function modal(html){$('modalContent').innerHTML=html;$('modal').classList.remove('hidden')}
 function closeModal(){$('modal').classList.add('hidden')}
@@ -220,8 +226,28 @@ $('closeModal').onclick=closeModal;$('addFuelEntry').onclick=()=>{
   };
   $('cancelNewFuel').onclick=closeModal;
 };
-$('exportBackup').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='finanzen-backup.json';a.click();URL.revokeObjectURL(a.href)};
-$('importBackup').onchange=async e=>{try{const x=JSON.parse(await e.target.files[0].text());data={...clone(DEFAULTS),...x};save()}catch{alert('Backup ungültig')}};
+$('exportBackup').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`finanzen-backup-${backupDateStampV57()}.json`;a.click();URL.revokeObjectURL(a.href)};
+$('importBackup').onchange=async e=>{
+  const file=e.target.files?.[0];
+  if(!file)return;
+
+  if(!confirm('Möchtest du dieses Backup wirklich importieren? Die aktuellen Daten werden dadurch ersetzt.')){
+    e.target.value='';
+    return;
+  }
+
+  try{
+    const x=JSON.parse(await file.text());
+    if(!x || typeof x!=='object') throw new Error('Ungültiges Backup');
+    data={...clone(DEFAULTS),...x};
+    save();
+    alert('Backup wurde erfolgreich importiert.');
+  }catch{
+    alert('Das Backup konnte nicht importiert werden.');
+  }finally{
+    e.target.value='';
+  }
+};
 $('deleteAll').onclick=()=>{if(confirm('Alle Daten auf Stammdaten zurücksetzen?')){data=clone(DEFAULTS);save()}};
 renderAll();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
