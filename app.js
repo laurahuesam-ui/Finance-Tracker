@@ -28,7 +28,7 @@ const passiveCapitalTargetsV6 = [
 
 const STORAGE_KEY = "finanzenPwa";
 const LEGACY_STORAGE_KEYS = ["finanzenPwaV10","finanzenPwaV9","finanzenPwaV8","finanzenPwaV7","finanzenPwaV6","finanzenPwaV5","finanzenPwaV4","finanzenPwaV3","finanzenData","financePwa","financeData"];
-const APP_VERSION = 43;
+const APP_VERSION = 44;
 const seededHistory = [
   {month:"2025-06",sparkasse:1500.00,sparkasseInterest:1.81,tradeRepublic:881.35,trInterest:1.52,dividend:0.02},
   {month:"2025-07",sparkasse:1520.00,sparkasseInterest:1.01,tradeRepublic:811.25,trInterest:1.37,dividend:0.37},
@@ -1947,3 +1947,83 @@ renderAll=function(){
   renderAllCoveragePercentagesV43();
 };
 setTimeout(renderAllCoveragePercentagesV43,0);
+
+
+function fixedCoveragePercentV44(){
+  if(typeof globalFixedCoverageV33==="function"){
+    return Number(globalFixedCoverageV33().percent||0);
+  }
+  if(typeof passiveCoveragePctV31==="function"){
+    return Number(passiveCoveragePctV31()||0);
+  }
+  if(typeof financeV26==="function"){
+    const f=financeV26();
+    return Number(f.fixedCoveragePct||0);
+  }
+  return 0;
+}
+function fixedCoverageTextV44(){
+  return `${fixedCoveragePercentV44().toFixed(2).replace(".",",")} %`;
+}
+function renderFixedCoverageEverywhereV44(){
+  const text=fixedCoverageTextV44();
+
+  [
+    "fixedCostsPassiveCoverage",
+    "passiveForecastStartCoverage",
+    "passiveCoverage",
+    "breakEvenPassive",
+    "v6Coverage",
+    "overviewFixedCoverage"
+  ].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.textContent=text;
+  });
+
+  // Dashboard sentence: "2,9 % durch Zinsen und Dividenden gedeckt"
+  document.querySelectorAll("body *").forEach(el=>{
+    if(el.children.length) return;
+    const t=(el.textContent||"").trim();
+
+    if(/^\d+(?:[.,]\d+)?\s*%\s*durch Zinsen und Dividenden gedeckt$/i.test(t)){
+      el.textContent=`${text} durch Zinsen und Dividenden gedeckt`;
+      return;
+    }
+
+    // Values directly underneath these labels.
+    const prev=(el.previousElementSibling?.textContent||"").trim().toLowerCase();
+    if(
+      prev==="fixkosten passiv gedeckt" ||
+      prev==="fixkosten gedeckt"
+    ){
+      el.textContent=text;
+    }
+  });
+}
+
+const __renderAllV44=renderAll;
+renderAll=function(){
+  __renderAllV44();
+  renderFixedCoverageEverywhereV44();
+  setTimeout(renderFixedCoverageEverywhereV44,0);
+  setTimeout(renderFixedCoverageEverywhereV44,50);
+};
+
+document.addEventListener("DOMContentLoaded",()=>{
+  renderFixedCoverageEverywhereV44();
+  setTimeout(renderFixedCoverageEverywhereV44,50);
+});
+
+// Final guard against older render functions writing "2,9 %" afterwards.
+const fixedCoverageObserverV44=new MutationObserver(()=>{
+  fixedCoverageObserverV44.disconnect();
+  renderFixedCoverageEverywhereV44();
+  fixedCoverageObserverV44.observe(document.body,{subtree:true,childList:true,characterData:true});
+});
+setTimeout(()=>{
+  if(document.body){
+    fixedCoverageObserverV44.observe(document.body,{subtree:true,childList:true,characterData:true});
+    renderFixedCoverageEverywhereV44();
+  }
+},0);
+
