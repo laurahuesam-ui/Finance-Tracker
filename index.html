@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 57</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 58</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -109,7 +109,18 @@
       <div class="panel-head"><h2>Zinsziele pro Tag</h2><span class="muted">je 0,01 € täglich rund 162,22 € mehr Kapital</span></div>
       <div class="table-wrap"><table class="history-table"><thead><tr><th>Tageszinsen</th><th>Noch fehlend auf TR-Tagesgeld</th><th>Status</th></tr></thead><tbody id="interestTargetsBody"></tbody></table></div>
     </article>
-  </section>
+  
+  <article class="panel" id="nextInterestMilestoneCard">
+    <h2>Nächster Zins-Meilenstein</h2>
+    <div class="stats-grid">
+      <div class="stat"><span>Ziel</span><strong id="nextInterestGoal">–</strong></div>
+      <div class="stat"><span>Noch fehlend</span><strong id="nextInterestMissing">–</strong></div>
+      <div class="stat"><span>Voraussichtlich erreicht</span><strong id="nextInterestDate">–</strong></div>
+      <div class="stat"><span>Fortschritt</span><strong id="nextInterestProgress">–</strong></div>
+    </div>
+    <div class="progress"><div id="nextInterestProgressBar" class="progress-bar" style="width:0%"></div></div>
+  </article>
+</section>
 
   <section id="expenses" class="page">
     <article class="panel">
@@ -390,6 +401,24 @@
   </article>
 
   <article class="panel"><div class="panel-head"><h2>Zinsziele</h2><span class="muted">bezogen auf das Trade-Republic-Tagesgeldkonto</span></div><div class="table-wrap"><table><thead><tr><th>Tageszinsen</th><th>Zielkapital</th><th>Noch fehlend</th></tr></thead><tbody id="interestGoalsBody"></tbody></table></div></article>
+
+  <article class="panel">
+    <h2>Zinsziele</h2>
+    <p class="muted">Mit aktuellem TR-Tagesgeld, Zinssatz und durchschnittlicher monatlicher Sparrate.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Ziel</th><th>Fortschritt</th><th>Prognose</th><th>Zielkapital</th><th>Noch fehlend</th><th>Zinsen/Monat am Ziel</th></tr></thead>
+      <tbody id="interestGoalsBodyV58"></tbody>
+    </table></div>
+  </article>
+  <article class="panel">
+    <h2>Langfristige Prognose</h2>
+    <div class="stats-grid">
+      <div class="stat"><span>In 1 Jahr</span><strong id="forecast1Year">–</strong></div>
+      <div class="stat"><span>In 3 Jahren</span><strong id="forecast3Years">–</strong></div>
+      <div class="stat"><span>In 5 Jahren</span><strong id="forecast5Years">–</strong></div>
+      <div class="stat"><span>In 10 Jahren</span><strong id="forecast10Years">–</strong></div>
+    </div>
+  </article>
 </section>
 
 </main>
