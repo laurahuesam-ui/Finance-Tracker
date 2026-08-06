@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 58</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 59</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -280,7 +280,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 51</span>
+      <span class="badge">Version 59</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
@@ -399,19 +399,17 @@
     </div>
     <div id="passiveForecastBody" class="list"></div>
   </article>
-
-  <article class="panel"><div class="panel-head"><h2>Zinsziele</h2><span class="muted">bezogen auf das Trade-Republic-Tagesgeldkonto</span></div><div class="table-wrap"><table><thead><tr><th>Tageszinsen</th><th>Zielkapital</th><th>Noch fehlend</th></tr></thead><tbody id="interestGoalsBody"></tbody></table></div></article>
-
-  <article class="panel">
+  <article class="panel" id="interestGoalsPanelV59">
     <h2>Zinsziele</h2>
-    <p class="muted">Mit aktuellem TR-Tagesgeld, Zinssatz und durchschnittlicher monatlicher Sparrate.</p>
+    <p class="muted">Prognose mit aktuellem Trade-Republic-Tagesgeld, Zinssatz und durchschnittlicher monatlicher Sparrate.</p>
     <div class="table-wrap"><table>
       <thead><tr><th>Ziel</th><th>Fortschritt</th><th>Prognose</th><th>Zielkapital</th><th>Noch fehlend</th><th>Zinsen/Monat am Ziel</th></tr></thead>
-      <tbody id="interestGoalsBodyV58"></tbody>
+      <tbody id="interestGoalsBodyV59"></tbody>
     </table></div>
   </article>
-  <article class="panel">
+  <article class="panel" id="longForecastPanelV59">
     <h2>Langfristige Prognose</h2>
+    <p class="muted">Mit aktuellem TR-Tagesgeld, aktuellem Zinssatz und durchschnittlicher monatlicher Sparrate.</p>
     <div class="stats-grid">
       <div class="stat"><span>In 1 Jahr</span><strong id="forecast1Year">–</strong></div>
       <div class="stat"><span>In 3 Jahren</span><strong id="forecast3Years">–</strong></div>
@@ -419,6 +417,7 @@
       <div class="stat"><span>In 10 Jahren</span><strong id="forecast10Years">–</strong></div>
     </div>
   </article>
+
 </section>
 
 </main>
