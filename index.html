@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 59</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 58</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -109,18 +109,7 @@
       <div class="panel-head"><h2>Zinsziele pro Tag</h2><span class="muted">je 0,01 € täglich rund 162,22 € mehr Kapital</span></div>
       <div class="table-wrap"><table class="history-table"><thead><tr><th>Tageszinsen</th><th>Noch fehlend auf TR-Tagesgeld</th><th>Status</th></tr></thead><tbody id="interestTargetsBody"></tbody></table></div>
     </article>
-  
-  <article class="panel" id="nextInterestMilestoneCard">
-    <h2>Nächster Zins-Meilenstein</h2>
-    <div class="stats-grid">
-      <div class="stat"><span>Ziel</span><strong id="nextInterestGoal">–</strong></div>
-      <div class="stat"><span>Noch fehlend</span><strong id="nextInterestMissing">–</strong></div>
-      <div class="stat"><span>Voraussichtlich erreicht</span><strong id="nextInterestDate">–</strong></div>
-      <div class="stat"><span>Fortschritt</span><strong id="nextInterestProgress">–</strong></div>
-    </div>
-    <div class="progress"><div id="nextInterestProgressBar" class="progress-bar" style="width:0%"></div></div>
-  </article>
-</section>
+  </section>
 
   <section id="expenses" class="page">
     <article class="panel">
@@ -157,7 +146,7 @@
     </article>
     <article class="panel">
       <h2>Fixkostenübersicht</h2>
-      <div class="stats-grid">
+      <div class="stats-grid"><div class="stat"><span>Nächster Zins-Meilenstein</span><strong id="nextInterestMilestoneV58">–</strong><small id="nextInterestMilestoneMetaV58">–</small></div>
         <div class="stat"><span>Fixkosten pro Tag</span><strong id="fixedCostsDailyTotal">–</strong></div>
       </div>
       <strong id="fixedMonthlyAverage"></strong>
@@ -280,7 +269,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 59</span>
+      <span class="badge">Version 51</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
@@ -399,26 +388,19 @@
     </div>
     <div id="passiveForecastBody" class="list"></div>
   </article>
-  <article class="panel" id="interestGoalsPanelV59">
-    <h2>Zinsziele</h2>
-    <p class="muted">Prognose mit aktuellem Trade-Republic-Tagesgeld, Zinssatz und durchschnittlicher monatlicher Sparrate.</p>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Ziel</th><th>Fortschritt</th><th>Prognose</th><th>Zielkapital</th><th>Noch fehlend</th><th>Zinsen/Monat am Ziel</th></tr></thead>
-      <tbody id="interestGoalsBodyV59"></tbody>
-    </table></div>
-  </article>
-  <article class="panel" id="longForecastPanelV59">
-    <h2>Langfristige Prognose</h2>
-    <p class="muted">Mit aktuellem TR-Tagesgeld, aktuellem Zinssatz und durchschnittlicher monatlicher Sparrate.</p>
-    <div class="stats-grid">
-      <div class="stat"><span>In 1 Jahr</span><strong id="forecast1Year">–</strong></div>
-      <div class="stat"><span>In 3 Jahren</span><strong id="forecast3Years">–</strong></div>
-      <div class="stat"><span>In 5 Jahren</span><strong id="forecast5Years">–</strong></div>
-      <div class="stat"><span>In 10 Jahren</span><strong id="forecast10Years">–</strong></div>
-    </div>
-  </article>
 
-</section>
+  <article class="panel"><div class="panel-head"><h2>Zinsziele</h2><span class="muted">bezogen auf das Trade-Republic-Tagesgeldkonto</span></div><div class="table-wrap"><table><thead><tr><th>Ziel</th><th>Fortschritt</th><th>Prognose</th><th>Benötigt</th><th>Fehlend</th><th>Passiv/Monat</th></tr></thead><tbody id="interestGoalsBody"></tbody></table></div></article>
+
+<article class="panel">
+  <h2>Langfristige Prognose</h2>
+  <p class="muted">Aktuelles TR-Tagesgeld, durchschnittliche monatliche Sparrate und aktueller Zinssatz.</p>
+  <div class="stats-grid" id="longTermForecastV58">
+    <div class="stat"><span>In 1 Jahr</span><strong id="forecast1yV58">–</strong></div>
+    <div class="stat"><span>In 3 Jahren</span><strong id="forecast3yV58">–</strong></div>
+    <div class="stat"><span>In 5 Jahren</span><strong id="forecast5yV58">–</strong></div>
+    <div class="stat"><span>In 10 Jahren</span><strong id="forecast10yV58">–</strong></div>
+  </div>
+</article></section>
 
 </main>
 
