@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 58;
+const APP_VERSION = 59;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -186,7 +186,7 @@ function backupDateStampV57(){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()}
+function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV58();renderNextInterestMilestoneV58();renderLongTermForecastV58()}
 function modal(html){$('modalContent').innerHTML=html;$('modal').classList.remove('hidden')}
 function closeModal(){$('modal').classList.add('hidden')}
 document.addEventListener('click',e=>{const d=e.target.dataset;if(d.editIncome){editingIncome=d.editIncome;renderIncome()}if(d.cancelIncome!==undefined){editingIncome=null;renderIncome()}if(d.saveIncome){
@@ -308,6 +308,4 @@ function renderLongTermForecastV58(){
   const a=trSavingsAssetV58(), start=Number(a?.balance||0), rate=Number(a?.rate||0)/100, saving=averageMonthlySavingsV58();
   [["forecast1yV58",12],["forecast3yV58",36],["forecast5yV58",60],["forecast10yV58",120]].forEach(([id,m])=>set(id,fmt(futureValueV58(start,saving,rate,m))));
 }
-const __renderAllV58=renderAll;
-renderAll=function(){__renderAllV58();renderInterestGoalsV58();renderNextInterestMilestoneV58();renderLongTermForecastV58();};
-setTimeout(()=>{renderInterestGoalsV58();renderNextInterestMilestoneV58();renderLongTermForecastV58();},0);
+
