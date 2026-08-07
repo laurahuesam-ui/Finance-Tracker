@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 60;
+const APP_VERSION = 61;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -51,7 +51,7 @@ function normalizeDataV51(){
  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
 normalizeDataV51();
-function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(data));renderAll()}
+function save(){captureSnapshotOnDataChangeV61();localStorage.setItem(STORAGE_KEY,JSON.stringify(data));renderAll()}
 function annualOccurrences(f){return f==='monthly'?12:f==='bimonthly'?6:f==='quarterly'?4:f==='semiannual'?2:1}
 function fixedAnnual(){return data.fixedCosts.reduce((s,x)=>s+Math.abs(x.amount)*annualOccurrences(x.frequency),0)}
 function fixedMonthly(){return fixedAnnual()/12}
@@ -425,49 +425,62 @@ function humanTimeGainV59(days){
   const years=Math.floor(months/12), rest=months%12;
   return `${days<0?"▲":"▼"} ${years} J.${rest?` ${rest} Mon.`:""} ${days<0?"schneller":"langsamer"}`;
 }
-function captureMonthlySnapshotV59(){
-  const state=ensureProgressStateV59();
+function buildSnapshotV61(){
   const ym=monthKeyV59();
-  if(ym<SNAPSHOT_START_MONTH_V59) return;
   const tr=Number(trSavingsAssetV58?.()?.balance||0);
-  const nextWealth=WEALTH_MILESTONES_V59.find(x=>x>currentWealthV59())||WEALTH_MILESTONES_V59.at(-1);
-  const nextPassive=PASSIVE_MILESTONES_V59.find(x=>x>currentFixedCoverageV59())||PASSIVE_MILESTONES_V59.at(-1);
+  const wealth=currentWealthV59();
+  const coverage=currentFixedCoverageV59();
+  const nextWealth=WEALTH_MILESTONES_V59.find(x=>x>wealth)||WEALTH_MILESTONES_V59.at(-1);
+  const nextPassive=PASSIVE_MILESTONES_V59.find(x=>x>coverage)||PASSIVE_MILESTONES_V59.at(-1);
   const nextCent=CENT_GOALS_V59.find(([,target])=>target>tr)||CENT_GOALS_V59.at(-1);
   const sg=savingsGoalInfoV59();
-
-  const forecastMap={
-    wealth:forecastDateForWealthTargetV59(nextWealth)?.toISOString()||null,
-    passive:forecastDateForPassiveCoverageV59(nextPassive)?.toISOString()||null,
-    cent:forecastDateForCapitalTargetV59(nextCent[1],tr)?.toISOString()||null,
-    savings:sg?.min?forecastDateForWealthTargetV59(sg.min)?.toISOString()||null:null
+  return {
+    month:ym,
+    wealth,
+    passiveMonthly:currentPassiveMonthlyV59(),
+    fixedCoverage:coverage,
+    trBalance:tr,
+    forecasts:{
+      wealth:forecastDateForWealthTargetV59(nextWealth)?.toISOString()||null,
+      passive:forecastDateForPassiveCoverageV59(nextPassive)?.toISOString()||null,
+      cent:forecastDateForCapitalTargetV59(nextCent[1],tr)?.toISOString()||null,
+      savings:sg?.min?forecastDateForWealthTargetV59(sg.min)?.toISOString()||null:null
+    },
+    targets:{wealth:nextWealth,passive:nextPassive,cent:nextCent[0]}
   };
-
-  if(!state.snapshots[ym]){
-    state.snapshots[ym]={
-      month:ym,
-      wealth:currentWealthV59(),
-      passiveMonthly:currentPassiveMonthlyV59(),
-      fixedCoverage:currentFixedCoverageV59(),
-      trBalance:tr,
-      forecasts:forecastMap
-    };
-  }else{
-    // keep the first snapshot of the month, only add missing fields
-    state.snapshots[ym]={...state.snapshots[ym],forecasts:state.snapshots[ym].forecasts||forecastMap};
-  }
-
-  // save first-ever forecasts per logical goal
-  const logicalGoals={
-    [`wealth-${nextWealth}`]:forecastMap.wealth,
-    [`passive-${nextPassive}`]:forecastMap.passive,
-    [`cent-${nextCent[0]}`]:forecastMap.cent,
-    [`savings-0`]:forecastMap.savings
+}
+function registerGoalFirstForecastsV61(snapshot){
+  const state=ensureProgressStateV59();
+  const pairs={
+    [`wealth-${snapshot.targets.wealth}`]:snapshot.forecasts.wealth,
+    [`passive-${snapshot.targets.passive}`]:snapshot.forecasts.passive,
+    [`cent-${snapshot.targets.cent}`]:snapshot.forecasts.cent,
+    "savings-0":snapshot.forecasts.savings
   };
-  Object.entries(logicalGoals).forEach(([k,v])=>{
-    if(v && !state.goalForecasts[k]) state.goalForecasts[k]={first:v,firstMonth:ym};
+  Object.entries(pairs).forEach(([k,v])=>{
+    if(v && !state.goalForecasts[k]) state.goalForecasts[k]={first:v,firstMonth:snapshot.month};
   });
-
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+}
+function ensureInitialAugustSnapshotV61(){
+  const state=ensureProgressStateV59();
+  if(monthKeyV59()===SNAPSHOT_START_MONTH_V59 && !state.snapshots[SNAPSHOT_START_MONTH_V59]){
+    const snap=buildSnapshotV61();
+    state.snapshots[SNAPSHOT_START_MONTH_V59]=snap;
+    registerGoalFirstForecastsV61(snap);
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+  }
+}
+function captureMonthlySnapshotV59(){
+  ensureInitialAugustSnapshotV61();
+}
+function captureSnapshotOnDataChangeV61(){
+  const ym=monthKeyV59();
+  if(ym<SNAPSHOT_START_MONTH_V59) return;
+  const state=ensureProgressStateV59();
+  if(state.snapshots[ym]) return;
+  const snap=buildSnapshotV61();
+  state.snapshots[ym]=snap;
+  registerGoalFirstForecastsV61(snap);
 }
 function previousSnapshotV59(){
   const state=ensureProgressStateV59();
@@ -489,8 +502,8 @@ function forecastMetaV59(kind,key,currentDate){
   const prevDate=prev?.forecasts?.[kind]?new Date(prev.forecasts[kind]):null;
   const firstDiff=first&&currentDate?diffDaysV59(currentDate,first):null;
   const prevDiff=prevDate&&currentDate?diffDaysV59(currentDate,prevDate):null;
-  const firstText=firstDiff==null?"":` · seit erster Prognose ${humanTimeGainV59(firstDiff)}`;
-  const prevText=prevDiff==null?"":` · ${humanTimeGainV59(prevDiff)} als letzter Monatsstand`;
+  const firstText=firstDiff==null||firstDiff===0?"":` · seit erster Prognose ${humanTimeGainV59(firstDiff)}`;
+  const prevText=prevDiff==null||prevDiff===0?"":` · ${humanTimeGainV59(prevDiff)} als letzter Monatsstand`;
   return `${firstText}${prevText}`;
 }
 function renderProgressV59(){
@@ -505,9 +518,9 @@ function renderProgressV59(){
   const wealthDelta=prev?wealth-Number(prev.wealth||0):null;
   const passiveDelta=prev?passiveMonthly-Number(prev.passiveMonthly||0):null;
 
-  set("monthlyProgressHeadlineV59",prev?`Vergleich mit ${monthLabel(prev.month)}`:"Erster Monatsstand ab August 2026");
-  set("deltaWealthV59",wealthDelta==null?"–":`${wealthDelta>=0?"+":""}${fmt(wealthDelta)}`);
-  set("deltaPassiveV59",passiveDelta==null?"–":`${passiveDelta>=0?"+":""}${fmt(passiveDelta)}`);
+  set("monthlyProgressHeadlineV59",prev?`Vergleich mit ${monthLabel(prev.month)}`:"Erster Monatsstand: August 2026");
+  set("deltaWealthV59",wealthDelta==null?`${fmt(wealth)} · noch kein Vormonatsvergleich`:`${wealthDelta>=0?"+":""}${fmt(wealthDelta)}`);
+  set("deltaPassiveV59",passiveDelta==null?`${fmt(passiveMonthly)} · noch kein Vormonatsvergleich`:`${passiveDelta>=0?"+":""}${fmt(passiveDelta)}`);
 
   const nextWealth=WEALTH_MILESTONES_V59.find(x=>x>wealth)||WEALTH_MILESTONES_V59.at(-1);
   const wealthDate=forecastDateForWealthTargetV59(nextWealth);
@@ -559,7 +572,7 @@ function renderVisibleForecastHistoryV60(){
       const first=state.goalForecasts[key]?.first?new Date(state.goalForecasts[key].first):null;
       const prevDate=prev?.forecasts?.wealth?new Date(prev.forecasts.wealth):null;
       let text=`Aktuelle Prognose: ${fmtDateV59(currentDate)}`;
-      if(first) text+=` · Erste Prognose: ${fmtDateV59(first)} · ${humanTimeGainV59(diffDaysV59(currentDate,first))}`;
+      if(first){const d=diffDaysV59(currentDate,first);text+=` · Erste Prognose: ${fmtDateV59(first)}${d===0?"":` · ${humanTimeGainV59(d)}`}`;}
       if(prevDate && target===wealthTargets.find(x=>x>wealth)) text+=` · ${humanTimeGainV59(diffDaysV59(currentDate,prevDate))} als letzter Monatsstand`;
       let info=item.querySelector(".forecast-history-v60");
       if(!info){
@@ -584,7 +597,7 @@ function renderVisibleForecastHistoryV60(){
     const cell=row.children[2];
     if(cell){
       let text=`${fmtDateV59(currentDate)}`;
-      if(first) text+=` · erste: ${fmtDateV59(first)} · ${humanTimeGainV59(diffDaysV59(currentDate,first))}`;
+      if(first){const d=diffDaysV59(currentDate,first);text+=` · erste: ${fmtDateV59(first)}${d===0?"":` · ${humanTimeGainV59(d)}`}`;}
       if(prevDate && goal===goals.find(([,t])=>t>tr)) text+=` · ${humanTimeGainV59(diffDaysV59(currentDate,prevDate))} vs. letzter Monat`;
       cell.textContent=text;
     }
@@ -608,7 +621,7 @@ function renderVisibleForecastHistoryV60(){
       row.appendChild(td);
     }
     let text=`Prognose: ${fmtDateV59(currentDate)}`;
-    if(first) text+=` · erste: ${fmtDateV59(first)} · ${humanTimeGainV59(diffDaysV59(currentDate,first))}`;
+    if(first){const d=diffDaysV59(currentDate,first);text+=` · erste: ${fmtDateV59(first)}${d===0?"":` · ${humanTimeGainV59(d)}`}`;}
     if(prevDate) text+=` · ${humanTimeGainV59(diffDaysV59(currentDate,prevDate))} vs. letzter Monat`;
     note.textContent=text;
   }
