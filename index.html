@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 59</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 60</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -56,6 +56,41 @@
         <small id="passiveYear">0,00 €/Jahr</small>
       </article>
     </div>
+    <article class="panel progress-dashboard-v60" id="monthlyProgressCardV59">
+      <div class="panel-head">
+        <div>
+          <h2>Fortschritt seit letztem Monatsstand</h2>
+          <p class="muted" id="monthlyProgressHeadlineV59">Erster Monatsstand ab August 2026</p>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat"><span>Vermögen</span><strong id="deltaWealthV59">–</strong></div>
+        <div class="stat"><span>Passiv pro Monat</span><strong id="deltaPassiveV59">–</strong></div>
+      </div>
+      <div class="progress-summary-lines-v59">
+        <div>
+          <span>Nächster Vermögens-Meilenstein</span>
+          <b id="nextWealthMilestoneV59">–</b>
+          <small id="nextWealthMilestoneMetaV59">–</small>
+        </div>
+        <div>
+          <span>Nächster Passiv-Meilenstein</span>
+          <b id="nextPassiveMilestoneV59">–</b>
+          <small id="nextPassiveMilestoneMetaV59">–</small>
+        </div>
+        <div>
+          <span>Nächstes Cent-Ziel</span>
+          <b id="nextCentGoalV59">–</b>
+          <small id="nextCentGoalMetaV59">–</small>
+        </div>
+        <div>
+          <span>Nächstes Sparziel</span>
+          <b id="nextSavingsGoalV59">–</b>
+          <small id="nextSavingsGoalMetaV59">–</small>
+        </div>
+      </div>
+    </article>
+
 
     <div class="grid two">
       <article class="panel">
@@ -147,23 +182,8 @@
     <article class="panel">
       <h2>Fixkostenübersicht</h2>
       <div class="stats-grid">
-      <div class="stat progress-summary-v59" id="monthlyProgressCardV59">
-        <span>Seit letztem Monatsstand</span>
-        <strong id="monthlyProgressHeadlineV59">–</strong>
-        <div class="progress-summary-lines-v59">
-          <div><span>Vermögen</span><b id="deltaWealthV59">–</b></div>
-          <div><span>Passiv/Monat</span><b id="deltaPassiveV59">–</b></div>
-          <div><span>Vermögens-Meilenstein</span><b id="nextWealthMilestoneV59">–</b><small id="nextWealthMilestoneMetaV59">–</small></div>
-          <div><span>Passiv-Meilenstein</span><b id="nextPassiveMilestoneV59">–</b><small id="nextPassiveMilestoneMetaV59">–</small></div>
-          <div><span>Nächstes Cent-Ziel</span><b id="nextCentGoalV59">–</b><small id="nextCentGoalMetaV59">–</small></div>
-          <div><span>Nächstes Sparziel</span><b id="nextSavingsGoalV59">–</b><small id="nextSavingsGoalMetaV59">–</small></div>
-        </div>
       </div>
-      <div class="stat" id="nextInterestMilestoneCard">
-        <span>Nächster Zins-Meilenstein</span>
-        <strong id="nextInterestMilestone">–</strong>
-        <small id="nextInterestMilestoneDetail" class="muted">–</small>
-      </div>
+      
         <div class="stat"><span>Fixkosten pro Tag</span><strong id="fixedCostsDailyTotal">–</strong></div>
       </div>
       <strong id="fixedMonthlyAverage"></strong>

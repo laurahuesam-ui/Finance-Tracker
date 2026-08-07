@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 59;
+const APP_VERSION = 60;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -539,6 +539,81 @@ function renderProgressV59(){
   set("baselineMonthlyGrowthV59",fmt(state.baseline.avgMonthlyGrowth));
 }
 
+
+function renderVisibleForecastHistoryV60(){
+  const state=ensureProgressStateV59();
+  const prev=previousSnapshotV59();
+  const wealth=currentWealthV59();
+  const tr=Number(trSavingsAssetV58?.()?.balance||0);
+  const coverage=currentFixedCoverageV59();
+
+  // Vermögens-Meilensteine in Übersicht: append forecast comparison text.
+  const wealthTargets=WEALTH_MILESTONES_V59;
+  const milestoneRoot=$("milestoneList");
+  if(milestoneRoot){
+    [...milestoneRoot.children].forEach((item,i)=>{
+      const target=wealthTargets[i];
+      if(!target) return;
+      const currentDate=forecastDateForWealthTargetV59(target);
+      const key=`wealth-${target}`;
+      const first=state.goalForecasts[key]?.first?new Date(state.goalForecasts[key].first):null;
+      const prevDate=prev?.forecasts?.wealth?new Date(prev.forecasts.wealth):null;
+      let text=`Aktuelle Prognose: ${fmtDateV59(currentDate)}`;
+      if(first) text+=` · Erste Prognose: ${fmtDateV59(first)} · ${humanTimeGainV59(diffDaysV59(currentDate,first))}`;
+      if(prevDate && target===wealthTargets.find(x=>x>wealth)) text+=` · ${humanTimeGainV59(diffDaysV59(currentDate,prevDate))} als letzter Monatsstand`;
+      let info=item.querySelector(".forecast-history-v60");
+      if(!info){
+        info=document.createElement("small");
+        info.className="forecast-history-v60";
+        item.appendChild(info);
+      }
+      info.textContent=text;
+    });
+  }
+
+  // Zinsziele: add first/current/last comparison below forecast date.
+  const goals=CENT_GOALS_V59;
+  const rows=document.querySelectorAll("#interestGoalsBody tr");
+  rows.forEach((row,i)=>{
+    const goal=goals[i];
+    if(!goal)return;
+    const [cent,target]=goal;
+    const currentDate=forecastDateForCapitalTargetV59(target,tr);
+    const first=state.goalForecasts[`cent-${cent}`]?.first?new Date(state.goalForecasts[`cent-${cent}`].first):null;
+    const prevDate=prev?.forecasts?.cent?new Date(prev.forecasts.cent):null;
+    const cell=row.children[2];
+    if(cell){
+      let text=`${fmtDateV59(currentDate)}`;
+      if(first) text+=` · erste: ${fmtDateV59(first)} · ${humanTimeGainV59(diffDaysV59(currentDate,first))}`;
+      if(prevDate && goal===goals.find(([,t])=>t>tr)) text+=` · ${humanTimeGainV59(diffDaysV59(currentDate,prevDate))} vs. letzter Monat`;
+      cell.textContent=text;
+    }
+  });
+
+  // Sparziel 1: visible forecast note in first row.
+  const goalBody=$("priorityGoalsBody");
+  const sg=savingsGoalInfoV59();
+  if(goalBody && sg && goalBody.rows?.length){
+    const row=goalBody.rows[0];
+    const currentDate=forecastDateForWealthTargetV59(sg.min);
+    const first=state.goalForecasts["savings-0"]?.first?new Date(state.goalForecasts["savings-0"].first):null;
+    const prevDate=prev?.forecasts?.savings?new Date(prev.forecasts.savings):null;
+    let note=row.querySelector(".forecast-history-v60");
+    if(!note){
+      const td=document.createElement("td");
+      td.className="forecast-history-cell-v60";
+      note=document.createElement("small");
+      note.className="forecast-history-v60";
+      td.appendChild(note);
+      row.appendChild(td);
+    }
+    let text=`Prognose: ${fmtDateV59(currentDate)}`;
+    if(first) text+=` · erste: ${fmtDateV59(first)} · ${humanTimeGainV59(diffDaysV59(currentDate,first))}`;
+    if(prevDate) text+=` · ${humanTimeGainV59(diffDaysV59(currentDate,prevDate))} vs. letzter Monat`;
+    note.textContent=text;
+  }
+}
+
 function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()}
 function modal(html){$('modalContent').innerHTML=html;$('modal').classList.remove('hidden')}
 function closeModal(){$('modal').classList.add('hidden')}
@@ -623,3 +698,14 @@ renderAll=function(){
   renderProgressV59();
 };
 setTimeout(renderProgressV59,0);
+
+const __renderAllV60=renderAll;
+renderAll=function(){
+  __renderAllV60();
+  renderProgressV59();
+  renderVisibleForecastHistoryV60();
+};
+setTimeout(()=>{
+  renderProgressV59();
+  renderVisibleForecastHistoryV60();
+},0);
