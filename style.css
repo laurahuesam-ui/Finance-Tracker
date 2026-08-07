@@ -107,3 +107,8 @@ th:first-child,td:first-child{text-align:left}
 
 #nextInterestMilestoneCard small{display:block;margin-top:.25rem}
 #interestGoalsBody .progress{min-width:120px}
+
+.progress-summary-v59{grid-column:1/-1}
+.progress-summary-lines-v59{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem;margin-top:.75rem}
+.progress-summary-lines-v59>div{display:flex;flex-direction:column;gap:.15rem}
+.progress-summary-lines-v59 small{display:block}

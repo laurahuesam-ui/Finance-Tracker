@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 58</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 59</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -147,6 +147,18 @@
     <article class="panel">
       <h2>Fixkostenübersicht</h2>
       <div class="stats-grid">
+      <div class="stat progress-summary-v59" id="monthlyProgressCardV59">
+        <span>Seit letztem Monatsstand</span>
+        <strong id="monthlyProgressHeadlineV59">–</strong>
+        <div class="progress-summary-lines-v59">
+          <div><span>Vermögen</span><b id="deltaWealthV59">–</b></div>
+          <div><span>Passiv/Monat</span><b id="deltaPassiveV59">–</b></div>
+          <div><span>Vermögens-Meilenstein</span><b id="nextWealthMilestoneV59">–</b><small id="nextWealthMilestoneMetaV59">–</small></div>
+          <div><span>Passiv-Meilenstein</span><b id="nextPassiveMilestoneV59">–</b><small id="nextPassiveMilestoneMetaV59">–</small></div>
+          <div><span>Nächstes Cent-Ziel</span><b id="nextCentGoalV59">–</b><small id="nextCentGoalMetaV59">–</small></div>
+          <div><span>Nächstes Sparziel</span><b id="nextSavingsGoalV59">–</b><small id="nextSavingsGoalMetaV59">–</small></div>
+        </div>
+      </div>
       <div class="stat" id="nextInterestMilestoneCard">
         <span>Nächster Zins-Meilenstein</span>
         <strong id="nextInterestMilestone">–</strong>
@@ -293,7 +305,16 @@
     <h2>Jahresprognose</h2>
     <div id="yearForecast" class="stats-grid"></div>
   </article>
-</section>
+
+  <article class="panel" id="wealthForecastProgressV59">
+    <h2>Prognoseentwicklung</h2>
+    <div class="stats-grid">
+      <div class="stat"><span>Ursprünglich erwartet heute</span><strong id="baselineExpectedWealthV59">–</strong></div>
+      <div class="stat"><span>Tatsächliches Vermögen</span><strong id="actualWealthV59">–</strong></div>
+      <div class="stat"><span>Vermögensvorsprung</span><strong id="wealthLeadV59">–</strong></div>
+      <div class="stat"><span>Ø Steigerung seit t=0</span><strong id="baselineMonthlyGrowthV59">–</strong></div>
+    </div>
+  </article></section>
 
 <section id="incomeAnalysis" class="page">
   <article class="panel">
