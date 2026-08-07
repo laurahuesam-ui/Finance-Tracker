@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 59;
+const APP_VERSION = 58;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -186,7 +186,112 @@ function backupDateStampV57(){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV58();renderNextInterestMilestoneV58();renderLongTermForecastV58()}
+
+function trSavingsAssetV58(){
+  return (data.assets||[]).find(a=>{
+    const n=String(a.name||"").toLowerCase();
+    return n.includes("trade republic") && (n.includes("tagesgeld") || n.includes("cash"));
+  });
+}
+function averageMonthlySavingV58(){
+  const inc=new Map((data.incomeHistory||[]).map(r=>[r.month,Number(r.total||0)]));
+  const rows=(data.amexHistory||[]).filter(r=>inc.has(r.month));
+  if(!rows.length) return 0;
+  return rows.reduce((sum,r)=>sum+inc.get(r.month)-Math.abs(Number(r.expenses||0)),0)/rows.length;
+}
+function monthlyRateV58(){
+  const a=trSavingsAssetV58();
+  return Number(a?.rate||0)/100/12;
+}
+function projectBalanceMonthsV58(months){
+  const a=trSavingsAssetV58();
+  let balance=Number(a?.balance||0);
+  const saving=Math.max(0,averageMonthlySavingV58());
+  const r=monthlyRateV58();
+  for(let i=0;i<months;i++){
+    balance+=saving;
+    balance*=1+r;
+  }
+  return balance;
+}
+function monthsToTargetV58(target){
+  const a=trSavingsAssetV58();
+  let balance=Number(a?.balance||0);
+  if(balance>=target) return 0;
+  const saving=Math.max(0,averageMonthlySavingV58());
+  const r=monthlyRateV58();
+  if(saving<=0 && r<=0) return Infinity;
+  for(let m=1;m<=1200;m++){
+    balance+=saving;
+    balance*=1+r;
+    if(balance>=target) return m;
+  }
+  return Infinity;
+}
+function addMonthsDateV58(months){
+  const d=new Date();
+  d.setMonth(d.getMonth()+months);
+  return d.toLocaleDateString("de-DE");
+}
+function pctV58(v){
+  return `${Number(v||0).toFixed(2).replace(".",",")} %`;
+}
+function renderInterestGoalsV58(){
+  const body=$("interestGoalsBody");
+  if(!body) return;
+  const current=Number(trSavingsAssetV58()?.balance||0);
+  const goals=[
+    [17,2757.78],[18,2920],[19,3082.22],[20,3244.44],[21,3406.67],
+    [22,3568.89],[23,3731.11],[24,3893.33],[25,4055.56],[26,4217.78],
+    [27,4380],[28,4542.22],[29,4704.44],[30,4866.67]
+  ];
+  body.innerHTML=goals.map(([cent,target])=>{
+    const progress=Math.min(100,current/target*100);
+    const months=monthsToTargetV58(target);
+    const date=months===0?"bereits erreicht":Number.isFinite(months)?addMonthsDateV58(months):"–";
+    return `<tr>
+      <td>${cent} Cent/Tag</td>
+      <td>
+        <div class="progress"><div class="progress-bar" style="width:${progress}%"></div></div>
+        <small>${pctV58(progress)}</small>
+      </td>
+      <td>${date}</td>
+      <td>${fmt(target)}</td>
+      <td>${fmt(Math.max(0,target-current))}</td>
+    </tr>`;
+  }).join("");
+
+  const next=goals.find(([,target])=>target>current);
+  if(next){
+    const [cent,target]=next;
+    const months=monthsToTargetV58(target);
+    set("nextInterestMilestone",`${cent} Cent pro Tag`);
+    set("nextInterestMilestoneDetail",
+      `${fmt(Math.max(0,target-current))} fehlen · ${Number.isFinite(months)?addMonthsDateV58(months):"keine Prognose"}`
+    );
+  }else{
+    set("nextInterestMilestone","30 Cent pro Tag erreicht");
+    set("nextInterestMilestoneDetail","Alle hinterlegten Zinsziele erreicht");
+  }
+}
+function renderLongTermForecastV58(){
+  const body=$("longTermForecastBody");
+  if(!body) return;
+  const a=trSavingsAssetV58();
+  const annualRate=Number(a?.rate||0)/100;
+  const rows=[[1,12],[3,36],[5,60],[10,120]];
+  body.innerHTML=rows.map(([years,months])=>{
+    const balance=projectBalanceMonthsV58(months);
+    const monthInterest=balance*annualRate/365*31;
+    return `<tr>
+      <td>${years} ${years===1?"Jahr":"Jahre"}</td>
+      <td>${fmt(balance)}</td>
+      <td>${fmt(monthInterest)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()}
 function modal(html){$('modalContent').innerHTML=html;$('modal').classList.remove('hidden')}
 function closeModal(){$('modal').classList.add('hidden')}
 document.addEventListener('click',e=>{const d=e.target.dataset;if(d.editIncome){editingIncome=d.editIncome;renderIncome()}if(d.cancelIncome!==undefined){editingIncome=null;renderIncome()}if(d.saveIncome){
@@ -253,59 +358,13 @@ renderAll();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 
-
-function trSavingsAssetV58(){
-  return (data.assets||[]).find(a=>{
-    const n=String(a.name||"").toLowerCase();
-    return n.includes("trade republic") && (n.includes("tagesgeld")||n.includes("cash"));
-  })||null;
-}
-function averageMonthlySavingsV58(){
-  if(typeof avgSurplus==="function") return Math.max(0,Number(avgSurplus()||0));
-  const incomes=new Map((data.incomeHistory||[]).map(r=>[r.month,Number(r.total||0)]));
-  const rows=(data.amexHistory||[]).filter(r=>incomes.has(r.month));
-  return rows.length?Math.max(0,rows.reduce((s,r)=>s+incomes.get(r.month)-Math.abs(Number(r.expenses||0)),0)/rows.length):0;
-}
-function futureValueV58(start,saving,rate,months){
-  let b=start, mr=rate/12;
-  for(let i=0;i<months;i++) b=b*(1+mr)+saving;
-  return b;
-}
-function monthsToTargetV58(start,target,saving,rate){
-  if(start>=target)return 0;
-  let b=start, mr=rate/12;
-  for(let m=1;m<=1200;m++){b=b*(1+mr)+saving;if(b>=target)return m;}
-  return Infinity;
-}
-function dateAfterMonthsV58(months){
-  if(!Number.isFinite(months))return "nicht erreichbar";
-  const d=new Date(); d.setMonth(d.getMonth()+months);
-  return d.toLocaleDateString("de-DE");
-}
-function interestGoalsDataV58(){
-  const a=trSavingsAssetV58(), start=Number(a?.balance||0), rate=Number(a?.rate||0)/100, saving=averageMonthlySavingsV58();
-  const targets=[[.17,2757.78],[.18,2920],[.19,3082.22],[.20,3244.44],[.21,3406.67],[.22,3568.89],[.23,3731.11],[.24,3893.33],[.25,4055.56],[.26,4217.78],[.27,4380],[.28,4542.22],[.29,4704.44],[.30,4866.67]];
-  return targets.map(([daily,target])=>{
-    const months=monthsToTargetV58(start,target,saving,rate);
-    return {daily,target,progress:Math.min(100,start/target*100),months,date:dateAfterMonthsV58(months),missing:Math.max(0,target-start),passiveMonthly:daily*30.4375};
-  });
-}
-function renderInterestGoalsV58(){
-  const b=$("interestGoalsBody"); if(!b)return;
-  b.innerHTML=interestGoalsDataV58().map(g=>`<tr>
-    <td>${Math.round(g.daily*100)} Cent/Tag</td>
-    <td><div class="progress"><div class="progress-bar" style="width:${g.progress}%"></div></div><small>${g.progress.toFixed(2).replace(".",",")} %</small></td>
-    <td>${g.date}</td><td>${fmt(g.target)}</td><td>${fmt(g.missing)}</td><td>${fmt(g.passiveMonthly)}</td>
-  </tr>`).join("");
-}
-function renderNextInterestMilestoneV58(){
-  const goals=interestGoalsDataV58(), next=goals.find(g=>g.missing>0.005)||goals.at(-1);
-  if(!next)return;
-  set("nextInterestMilestoneV58",`${Math.round(next.daily*100)} Cent/Tag`);
-  set("nextInterestMilestoneMetaV58",next.missing<=0.005?"bereits erreicht":`${fmt(next.missing)} fehlen · voraussichtlich ${next.date}`);
-}
-function renderLongTermForecastV58(){
-  const a=trSavingsAssetV58(), start=Number(a?.balance||0), rate=Number(a?.rate||0)/100, saving=averageMonthlySavingsV58();
-  [["forecast1yV58",12],["forecast3yV58",36],["forecast5yV58",60],["forecast10yV58",120]].forEach(([id,m])=>set(id,fmt(futureValueV58(start,saving,rate,m))));
-}
-
+const __renderAllV58=renderAll;
+renderAll=function(){
+  __renderAllV58();
+  renderInterestGoalsV58();
+  renderLongTermForecastV58();
+};
+setTimeout(()=>{
+  renderInterestGoalsV58();
+  renderLongTermForecastV58();
+},0);

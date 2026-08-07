@@ -105,4 +105,5 @@ th:first-child,td:first-child{text-align:left}
 #fuelEntriesBody .inline-input{min-width:110px}
 #fuelEntriesBody button+button{margin-left:.35rem}
 
-#interestGoalsBody .progress{min-width:130px}#nextInterestMilestoneMetaV58{display:block;margin-top:.25rem}
+#nextInterestMilestoneCard small{display:block;margin-top:.25rem}
+#interestGoalsBody .progress{min-width:120px}
