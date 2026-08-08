@@ -117,3 +117,5 @@ th:first-child,td:first-child{text-align:left}
 .progress-summary-lines-v59{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem;margin-top:.9rem}
 .progress-summary-lines-v59>div{padding:.75rem;border:1px solid var(--border,#ddd);border-radius:.7rem;display:flex;flex-direction:column;gap:.2rem}
 .forecast-history-v60{display:block;margin-top:.35rem;opacity:.8;line-height:1.35}
+
+#addAmexMonth{margin-left:.6rem}

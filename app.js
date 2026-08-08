@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 61;
+const APP_VERSION = 62;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -627,6 +627,41 @@ function renderVisibleForecastHistoryV60(){
   }
 }
 
+
+function nextMissingAmexMonthV62(){
+  const rows=(data.amexHistory||[]).slice().sort((a,b)=>a.month.localeCompare(b.month));
+  const now=monthKeyV59();
+  if(!rows.some(x=>x.month===now)) return now;
+  const last=rows.at(-1)?.month||now;
+  const [y,m]=last.split("-").map(Number);
+  const d=new Date(y,m,1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+}
+function addAmexMonthV62(){
+  const suggested=nextMissingAmexMonthV62();
+  modal(`<h2>AMEX-Monat hinzufügen</h2>
+    <label>Monat<input id="newAmexMonthV62" type="month" value="${suggested}"></label>
+    <label>AMEX-Betrag<input id="newAmexAmountV62" type="number" step="0.01" min="0"></label>
+    <div class="inline-actions">
+      <button id="saveNewAmexV62" type="button">Speichern</button>
+      <button id="cancelNewAmexV62" type="button">Abbrechen</button>
+    </div>`);
+  $("saveNewAmexV62").onclick=()=>{
+    const month=$("newAmexMonthV62").value;
+    const amount=Math.abs(Number($("newAmexAmountV62").value)||0);
+    if(!month)return;
+    if((data.amexHistory||[]).some(x=>x.month===month)){
+      alert("Für diesen Monat gibt es bereits einen AMEX-Eintrag. Bitte bearbeite den vorhandenen Monat.");
+      return;
+    }
+    data.amexHistory.push({month,expenses:-amount});
+    data.amexHistory.sort((a,b)=>a.month.localeCompare(b.month));
+    closeModal();
+    save();
+  };
+  $("cancelNewAmexV62").onclick=closeModal;
+}
+
 function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()}
 function modal(html){$('modalContent').innerHTML=html;$('modal').classList.remove('hidden')}
 function closeModal(){$('modal').classList.add('hidden')}
@@ -722,3 +757,8 @@ setTimeout(()=>{
   renderProgressV59();
   renderVisibleForecastHistoryV60();
 },0);
+
+document.addEventListener("DOMContentLoaded",()=>{
+  const btn=$("addAmexMonth");
+  if(btn) btn.onclick=addAmexMonthV62;
+});
