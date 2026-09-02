@@ -123,3 +123,6 @@ th:first-child,td:first-child{text-align:left}
 .goal-end-forecast-v64 th{background:#f7f9fc;font-weight:800}
 .goal-end-forecast-v64 th:nth-last-child(2){color:var(--primary)}
 .goal-forecast-note-v64 th{text-align:left!important;color:var(--muted);font-size:.82rem;font-weight:500;white-space:normal}
+
+#priorityGoalsBody td:nth-last-child(4),
+#priorityGoalsBody td:nth-last-child(3){font-variant-numeric:tabular-nums}

@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 64;
+const APP_VERSION = 65;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -38,6 +38,19 @@ function normalizeRuntimeDataV64(){
   }
 }
 normalizeRuntimeDataV64();
+
+function normalizeGoalRatesV65(){
+  if(!Array.isArray(data.priorityGoals)) return;
+  data.priorityGoals.forEach(r=>{
+    if(!Array.isArray(r)) return;
+    if(r.length<13) r[12]=0;
+    if(r.length<14) r[13]="";
+    r[12]=Math.max(0,Number(r[12])||0);
+    r[13]=String(r[13]||"");
+  });
+}
+normalizeGoalRatesV65();
+
 
 
 const fixedCostsFromMay2026V54 = {"2026-05": -240.7, "2026-06": -215.7, "2026-07": -240.7, "2026-08": -215.7, "2026-09": -265.7, "2026-10": -247.2, "2026-11": -240.7, "2026-12": -215.7};
@@ -193,12 +206,84 @@ function forecastGoalAmountV64(amount,monthlySaving){
   return addMonthsSafeV64(new Date(),Math.ceil(amount/monthlySaving)).toLocaleDateString("de-DE");
 }
 
+
+function goalRateLabelV65(r){
+  const rate=Math.max(0,Number(r?.[12])||0);
+  return rate>0?fmt(rate):"–";
+}
+function goalRateEndLabelV65(r){
+  const rate=Math.max(0,Number(r?.[12])||0);
+  const end=String(r?.[13]||"");
+  if(rate<=0 || !end) return "–";
+  const [y,m]=end.split("-").map(Number);
+  if(!y||!m) return end;
+  return new Date(y,m-1,1).toLocaleDateString("de-DE",{month:"2-digit",year:"numeric"});
+}
+function simulateGoalEndV65(useMax=false){
+  const rows=(data.priorityGoals||[]).map(r=>({
+    amount:Math.max(0,Number(r?.[useMax?4:3])||0),
+    rate:Math.max(0,Number(r?.[12])||0),
+    rateEnd:String(r?.[13]||"")
+  }));
+  const monthlySaving=Math.max(0,Number(avgSurplus())||0);
+  let wealth=Math.max(0,Number(totalWealth())||0);
+
+  // Vorhandenes Vermögen wird wie bisher von oben nach unten auf die Ziele verteilt.
+  for(const g of rows){
+    const used=Math.min(g.amount,wealth);
+    g.amount-=used;
+    wealth-=used;
+    if(wealth<=0) break;
+  }
+
+  const start=new Date();
+  let cursor=new Date(start.getFullYear(),start.getMonth(),1);
+
+  // Bereits komplett erreicht?
+  if(rows.every(g=>g.amount<=0)) return "bereits erreicht";
+
+  // Ohne Sparrate und ohne irgendeine aktive Rate kann nichts mehr erreicht werden.
+  const hasAnyRate=rows.some(g=>g.rate>0 && g.rateEnd);
+  if(monthlySaving<=0 && !hasAnyRate) return "–";
+
+  // Sicherheitsgrenze 100 Jahre.
+  for(let month=0;month<1200;month++){
+    const ym=`${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,"0")}`;
+
+    // 1) Raten laufen parallel und reduzieren ausschließlich ihr eigenes Ziel.
+    rows.forEach(g=>{
+      if(g.amount<=0 || g.rate<=0 || !g.rateEnd) return;
+      if(ym<=g.rateEnd) g.amount=Math.max(0,g.amount-g.rate);
+    });
+
+    // 2) Der normale Monatsüberschuss wird streng nach Priorität verteilt.
+    let saving=monthlySaving;
+    for(const g of rows){
+      if(saving<=0) break;
+      if(g.amount<=0) continue;
+      const used=Math.min(g.amount,saving);
+      g.amount-=used;
+      saving-=used;
+    }
+
+    if(rows.every(g=>g.amount<=0)){
+      return cursor.toLocaleDateString("de-DE",{month:"2-digit",year:"numeric"});
+    }
+    cursor.setMonth(cursor.getMonth()+1);
+  }
+  return "> 100 Jahre";
+}
+
 function renderGoals(){
   syncFirstGoal();
+  normalizeGoalRatesV65();
+
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
   const wealth=Math.max(0,Number(totalWealth())||0);
   const monthlySaving=Math.max(0,Number(avgSurplus())||0);
 
+  // Die Prognose je Einzelziel bleibt wie bisher sequenziell nach Mindestbetrag.
+  // Die optionalen Raten werden bewusst nur in den Endprognosen unten verrechnet.
   let cumulativeMin=0;
   const forecasts=rows.map(r=>{
     cumulativeMin+=Math.max(0,Number(r?.[3])||0);
@@ -212,24 +297,26 @@ function renderGoals(){
     <td>${r[5]==null?"–":fmt(r[5])}</td><td>${r[6]==null?"–":fmt(r[6])}</td>
     <td>${r[7]==null?"–":fmt(r[7])}</td><td>${r[8]==null?"–":fmt(r[8])}</td>
     <td>${pct(r[9])}</td><td>${pct(r[10])}</td><td>${r[11]==null?"–":fmt(r[11])}</td>
+    <td>${goalRateLabelV65(r)}</td><td>${goalRateEndLabelV65(r)}</td>
     <td>${forecasts[i]}</td><td><button data-edit-goal="${i}">Bearbeiten</button></td>
   </tr>`).join("");
 
   const f=$("priorityGoalsFoot");
   if(f){
     const sums=[3,4,5,6,7,8,11].map(ix=>rows.reduce((s,r)=>s+Number(r?.[ix]||0),0));
-    const totalMin=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[3])||0),0);
-    const totalMax=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[4])||0),0);
-    const endMin=forecastGoalAmountV64(Math.max(0,totalMin-wealth),monthlySaving);
-    const endMax=forecastGoalAmountV64(Math.max(0,totalMax-wealth),monthlySaving);
+    const totalRate=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[12])||0),0);
+    const endMin=simulateGoalEndV65(false);
+    const endMax=simulateGoalEndV65(true);
+
     f.innerHTML=`
       <tr class="total-row"><th colspan="3">Summe</th>
         ${sums.slice(0,6).map(x=>`<th>${fmt(x)}</th>`).join("")}
-        <th>–</th><th>–</th><th>${fmt(sums[6])}</th><th>–</th><th></th>
+        <th>–</th><th>–</th><th>${fmt(sums[6])}</th>
+        <th>${totalRate>0?fmt(totalRate):"–"}</th><th>–</th><th>–</th><th></th>
       </tr>
-      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th></th></tr>
-      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th></th></tr>
-      <tr class="goal-forecast-note-v64"><th colspan="14">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}. Ziele werden strikt der Reihenfolge nach angespart.</th></tr>`;
+      <tr class="goal-end-forecast-v64"><th colspan="14">Endprognose Min inkl. Raten</th><th>${endMin}</th><th></th></tr>
+      <tr class="goal-end-forecast-v64"><th colspan="14">Endprognose Max inkl. Raten</th><th>${endMax}</th><th></th></tr>
+      <tr class="goal-forecast-note-v64"><th colspan="16">Die Zielbeträge werden nicht verändert. Hinterlegte Raten werden monatlich bis einschließlich „Rate bis“ vom jeweiligen offenen Ziel abgezogen; der normale Ø Monatsüberschuss wird weiterhin der Priorität nach verteilt.</th></tr>`;
   }
 }
 
@@ -750,7 +837,7 @@ if(d.saveFuel){
   editingFuel=null;
   save();
 }
-if(d.deleteFuel){data.fuelEntries=data.fuelEntries.filter(x=>x.id!==d.deleteFuel);save()}if(d.editCapital){editingCapital=d.editCapital;renderCapitalTable()}if(d.cancelCapital!==undefined){editingCapital=null;renderCapitalTable()}if(d.saveCapital){const r=data.capitalHistory.find(x=>x.month===d.saveCapital);document.querySelectorAll('[data-cap-field]').forEach(x=>r[x.dataset.capField]=Number(x.value)||0);r.total=Number(r.sparkasseInterest||0)+Number(r.trInterest||0)+Number(r.dividend||0);editingCapital=null;save()}if(d.editFixed){const x=data.fixedCosts.find(v=>v.id===d.editFixed);modal(`<h2>${esc(x.name)} bearbeiten</h2><label>Tag<input id="mDay" type="number" min="1" max="31" value="${x.day}"></label><label>Betrag<input id="mAmount" type="number" step="0.01" value="${x.amount}"></label><button id="mSaveFixed">Speichern</button>`);$('mSaveFixed').onclick=()=>{x.day=Number($('mDay').value)||1;x.amount=Number($('mAmount').value)||0;closeModal();save()}}if(d.editAsset){const a=data.assets.find(v=>v.id===d.editAsset);const stock=a.type==='stock';modal(`<h2>${esc(a.name)} aktualisieren</h2><label>Neuer Stand<input id="mBal" type="number" step="0.01" value="${a.balance}"></label><label>${stock?'Dividende pro Monat':'Zinssatz p. a. (%)'}<input id="mYield" type="number" step="0.01" value="${stock?a.monthlyDividend:a.rate}"></label>${stock?`<p>Berechnete Dividendenrendite: <strong id="mRendite"></strong></p>`:''}<button id="mSaveAsset">Speichern</button>`);const upd=()=>{if(stock)set('mRendite',pct(Number($('mBal').value)?Number($('mYield').value)*12/Number($('mBal').value)*100:0))};if(stock){$('mBal').oninput=upd;$('mYield').oninput=upd;upd()}$('mSaveAsset').onclick=()=>{a.balance=Number($('mBal').value)||0;if(stock)a.monthlyDividend=Number($('mYield').value)||0;else a.rate=Number($('mYield').value)||0;closeModal();save()}}if(d.editGoal!==undefined){const r=data.priorityGoals[Number(d.editGoal)];const name=prompt('Unterkategorie',r[2]);if(name===null)return;r[2]=name;const min=prompt('Einmalige Kosten min',r[3]??'');if(min===null)return;r[3]=Number(String(min).replace(',','.'))||0;const max=prompt('Einmalige Kosten max',r[4]??'');if(max===null)return;r[4]=Number(String(max).replace(',','.'))||0;save()}});
+if(d.deleteFuel){data.fuelEntries=data.fuelEntries.filter(x=>x.id!==d.deleteFuel);save()}if(d.editCapital){editingCapital=d.editCapital;renderCapitalTable()}if(d.cancelCapital!==undefined){editingCapital=null;renderCapitalTable()}if(d.saveCapital){const r=data.capitalHistory.find(x=>x.month===d.saveCapital);document.querySelectorAll('[data-cap-field]').forEach(x=>r[x.dataset.capField]=Number(x.value)||0);r.total=Number(r.sparkasseInterest||0)+Number(r.trInterest||0)+Number(r.dividend||0);editingCapital=null;save()}if(d.editFixed){const x=data.fixedCosts.find(v=>v.id===d.editFixed);modal(`<h2>${esc(x.name)} bearbeiten</h2><label>Tag<input id="mDay" type="number" min="1" max="31" value="${x.day}"></label><label>Betrag<input id="mAmount" type="number" step="0.01" value="${x.amount}"></label><button id="mSaveFixed">Speichern</button>`);$('mSaveFixed').onclick=()=>{x.day=Number($('mDay').value)||1;x.amount=Number($('mAmount').value)||0;closeModal();save()}}if(d.editAsset){const a=data.assets.find(v=>v.id===d.editAsset);const stock=a.type==='stock';modal(`<h2>${esc(a.name)} aktualisieren</h2><label>Neuer Stand<input id="mBal" type="number" step="0.01" value="${a.balance}"></label><label>${stock?'Dividende pro Monat':'Zinssatz p. a. (%)'}<input id="mYield" type="number" step="0.01" value="${stock?a.monthlyDividend:a.rate}"></label>${stock?`<p>Berechnete Dividendenrendite: <strong id="mRendite"></strong></p>`:''}<button id="mSaveAsset">Speichern</button>`);const upd=()=>{if(stock)set('mRendite',pct(Number($('mBal').value)?Number($('mYield').value)*12/Number($('mBal').value)*100:0))};if(stock){$('mBal').oninput=upd;$('mYield').oninput=upd;upd()}$('mSaveAsset').onclick=()=>{a.balance=Number($('mBal').value)||0;if(stock)a.monthlyDividend=Number($('mYield').value)||0;else a.rate=Number($('mYield').value)||0;closeModal();save()}}if(d.editGoal!==undefined){normalizeGoalRatesV65();const r=data.priorityGoals[Number(d.editGoal)];const name=prompt('Unterkategorie',r[2]);if(name===null)return;r[2]=name;const min=prompt('Einmalige Kosten min',r[3]??'');if(min===null)return;r[3]=Number(String(min).replace(',','.'))||0;const max=prompt('Einmalige Kosten max',r[4]??'');if(max===null)return;r[4]=Number(String(max).replace(',','.'))||0;const rate=prompt('Monatliche Rate (0 = keine Rate)',r[12]??0);if(rate===null)return;r[12]=Math.max(0,Number(String(rate).replace(',','.'))||0);if(r[12]>0){const rateEnd=prompt('Rate bis (Format JJJJ-MM, z. B. 2031-06)',r[13]||'');if(rateEnd===null)return;r[13]=String(rateEnd).trim()}else{r[13]=''}save()}});
 $('closeModal').onclick=closeModal;$('addFuelEntry').onclick=()=>{
   modal(`<h2>Tankvorgang hinzufügen</h2>
     <label>Datum<input id="newFuelDate" type="date" value="${new Date().toISOString().slice(0,10)}"></label>
