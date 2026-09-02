@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 65</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 66</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -213,6 +213,22 @@
   <article class="panel">
     <div class="panel-head"><div><h2>Kapitalentwicklung</h2><p class="muted">Vollständige Stammdaten seit Juni 2025.</p></div></div>
     <div class="stats-grid" id="capitalMetricCards"></div>
+    <div class="goal-global-rate-v66">
+      <div>
+        <h3>Allgemeine Rate</h3>
+        <p class="muted">Optional, z. B. für einen Kredit. Die Rate wird zusätzlich zum normalen Monatsüberschuss bis zum Enddatum nur in der Endprognose berücksichtigt. Die Sparzielbeträge selbst bleiben unverändert.</p>
+      </div>
+      <div class="goal-global-rate-fields-v66">
+        <label>Rate pro Monat
+          <input id="globalGoalRateV66" type="number" min="0" step="0.01" value="0">
+        </label>
+        <label>Rate bis
+          <input id="globalGoalRateEndV66" type="month">
+        </label>
+        <button id="saveGlobalGoalRateV66" type="button">Rate speichern</button>
+      </div>
+      <small id="globalGoalRateStatusV66" class="muted"></small>
+    </div>
     <div class="table-wrap wide-table">
       <table>
         <thead><tr><th>Monat</th><th>Sparkasse</th><th>Sparkasse Zinsen</th><th>Trade Republic</th><th>TR Zinsen</th><th>Tatsächliche Dividende</th><th>Summe Zinsen & Dividende</th><th></th></tr></thead>
@@ -250,7 +266,7 @@
     <div class="panel-head">
       <div>
         <h2>Priorisierte Sparziele</h2>
-        <p class="muted">Einmalige Kosten und laufende Kosten mit Mindest- und Maximalwerten. Optional kann eine Rate mit Enddatum hinterlegt werden; die Zielbeträge bleiben unverändert.</p>
+        <p class="muted">Einmalige Kosten und laufende Kosten mit Mindest- und Maximalwerten.</p>
       </div>
     </div>
     <div class="table-wrap wide-table">
@@ -261,7 +277,7 @@
             <th>Einmalig min</th><th>Einmalig max</th>
             <th>LK min p.a.</th><th>LK max p.a.</th>
             <th>LK min p.m.</th><th>LK max p.m.</th>
-            <th>% min</th><th>% max</th><th>Verfügbar</th><th>Rate p.m.</th><th>Rate bis</th><th>Prognose</th><th></th>
+            <th>% min</th><th>% max</th><th>Verfügbar</th><th>Prognose</th><th></th>
           </tr>
         </thead>
         <tbody id="priorityGoalsBody"></tbody>
@@ -306,7 +322,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 65</span>
+      <span class="badge">Version 66</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
