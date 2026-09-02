@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 63;
+const APP_VERSION = 62;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -87,7 +87,7 @@ let editingIncome=null;
 function renderIncome(){
   set('salary2025',fmt(data.incomeHistory.filter(r=>r.month.startsWith('2025')).reduce((s,r)=>s+Number(r.salary||0),0)));
   set('salary2026',fmt(data.incomeHistory.filter(r=>r.month.startsWith('2026')).reduce((s,r)=>s+Number(r.salary||0),0)));
-  set('taxAllowanceLeft',fmt(Math.max(0,12348-data.incomeHistory.filter(r=>r.month.startsWith('2026')).reduce((s,r)=>s+Number(r.salary||0),0))));
+  set('taxAllowanceLeft',fmt(Math.max(0,12096-data.incomeHistory.filter(r=>r.month.startsWith('2026')).reduce((s,r)=>s+Number(r.salary||0),0))));
   const b=$('incomeHistoryBody');
   if(!b)return;
   b.innerHTML=data.incomeHistory.map(r=>{
@@ -158,81 +158,18 @@ function renderFixed(){const p=passive();set('fixedMonthlyTotal',fmt(fixedMonthl
 function renderAssets(){const c=capitalMetrics(),p=passive();set('assetTotal',fmt(c.wealth));const b=$('assetList');if(b)b.innerHTML=data.assets.map(a=>{const month=a.type==='stock'?Number(a.monthlyDividend||0):interestForAsset(a);const annual=month*12;return`<div class="list-item"><div><h3>${esc(a.name)}</h3><p>${a.type==='stock'?`Aktien · durchschnittliche Dividende: ${fmt(month)}/Monat · Rendite ${pct(a.balance?month*12/a.balance*100:0)}`:`Tagesgeldkonto · Zinssatz: ${pct(a.rate)}`}</p><small>Dynamisch übernommen: ${fmt(month)}/Monat · ${fmt(annual)}/Jahr</small></div><div><strong>${fmt(a.balance)}</strong><button data-edit-asset="${a.id}">Aktualisieren</button></div></div>`}).join('');const cards=[['Aktueller Vermögenswert',c.wealth],['Kapital t=0',START_CAPITAL],['Kapitaldifferenz',c.diff],['Steigerung Durchschnitt pro Monat',c.avg],['Kapitalsteigerung',pct(c.growth)],['Aktueller Aktienwert',stockValue()],['Gewinn Aktien',stockProfit()],['Gewinn Zinsen',c.interestProfit],['Gewinn Dividende',c.dividendProfit],['Zinsen aktueller Monat',p.interest],['Durchschnittliche Dividende pro Monat',p.dividend],['Passiv pro Tag',p.daily],['Passiv pro Monat',p.monthly],['Fixkosten gedeckt',pct(p.coverage)]];const cm=$('capitalMetricCards');if(cm)cm.innerHTML=cards.map(([k,v])=>`<div class="stat"><span>${k}</span><strong>${typeof v==='string'?v:fmt(v)}</strong></div>`).join('');renderCapitalTable()}
 let editingCapital=null;function renderCapitalTable(){syncCurrentCapital();const b=$('capitalMasterBody');if(!b)return;b.innerHTML=[...data.capitalHistory].sort((a,b)=>a.month.localeCompare(b.month)).map(r=>{const current=r.month===currentMonth();if(editingCapital!==r.month)return`<tr><td>${monthLabel(r.month)}</td><td>${r.sparkasse==null?'–':fmt(r.sparkasse)}</td><td>${fmt(r.sparkasseInterest)}</td><td>${r.tradeRepublic==null?'–':fmt(r.tradeRepublic)}</td><td>${r.trInterest==null?'–':fmt(r.trInterest)}</td><td>${r.dividend==null?'–':fmt(r.dividend)}</td><td>${r.total==null?'–':fmt(r.total)}</td><td><button data-edit-capital="${r.month}">Bearbeiten</button></td></tr>`;const fields=current?['dividend']:['sparkasse','sparkasseInterest','tradeRepublic','trInterest','dividend'];return`<tr><td>${monthLabel(r.month)}</td>${['sparkasse','sparkasseInterest','tradeRepublic','trInterest','dividend'].map(k=>`<td>${fields.includes(k)?`<input class="inline-input" data-cap-field="${k}" value="${r[k]??''}" type="number" step="0.01">`:fmt(r[k])}</td>`).join('')}<td>${fmt(r.total)}</td><td><button data-save-capital="${r.month}">Speichern</button><button data-cancel-capital>Abbrechen</button></td></tr>`}).join('')}
 function renderPassive(){const p=passive();set('passiveInterestMonth',fmt(p.interest));set('passiveDividendMonth',fmt(p.dividend));set('passiveTotalDay',fmt(p.daily));set('passiveTabMonth',fmt(p.monthly));set('passiveTabYear',fmt(p.annual));set('passiveCoverage',pct(p.coverage));set('passiveForecastStartWealth',fmt(totalWealth()));set('passiveForecastRate',pct(totalWealth()?p.annual/totalWealth()*100:0));set('passiveForecastStartPassive',fmt(p.monthly));set('passiveForecastStartCoverage',pct(p.coverage));const rate=totalWealth()?p.annual/totalWealth():0;const b=$('passiveForecastBody');if(b)b.innerHTML=[5,10,25,50,75,100].map(t=>{const targetMonthly=fixedMonthly()*t/100,target=rate?targetMonthly*12/rate:Infinity,progress=target?totalWealth()/target*100:0;let years=target<=totalWealth()?0:rate?Math.log(target/totalWealth())/Math.log(1+rate):Infinity;const dt=new Date();if(Number.isFinite(years))dt.setMonth(dt.getMonth()+Math.ceil(years*12));return`<div class="list-item passive-forecast-item"><div class="passive-forecast-main"><strong>${t} % der Fixkosten</strong><div class="progress"><div style="width:${Math.min(100,progress)}%"></div></div><small>${fmt(target)} · ${fmt(targetMonthly)}/Monat</small></div><div class="passive-forecast-meta"><strong>${pct(progress)}</strong><small>${years===0?'bereits erreicht':Number.isFinite(years)?dt.toLocaleDateString('de-DE'):'nicht erreichbar'}</small></div></div>`}).join('')}
-function syncFirstGoal(){
-  const g=data.priorityGoals[0];
-  if(g){
-    g[11]=totalWealth();
-    g[9]=g[3]?g[11]/g[3]*100:0;
-    g[10]=g[4]?g[11]/g[4]*100:0;
-  }
-}
-function goalForecastDateV63(requiredAmount, monthlySaving){
-  if(requiredAmount<=0) return "bereits erreicht";
-  if(!(monthlySaving>0)) return "keine Prognose";
-  const months=Math.ceil(requiredAmount/monthlySaving);
-  const d=new Date();
-  d.setMonth(d.getMonth()+months);
-  return d.toLocaleDateString("de-DE");
-}
-function renderGoals(){
-  syncFirstGoal();
-  const rows=data.priorityGoals||[];
-  const monthlySaving=Math.max(0, Number(typeof avgSurplus==="function"?avgSurplus():0));
-  const wealth=Number(totalWealth()||0);
+function syncFirstGoal(){const g=data.priorityGoals[0];if(g){g[11]=totalWealth();g[9]=g[3]?g[11]/g[3]*100:0;g[10]=g[4]?g[11]/g[4]*100:0}}
+function renderGoals(){syncFirstGoal();const b=$('priorityGoalsBody');if(b)b.innerHTML=data.priorityGoals.map((r,i)=>`<tr><td>${r[0]??''}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${r[3]==null?'–':fmt(r[3])}</td><td>${r[4]==null?'–':fmt(r[4])}</td><td>${r[5]==null?'–':fmt(r[5])}</td><td>${r[6]==null?'–':fmt(r[6])}</td><td>${r[7]==null?'–':fmt(r[7])}</td><td>${r[8]==null?'–':fmt(r[8])}</td><td>${pct(r[9])}</td><td>${pct(r[10])}</td><td>${r[11]==null?'–':fmt(r[11])}</td><td><button data-edit-goal="${i}">Bearbeiten</button></td></tr>`).join('');const f=$('priorityGoalsFoot');if(f){const sums=[3,4,5,6,7,8,11].map(ix=>data.priorityGoals.reduce((s,r)=>s+Number(r[ix]||0),0));f.innerHTML=`<tr><th colspan="3">Summe</th>${sums.slice(0,6).map(x=>`<th>${fmt(x)}</th>`).join('')}<th>–</th><th>–</th><th>${fmt(sums[6])}</th><th></th></tr>`}}
 
-  // Pro Zeile genau EINE Prognose: wann das jeweilige Ziel mindestens erreicht ist.
-  // Ziele werden strikt nacheinander angespart. Das vorhandene Vermögen wird nur
-  // einmal am Anfang gegen die kumulierten Mindestziele gerechnet.
-  let cumulativeMin=0;
-  const rowForecasts=rows.map(r=>{
-    cumulativeMin += Math.max(0,Number(r[3]||0));
-    return goalForecastDateV63(Math.max(0,cumulativeMin-wealth), monthlySaving);
-  });
-
-  const b=$("priorityGoalsBody");
-  if(b)b.innerHTML=rows.map((r,i)=>`<tr>
-    <td>${r[0]??""}</td>
-    <td>${esc(r[1])}</td>
-    <td>${esc(r[2])}</td>
-    <td>${r[3]==null?"–":fmt(r[3])}</td>
-    <td>${r[4]==null?"–":fmt(r[4])}</td>
-    <td>${r[5]==null?"–":fmt(r[5])}</td>
-    <td>${r[6]==null?"–":fmt(r[6])}</td>
-    <td>${r[7]==null?"–":fmt(r[7])}</td>
-    <td>${r[8]==null?"–":fmt(r[8])}</td>
-    <td>${pct(r[9])}</td>
-    <td>${pct(r[10])}</td>
-    <td>${r[11]==null?"–":fmt(r[11])}</td>
-    <td><strong>${rowForecasts[i]}</strong></td>
-    <td><button data-edit-goal="${i}">Bearbeiten</button></td>
-  </tr>`).join("");
-
-  const f=$("priorityGoalsFoot");
-  if(f){
-    const sums=[3,4,5,6,7,8,11].map(ix=>rows.reduce((s,r)=>s+Number(r[ix]||0),0));
-    const totalMin=rows.reduce((s,r)=>s+Math.max(0,Number(r[3]||0)),0);
-    const totalMax=rows.reduce((s,r)=>s+Math.max(0,Number(r[4]||0)),0);
-    const minForecast=goalForecastDateV63(Math.max(0,totalMin-wealth),monthlySaving);
-    const maxForecast=goalForecastDateV63(Math.max(0,totalMax-wealth),monthlySaving);
-
-    f.innerHTML=`
-      <tr class="total-row">
-        <th colspan="3">Summe</th>
-        ${sums.slice(0,6).map(x=>`<th>${fmt(x)}</th>`).join("")}
-        <th>–</th><th>–</th><th>${fmt(sums[6])}</th><th>–</th><th></th>
-      </tr>
-      <tr class="goal-end-forecast-v63">
-        <th colspan="12">Endprognose Min</th>
-        <th>${minForecast}</th><th></th>
-      </tr>
-      <tr class="goal-end-forecast-v63">
-        <th colspan="12">Endprognose Max</th>
-        <th>${maxForecast}</th><th></th>
-      </tr>
-      <tr class="goal-forecast-note-v63">
-        <th colspan="14">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)} · Sparziele werden der Priorität nach nacheinander erreicht.</th>
-      </tr>`;
-  }
+const confirmedIncomeFixedCostsV55={
+  "2026-05":-240.70,
+  "2026-06":-215.70,
+  "2026-07":-240.70,
+  "2026-08":-215.70,
+  "2026-09":-265.70,
+  "2026-10":-247.20,
+  "2026-11":-240.70,
+  "2026-12":-215.70
 };
 function enforceConfirmedIncomeFixedCostsV55(){
   (data.incomeHistory||[]).forEach(r=>{
