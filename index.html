@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 66</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 67</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -213,22 +213,7 @@
   <article class="panel">
     <div class="panel-head"><div><h2>Kapitalentwicklung</h2><p class="muted">Vollständige Stammdaten seit Juni 2025.</p></div></div>
     <div class="stats-grid" id="capitalMetricCards"></div>
-    <div class="goal-global-rate-v66">
-      <div>
-        <h3>Allgemeine Rate</h3>
-        <p class="muted">Optional, z. B. für einen Kredit. Die Rate wird zusätzlich zum normalen Monatsüberschuss bis zum Enddatum nur in der Endprognose berücksichtigt. Die Sparzielbeträge selbst bleiben unverändert.</p>
-      </div>
-      <div class="goal-global-rate-fields-v66">
-        <label>Rate pro Monat
-          <input id="globalGoalRateV66" type="number" min="0" step="0.01" value="0">
-        </label>
-        <label>Rate bis
-          <input id="globalGoalRateEndV66" type="month">
-        </label>
-        <button id="saveGlobalGoalRateV66" type="button">Rate speichern</button>
-      </div>
-      <small id="globalGoalRateStatusV66" class="muted"></small>
-    </div>
+    
     <div class="table-wrap wide-table">
       <table>
         <thead><tr><th>Monat</th><th>Sparkasse</th><th>Sparkasse Zinsen</th><th>Trade Republic</th><th>TR Zinsen</th><th>Tatsächliche Dividende</th><th>Summe Zinsen & Dividende</th><th></th></tr></thead>
@@ -286,7 +271,26 @@
     </div>
   </article>
 
-    <article class="panel">
+      <article class="panel goal-global-rate-v66">
+    <div class="panel-head">
+      <div>
+        <h2>Allgemeine Rate</h2>
+        <p class="muted">Optional, z. B. für einen Kredit. Die Rate wird zusätzlich zum normalen Monatsüberschuss bis zum Enddatum nur in der Endprognose berücksichtigt. Die Sparzielbeträge selbst bleiben unverändert.</p>
+      </div>
+    </div>
+    <div class="goal-global-rate-fields-v66">
+      <label>Rate pro Monat
+        <input id="globalGoalRateV66" type="number" min="0" step="0.01" value="0">
+      </label>
+      <label>Rate bis
+        <input id="globalGoalRateEndV66" type="month">
+      </label>
+      <button id="saveGlobalGoalRateV66" type="button">Rate speichern</button>
+    </div>
+    <small id="globalGoalRateStatusV66" class="muted"></small>
+  </article>
+
+<article class="panel">
       <h2>Sparziel anlegen</h2>
       <form id="goalForm" class="form-grid">
         <label>Name<input id="goalName" required placeholder="z. B. Notgroschen"></label>
@@ -322,7 +326,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 66</span>
+      <span class="badge">Version 67</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>

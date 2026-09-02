@@ -132,3 +132,6 @@ th:first-child,td:first-child{text-align:left}
 .goal-global-rate-fields-v66{display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) auto;gap:.8rem;align-items:end;margin-top:.8rem}
 .goal-global-rate-fields-v66 label{display:flex;flex-direction:column;gap:.35rem;color:var(--muted);font-size:.88rem}
 @media(max-width:650px){.goal-global-rate-fields-v66{grid-template-columns:1fr}}
+
+.goal-global-rate-v66{margin-top:0}
+.goal-global-rate-v66 .panel-head{margin-bottom:.5rem}
