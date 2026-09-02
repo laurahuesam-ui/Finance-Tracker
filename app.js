@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 62;
+const APP_VERSION = 64;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -19,6 +19,26 @@ const currentMonth=()=>{const d=new Date();return `${d.getFullYear()}-${String(d
 const daysInMonth=ym=>{const [y,m]=ym.split("-").map(Number);return new Date(y,m,0).getDate()};
 function load(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));return x&&typeof x==='object'?{...clone(DEFAULTS),...x}:clone(DEFAULTS)}catch{return clone(DEFAULTS)}}
 let data=load();
+
+function normalizeRuntimeDataV64(){
+  const arrayKeys=["capitalHistory","incomeHistory","amexHistory","fixedCosts","assets","priorityGoals","fuelEntries","goals"];
+  arrayKeys.forEach(k=>{
+    if(!Array.isArray(data[k])) data[k]=clone(DEFAULTS[k]||[]);
+  });
+  if(!data.amexPaid || typeof data.amexPaid!=="object" || Array.isArray(data.amexPaid)) data.amexPaid={};
+  if(!data.settings || typeof data.settings!=="object" || Array.isArray(data.settings)) data.settings={};
+  if(data.progressTrackingV59!=null){
+    if(typeof data.progressTrackingV59!=="object" || Array.isArray(data.progressTrackingV59)){
+      data.progressTrackingV59={baseline:null,snapshots:{},goalForecasts:{}};
+    }else{
+      if(!data.progressTrackingV59.snapshots || typeof data.progressTrackingV59.snapshots!=="object" || Array.isArray(data.progressTrackingV59.snapshots)) data.progressTrackingV59.snapshots={};
+      if(!data.progressTrackingV59.goalForecasts || typeof data.progressTrackingV59.goalForecasts!=="object" || Array.isArray(data.progressTrackingV59.goalForecasts)) data.progressTrackingV59.goalForecasts={};
+      if(data.progressTrackingV59.baseline!=null && typeof data.progressTrackingV59.baseline!=="object") data.progressTrackingV59.baseline=null;
+    }
+  }
+}
+normalizeRuntimeDataV64();
+
 
 const fixedCostsFromMay2026V54 = {"2026-05": -240.7, "2026-06": -215.7, "2026-07": -240.7, "2026-08": -215.7, "2026-09": -265.7, "2026-10": -247.2, "2026-11": -240.7, "2026-12": -215.7};
 function applyFixedCostsFromMay2026V54(){
@@ -87,7 +107,7 @@ let editingIncome=null;
 function renderIncome(){
   set('salary2025',fmt(data.incomeHistory.filter(r=>r.month.startsWith('2025')).reduce((s,r)=>s+Number(r.salary||0),0)));
   set('salary2026',fmt(data.incomeHistory.filter(r=>r.month.startsWith('2026')).reduce((s,r)=>s+Number(r.salary||0),0)));
-  set('taxAllowanceLeft',fmt(Math.max(0,12096-data.incomeHistory.filter(r=>r.month.startsWith('2026')).reduce((s,r)=>s+Number(r.salary||0),0))));
+  set('taxAllowanceLeft',fmt(Math.max(0,12348-data.incomeHistory.filter(r=>r.month.startsWith('2026')).reduce((s,r)=>s+Number(r.salary||0),0))));
   const b=$('incomeHistoryBody');
   if(!b)return;
   b.innerHTML=data.incomeHistory.map(r=>{
@@ -159,7 +179,59 @@ function renderAssets(){const c=capitalMetrics(),p=passive();set('assetTotal',fm
 let editingCapital=null;function renderCapitalTable(){syncCurrentCapital();const b=$('capitalMasterBody');if(!b)return;b.innerHTML=[...data.capitalHistory].sort((a,b)=>a.month.localeCompare(b.month)).map(r=>{const current=r.month===currentMonth();if(editingCapital!==r.month)return`<tr><td>${monthLabel(r.month)}</td><td>${r.sparkasse==null?'–':fmt(r.sparkasse)}</td><td>${fmt(r.sparkasseInterest)}</td><td>${r.tradeRepublic==null?'–':fmt(r.tradeRepublic)}</td><td>${r.trInterest==null?'–':fmt(r.trInterest)}</td><td>${r.dividend==null?'–':fmt(r.dividend)}</td><td>${r.total==null?'–':fmt(r.total)}</td><td><button data-edit-capital="${r.month}">Bearbeiten</button></td></tr>`;const fields=current?['dividend']:['sparkasse','sparkasseInterest','tradeRepublic','trInterest','dividend'];return`<tr><td>${monthLabel(r.month)}</td>${['sparkasse','sparkasseInterest','tradeRepublic','trInterest','dividend'].map(k=>`<td>${fields.includes(k)?`<input class="inline-input" data-cap-field="${k}" value="${r[k]??''}" type="number" step="0.01">`:fmt(r[k])}</td>`).join('')}<td>${fmt(r.total)}</td><td><button data-save-capital="${r.month}">Speichern</button><button data-cancel-capital>Abbrechen</button></td></tr>`}).join('')}
 function renderPassive(){const p=passive();set('passiveInterestMonth',fmt(p.interest));set('passiveDividendMonth',fmt(p.dividend));set('passiveTotalDay',fmt(p.daily));set('passiveTabMonth',fmt(p.monthly));set('passiveTabYear',fmt(p.annual));set('passiveCoverage',pct(p.coverage));set('passiveForecastStartWealth',fmt(totalWealth()));set('passiveForecastRate',pct(totalWealth()?p.annual/totalWealth()*100:0));set('passiveForecastStartPassive',fmt(p.monthly));set('passiveForecastStartCoverage',pct(p.coverage));const rate=totalWealth()?p.annual/totalWealth():0;const b=$('passiveForecastBody');if(b)b.innerHTML=[5,10,25,50,75,100].map(t=>{const targetMonthly=fixedMonthly()*t/100,target=rate?targetMonthly*12/rate:Infinity,progress=target?totalWealth()/target*100:0;let years=target<=totalWealth()?0:rate?Math.log(target/totalWealth())/Math.log(1+rate):Infinity;const dt=new Date();if(Number.isFinite(years))dt.setMonth(dt.getMonth()+Math.ceil(years*12));return`<div class="list-item passive-forecast-item"><div class="passive-forecast-main"><strong>${t} % der Fixkosten</strong><div class="progress"><div style="width:${Math.min(100,progress)}%"></div></div><small>${fmt(target)} · ${fmt(targetMonthly)}/Monat</small></div><div class="passive-forecast-meta"><strong>${pct(progress)}</strong><small>${years===0?'bereits erreicht':Number.isFinite(years)?dt.toLocaleDateString('de-DE'):'nicht erreichbar'}</small></div></div>`}).join('')}
 function syncFirstGoal(){const g=data.priorityGoals[0];if(g){g[11]=totalWealth();g[9]=g[3]?g[11]/g[3]*100:0;g[10]=g[4]?g[11]/g[4]*100:0}}
-function renderGoals(){syncFirstGoal();const b=$('priorityGoalsBody');if(b)b.innerHTML=data.priorityGoals.map((r,i)=>`<tr><td>${r[0]??''}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${r[3]==null?'–':fmt(r[3])}</td><td>${r[4]==null?'–':fmt(r[4])}</td><td>${r[5]==null?'–':fmt(r[5])}</td><td>${r[6]==null?'–':fmt(r[6])}</td><td>${r[7]==null?'–':fmt(r[7])}</td><td>${r[8]==null?'–':fmt(r[8])}</td><td>${pct(r[9])}</td><td>${pct(r[10])}</td><td>${r[11]==null?'–':fmt(r[11])}</td><td><button data-edit-goal="${i}">Bearbeiten</button></td></tr>`).join('');const f=$('priorityGoalsFoot');if(f){const sums=[3,4,5,6,7,8,11].map(ix=>data.priorityGoals.reduce((s,r)=>s+Number(r[ix]||0),0));f.innerHTML=`<tr><th colspan="3">Summe</th>${sums.slice(0,6).map(x=>`<th>${fmt(x)}</th>`).join('')}<th>–</th><th>–</th><th>${fmt(sums[6])}</th><th></th></tr>`}}
+
+function addMonthsSafeV64(date,months){
+  const d=new Date(date.getFullYear(),date.getMonth(),1);
+  d.setMonth(d.getMonth()+Math.max(0,Math.ceil(months)));
+  return d;
+}
+function forecastGoalAmountV64(amount,monthlySaving){
+  amount=Math.max(0,Number(amount)||0);
+  monthlySaving=Number(monthlySaving)||0;
+  if(amount<=0) return "bereits erreicht";
+  if(monthlySaving<=0) return "–";
+  return addMonthsSafeV64(new Date(),Math.ceil(amount/monthlySaving)).toLocaleDateString("de-DE");
+}
+
+function renderGoals(){
+  syncFirstGoal();
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const wealth=Math.max(0,Number(totalWealth())||0);
+  const monthlySaving=Math.max(0,Number(avgSurplus())||0);
+
+  let cumulativeMin=0;
+  const forecasts=rows.map(r=>{
+    cumulativeMin+=Math.max(0,Number(r?.[3])||0);
+    return forecastGoalAmountV64(Math.max(0,cumulativeMin-wealth),monthlySaving);
+  });
+
+  const b=$("priorityGoalsBody");
+  if(b)b.innerHTML=rows.map((r,i)=>`<tr>
+    <td>${r[0]??""}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td>
+    <td>${r[3]==null?"–":fmt(r[3])}</td><td>${r[4]==null?"–":fmt(r[4])}</td>
+    <td>${r[5]==null?"–":fmt(r[5])}</td><td>${r[6]==null?"–":fmt(r[6])}</td>
+    <td>${r[7]==null?"–":fmt(r[7])}</td><td>${r[8]==null?"–":fmt(r[8])}</td>
+    <td>${pct(r[9])}</td><td>${pct(r[10])}</td><td>${r[11]==null?"–":fmt(r[11])}</td>
+    <td>${forecasts[i]}</td><td><button data-edit-goal="${i}">Bearbeiten</button></td>
+  </tr>`).join("");
+
+  const f=$("priorityGoalsFoot");
+  if(f){
+    const sums=[3,4,5,6,7,8,11].map(ix=>rows.reduce((s,r)=>s+Number(r?.[ix]||0),0));
+    const totalMin=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[3])||0),0);
+    const totalMax=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[4])||0),0);
+    const endMin=forecastGoalAmountV64(Math.max(0,totalMin-wealth),monthlySaving);
+    const endMax=forecastGoalAmountV64(Math.max(0,totalMax-wealth),monthlySaving);
+    f.innerHTML=`
+      <tr class="total-row"><th colspan="3">Summe</th>
+        ${sums.slice(0,6).map(x=>`<th>${fmt(x)}</th>`).join("")}
+        <th>–</th><th>–</th><th>${fmt(sums[6])}</th><th>–</th><th></th>
+      </tr>
+      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th></th></tr>
+      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th></th></tr>
+      <tr class="goal-forecast-note-v64"><th colspan="14">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}. Ziele werden strikt der Reihenfolge nach angespart.</th></tr>`;
+  }
+}
 
 const confirmedIncomeFixedCostsV55={
   "2026-05":-240.70,
@@ -311,22 +383,19 @@ function monthsBetweenV59(fromYm,toYm){
   return (ty-fy)*12+(tm-fm);
 }
 function ensureProgressStateV59(){
-  data.progressTrackingV59=data.progressTrackingV59||{
-    baseline:null,
-    snapshots:{},
-    goalForecasts:{}
-  };
+  if(!data.progressTrackingV59 || typeof data.progressTrackingV59!=="object" || Array.isArray(data.progressTrackingV59)){
+    data.progressTrackingV59={baseline:null,snapshots:{},goalForecasts:{}};
+  }
   const state=data.progressTrackingV59;
-
-  if(!state.baseline){
-    const currentYm=monthKeyV59();
+  if(!state.snapshots || typeof state.snapshots!=="object" || Array.isArray(state.snapshots)) state.snapshots={};
+  if(!state.goalForecasts || typeof state.goalForecasts!=="object" || Array.isArray(state.goalForecasts)) state.goalForecasts={};
+  if(!state.baseline || typeof state.baseline!=="object"){
     const monthsSinceT0=Math.max(1,monthsBetweenV59("2025-06",SNAPSHOT_START_MONTH_V59));
     const currentWealth=Number(typeof totalWealth==="function"?totalWealth():0);
-    const avgMonthly=(currentWealth-WEALTH_T0_V59)/monthsSinceT0;
     state.baseline={
       startMonth:SNAPSHOT_START_MONTH_V59,
       wealthAtStart:currentWealth,
-      avgMonthlyGrowth:avgMonthly,
+      avgMonthlyGrowth:(currentWealth-WEALTH_T0_V59)/monthsSinceT0,
       t0:WEALTH_T0_V59
     };
   }

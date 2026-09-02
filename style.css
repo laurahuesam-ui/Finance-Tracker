@@ -119,3 +119,7 @@ th:first-child,td:first-child{text-align:left}
 .forecast-history-v60{display:block;margin-top:.35rem;opacity:.8;line-height:1.35}
 
 #addAmexMonth{margin-left:.6rem}
+
+.goal-end-forecast-v64 th{background:#f7f9fc;font-weight:800}
+.goal-end-forecast-v64 th:nth-last-child(2){color:var(--primary)}
+.goal-forecast-note-v64 th{text-align:left!important;color:var(--muted);font-size:.82rem;font-weight:500;white-space:normal}
