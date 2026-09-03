@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 69;
+const APP_VERSION = 70;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -350,7 +350,11 @@ function renderGoals(){
     <td>${r[5]==null?"–":fmt(r[5])}</td><td>${r[6]==null?"–":fmt(r[6])}</td>
     <td>${r[7]==null?"–":fmt(r[7])}</td><td>${r[8]==null?"–":fmt(r[8])}</td>
     <td>${pct(r[9])}</td><td>${pct(r[10])}</td><td>${r[11]==null?"–":fmt(r[11])}</td>
-    <td>${forecasts[i]}</td><td><button data-edit-goal="${i}">Bearbeiten</button></td>
+    <td>${forecasts[i]}</td><td class="goal-actions-v70">
+      <button data-goal-up="${i}" ${i===0?"disabled":""} title="Nach oben">↑</button>
+      <button data-goal-down="${i}" ${i===rows.length-1?"disabled":""} title="Nach unten">↓</button>
+      <button data-edit-goal="${i}">Bearbeiten</button>
+    </td>
   </tr>`).join("");
 
   const f=$("priorityGoalsFoot");
@@ -889,7 +893,35 @@ if(d.saveFuel){
   editingFuel=null;
   save();
 }
-if(d.deleteFuel){data.fuelEntries=data.fuelEntries.filter(x=>x.id!==d.deleteFuel);save()}if(d.editCapital){editingCapital=d.editCapital;renderCapitalTable()}if(d.cancelCapital!==undefined){editingCapital=null;renderCapitalTable()}if(d.saveCapital){const r=data.capitalHistory.find(x=>x.month===d.saveCapital);document.querySelectorAll('[data-cap-field]').forEach(x=>r[x.dataset.capField]=Number(x.value)||0);r.total=Number(r.sparkasseInterest||0)+Number(r.trInterest||0)+Number(r.dividend||0);editingCapital=null;save()}if(d.editFixed){const x=data.fixedCosts.find(v=>v.id===d.editFixed);modal(`<h2>${esc(x.name)} bearbeiten</h2><label>Tag<input id="mDay" type="number" min="1" max="31" value="${x.day}"></label><label>Betrag<input id="mAmount" type="number" step="0.01" value="${x.amount}"></label><button id="mSaveFixed">Speichern</button>`);$('mSaveFixed').onclick=()=>{x.day=Number($('mDay').value)||1;x.amount=Number($('mAmount').value)||0;closeModal();save()}}if(d.editAsset){const a=data.assets.find(v=>v.id===d.editAsset);const stock=a.type==='stock';modal(`<h2>${esc(a.name)} aktualisieren</h2><label>Neuer Stand<input id="mBal" type="number" step="0.01" value="${a.balance}"></label><label>${stock?'Dividende pro Monat':'Zinssatz p. a. (%)'}<input id="mYield" type="number" step="0.01" value="${stock?a.monthlyDividend:a.rate}"></label>${stock?`<p>Berechnete Dividendenrendite: <strong id="mRendite"></strong></p>`:''}<button id="mSaveAsset">Speichern</button>`);const upd=()=>{if(stock)set('mRendite',pct(Number($('mBal').value)?Number($('mYield').value)*12/Number($('mBal').value)*100:0))};if(stock){$('mBal').oninput=upd;$('mYield').oninput=upd;upd()}$('mSaveAsset').onclick=()=>{a.balance=Number($('mBal').value)||0;if(stock)a.monthlyDividend=Number($('mYield').value)||0;else a.rate=Number($('mYield').value)||0;closeModal();save()}}if(d.editGoal!==undefined){const r=data.priorityGoals[Number(d.editGoal)];const name=prompt('Unterkategorie',r[2]);if(name===null)return;r[2]=name;const min=prompt('Einmalige Kosten min',r[3]??'');if(min===null)return;r[3]=Number(String(min).replace(',','.'))||0;const max=prompt('Einmalige Kosten max',r[4]??'');if(max===null)return;r[4]=Number(String(max).replace(',','.'))||0;save()}});
+if(d.deleteFuel){data.fuelEntries=data.fuelEntries.filter(x=>x.id!==d.deleteFuel);save()}if(d.editCapital){editingCapital=d.editCapital;renderCapitalTable()}if(d.cancelCapital!==undefined){editingCapital=null;renderCapitalTable()}if(d.saveCapital){const r=data.capitalHistory.find(x=>x.month===d.saveCapital);document.querySelectorAll('[data-cap-field]').forEach(x=>r[x.dataset.capField]=Number(x.value)||0);r.total=Number(r.sparkasseInterest||0)+Number(r.trInterest||0)+Number(r.dividend||0);editingCapital=null;save()}if(d.editFixed){const x=data.fixedCosts.find(v=>v.id===d.editFixed);modal(`<h2>${esc(x.name)} bearbeiten</h2><label>Tag<input id="mDay" type="number" min="1" max="31" value="${x.day}"></label><label>Betrag<input id="mAmount" type="number" step="0.01" value="${x.amount}"></label><button id="mSaveFixed">Speichern</button>`);$('mSaveFixed').onclick=()=>{x.day=Number($('mDay').value)||1;x.amount=Number($('mAmount').value)||0;closeModal();save()}}if(d.editAsset){const a=data.assets.find(v=>v.id===d.editAsset);const stock=a.type==='stock';modal(`<h2>${esc(a.name)} aktualisieren</h2><label>Neuer Stand<input id="mBal" type="number" step="0.01" value="${a.balance}"></label><label>${stock?'Dividende pro Monat':'Zinssatz p. a. (%)'}<input id="mYield" type="number" step="0.01" value="${stock?a.monthlyDividend:a.rate}"></label>${stock?`<p>Berechnete Dividendenrendite: <strong id="mRendite"></strong></p>`:''}<button id="mSaveAsset">Speichern</button>`);const upd=()=>{if(stock)set('mRendite',pct(Number($('mBal').value)?Number($('mYield').value)*12/Number($('mBal').value)*100:0))};if(stock){$('mBal').oninput=upd;$('mYield').oninput=upd;upd()}$('mSaveAsset').onclick=()=>{a.balance=Number($('mBal').value)||0;if(stock)a.monthlyDividend=Number($('mYield').value)||0;else a.rate=Number($('mYield').value)||0;closeModal();save()}}if(d.goalUp!==undefined){
+  const i=Number(d.goalUp);
+  if(i>0){
+    [data.priorityGoals[i-1],data.priorityGoals[i]]=[data.priorityGoals[i],data.priorityGoals[i-1]];
+    data.priorityGoals.forEach((r,ix)=>r[0]=ix+1);
+    save();
+  }
+  return;
+}
+if(d.goalDown!==undefined){
+  const i=Number(d.goalDown);
+  if(i>=0&&i<data.priorityGoals.length-1){
+    [data.priorityGoals[i],data.priorityGoals[i+1]]=[data.priorityGoals[i+1],data.priorityGoals[i]];
+    data.priorityGoals.forEach((r,ix)=>r[0]=ix+1);
+    save();
+  }
+  return;
+}
+if(d.editGoal!==undefined){
+  const r=data.priorityGoals[Number(d.editGoal)];
+  const name=prompt('Unterkategorie',r[2]);if(name===null)return;r[2]=name;
+  const min=prompt('Einmalige Kosten min',r[3]??'');if(min===null)return;r[3]=Number(String(min).replace(',','.'))||0;
+  const max=prompt('Einmalige Kosten max',r[4]??'');if(max===null)return;r[4]=Number(String(max).replace(',','.'))||0;
+  const lkMinPa=prompt('Laufende Kosten min p.a.',r[5]??'');if(lkMinPa===null)return;r[5]=Number(String(lkMinPa).replace(',','.'))||0;
+  const lkMaxPa=prompt('Laufende Kosten max p.a.',r[6]??'');if(lkMaxPa===null)return;r[6]=Number(String(lkMaxPa).replace(',','.'))||0;
+  const lkMinPm=prompt('Laufende Kosten min p.m.',r[7]??'');if(lkMinPm===null)return;r[7]=Number(String(lkMinPm).replace(',','.'))||0;
+  const lkMaxPm=prompt('Laufende Kosten max p.m.',r[8]??'');if(lkMaxPm===null)return;r[8]=Number(String(lkMaxPm).replace(',','.'))||0;
+  save()
+}});
 $('closeModal').onclick=closeModal;$('addFuelEntry').onclick=()=>{
   modal(`<h2>Tankvorgang hinzufügen</h2>
     <label>Datum<input id="newFuelDate" type="date" value="${new Date().toISOString().slice(0,10)}"></label>
