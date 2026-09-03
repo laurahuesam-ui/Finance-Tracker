@@ -135,3 +135,7 @@ th:first-child,td:first-child{text-align:left}
 
 .goal-global-rate-v66{margin-top:0}
 .goal-global-rate-v66 .panel-head{margin-bottom:.5rem}
+
+.goal-global-rate-fields-v66{grid-template-columns:minmax(140px,1fr) minmax(155px,1fr) minmax(120px,.8fr) auto!important}
+@media(max-width:850px){.goal-global-rate-fields-v66{grid-template-columns:1fr 1fr!important}}
+@media(max-width:550px){.goal-global-rate-fields-v66{grid-template-columns:1fr!important}}

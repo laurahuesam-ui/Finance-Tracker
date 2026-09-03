@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 68;
+const APP_VERSION = 69;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -227,61 +227,76 @@ function monthsFromCurrentInclusiveToV66(endMonth){
   if(!y||!m) return 0;
   return Math.max(0,(y-now.getFullYear())*12+((m-1)-now.getMonth())+1);
 }
+function parseGlobalRateEndV69(value){
+  const raw=String(value||"").trim();
+  if(!raw) return null;
+  let y=0,m=0;
+  if(/^\d{4}$/.test(raw)){
+    y=Number(raw); m=12;
+  }else if(/^\d{4}-\d{1,2}(?:-\d{1,2})?$/.test(raw)){
+    const p=raw.split("-"); y=Number(p[0]); m=Number(p[1]);
+  }else if(/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(raw)){
+    const p=raw.split("."); m=Number(p[1]); y=Number(p[2]);
+  }else{
+    return null;
+  }
+  if(!Number.isFinite(y)||!Number.isFinite(m)||y<1||m<1||m>12) return null;
+  return {year:y,month:m};
+}
+function globalRateMonthsV69(){
+  normalizeGlobalGoalRateV66();
+  const parsed=parseGlobalRateEndV69(data.settings.globalGoalRateEndV66);
+  if(!parsed) return 0;
+  const now=new Date();
+  const diff=(parsed.year-now.getFullYear())*12+((parsed.month-1)-now.getMonth())+1;
+  return Math.max(0,diff);
+}
+function globalRateEndLabelV69(){
+  const raw=String(data.settings.globalGoalRateEndV66||"").trim();
+  const parsed=parseGlobalRateEndV69(raw);
+  if(!parsed) return raw||"–";
+  if(/^\d{4}$/.test(raw)) return String(parsed.year);
+  return `${String(parsed.month).padStart(2,"0")}.${parsed.year}`;
+}
+
 function forecastWithGlobalRateV66(targetTotal){
   normalizeGlobalGoalRateV66();
-
-  let remaining=Math.max(0,(Number(targetTotal)||0)-Math.max(0,Number(totalWealth())||0));
+  const wealth=Math.max(0,Number(totalWealth())||0);
+  const remaining=Math.max(0,(Number(targetTotal)||0)-wealth);
   if(remaining<=0) return "bereits erreicht";
 
   const saving=Math.max(0,Number(avgSurplus())||0);
   const rate=Math.max(0,Number(data.settings.globalGoalRateV66)||0);
-  const rateEnd=String(data.settings.globalGoalRateEndV66||"");
+  const rateMonths=globalRateMonthsV69();
+  const combined=saving+(rateMonths>0?rate:0);
 
-  if(saving<=0 && (rate<=0 || !rateEnd)) return "–";
+  let totalMonths=0;
 
-  const now=new Date();
-  let cursor=new Date(now.getFullYear(),now.getMonth(),1);
-
-  // Monatsweise: normaler Sparüberschuss läuft immer weiter.
-  // Die allgemeine Rate wird zusätzlich bis einschließlich "Rate bis" abgezogen.
-  // Keine künstliche 100-Jahre-Grenze.
-  let guard=0;
-  while(remaining>0 && guard<12000){
-    const ym=`${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,"0")}`;
-
-    let payment=saving;
-    if(rate>0 && rateEnd && ym<=rateEnd){
-      payment+=rate;
+  if(rateMonths>0 && combined>0){
+    const coveredDuringRate=combined*rateMonths;
+    if(remaining<=coveredDuringRate){
+      totalMonths=Math.ceil(remaining/combined);
+    }else{
+      const rest=remaining-coveredDuringRate;
+      if(saving<=0) return "–";
+      totalMonths=rateMonths+Math.ceil(rest/saving);
     }
-
-    if(payment<=0){
-      return "–";
-    }
-
-    remaining=Math.max(0,remaining-payment);
-
-    if(remaining<=0){
-      return cursor.toLocaleDateString("de-DE",{month:"2-digit",year:"numeric"});
-    }
-
-    cursor.setMonth(cursor.getMonth()+1);
-    guard++;
+  }else{
+    if(saving<=0) return "–";
+    totalMonths=Math.ceil(remaining/saving);
   }
 
-  return remaining<=0
-    ? cursor.toLocaleDateString("de-DE",{month:"2-digit",year:"numeric"})
-    : "–";
+  const d=new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth()+totalMonths);
+  return d.toLocaleDateString("de-DE");
 }
 
 function globalRateImpactV68(){
   normalizeGlobalGoalRateV66();
   const rate=Math.max(0,Number(data.settings.globalGoalRateV66)||0);
-  const end=String(data.settings.globalGoalRateEndV66||"");
-  if(rate<=0 || !end) return 0;
-  const now=new Date();
-  const [y,m]=end.split("-").map(Number);
-  if(!y||!m) return 0;
-  const months=Math.max(0,(y-now.getFullYear())*12+((m-1)-now.getMonth())+1);
+  const months=globalRateMonthsV69();
+  if(rate<=0 || months<=0) return 0;
   return rate*months;
 }
 
@@ -289,18 +304,24 @@ function renderGlobalGoalRateV66(){
   normalizeGlobalGoalRateV66();
   const rateInput=$("globalGoalRateV66");
   const endInput=$("globalGoalRateEndV66");
+  const yearInput=$("globalGoalRateEndYearV69");
+
   if(rateInput) rateInput.value=data.settings.globalGoalRateV66||0;
-  if(endInput) endInput.value=data.settings.globalGoalRateEndV66||"";
+
+  const raw=String(data.settings.globalGoalRateEndV66||"");
+  if(endInput) endInput.value=/^\d{4}-\d{2}$/.test(raw)?raw:"";
+  if(yearInput) yearInput.value=/^\d{4}$/.test(raw)?raw:"";
 
   const status=$("globalGoalRateStatusV66");
   if(status){
-    const rate=Number(data.settings.globalGoalRateV66)||0;
-    const end=data.settings.globalGoalRateEndV66||"";
-    if(rate>0 && end){
-      const [y,m]=end.split("-").map(Number);
-      const label=(y&&m)?new Date(y,m-1,1).toLocaleDateString("de-DE",{month:"2-digit",year:"numeric"}):end;
-      const impact=globalRateImpactV68();
-      status.textContent=`Aktiv: ${fmt(rate)} pro Monat bis ${label} · insgesamt bis dahin ${fmt(impact)} in der Endprognose berücksichtigt`;
+    const rate=Math.max(0,Number(data.settings.globalGoalRateV66)||0);
+    const end=String(data.settings.globalGoalRateEndV66||"");
+    const months=globalRateMonthsV69();
+
+    if(rate>0 && end && months>0){
+      status.textContent=`Aktiv: ${fmt(rate)} pro Monat bis ${globalRateEndLabelV69()} · ${months} Monate · insgesamt ${fmt(globalRateImpactV68())} in der Endprognose berücksichtigt`;
+    }else if(rate>0 && end){
+      status.textContent=`Rate gespeichert, aber Enddatum "${end}" liegt nicht in der Zukunft oder ist nicht lesbar.`;
     }else{
       status.textContent="Keine allgemeine Rate hinterlegt.";
     }
@@ -953,17 +974,29 @@ document.addEventListener("DOMContentLoaded",()=>{
 document.addEventListener("DOMContentLoaded",()=>{
   const btn=$("saveGlobalGoalRateV66");
   const rateInput=$("globalGoalRateV66");
-  const endInput=$("globalGoalRateEndV66");
+  const monthInput=$("globalGoalRateEndV66");
+  const yearInput=$("globalGoalRateEndYearV69");
 
   const storeRate=()=>{
     normalizeGlobalGoalRateV66();
-    data.settings.globalGoalRateV66=Math.max(0,Number(rateInput?.value)||0);
-    data.settings.globalGoalRateEndV66=endInput?.value||"";
+    const rate=Math.max(0,Number(rateInput?.value)||0);
+    const month=String(monthInput?.value||"").trim();
+    const year=String(yearInput?.value||"").trim();
+
+    data.settings.globalGoalRateV66=rate;
+
+    if(month){
+      data.settings.globalGoalRateEndV66=month;
+      if(yearInput) yearInput.value="";
+    }else if(/^\d{4}$/.test(year)){
+      data.settings.globalGoalRateEndV66=year;
+    }else if(rate<=0){
+      data.settings.globalGoalRateEndV66="";
+    }
+
     localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
     renderGoals();
   };
 
   if(btn) btn.onclick=storeRate;
-  if(rateInput) rateInput.onchange=storeRate;
-  if(endInput) endInput.onchange=storeRate;
 });

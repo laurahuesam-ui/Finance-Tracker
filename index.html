@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 68</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 69</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -282,8 +282,11 @@
       <label>Rate pro Monat
         <input id="globalGoalRateV66" type="number" min="0" step="0.01" value="0">
       </label>
-      <label>Rate bis
+      <label>Rate bis Monat
         <input id="globalGoalRateEndV66" type="month">
+      </label>
+      <label>oder nur Jahr
+        <input id="globalGoalRateEndYearV69" type="number" min="2026" step="1" placeholder="z. B. 2041">
       </label>
       <button id="saveGlobalGoalRateV66" type="button">Rate speichern</button>
     </div>
@@ -326,7 +329,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 68</span>
+      <span class="badge">Version 69</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
