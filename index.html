@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 70</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 71</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -329,7 +329,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 70</span>
+      <span class="badge">Version 71</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
@@ -357,7 +357,16 @@
       <div class="stat"><span>Vermögensvorsprung</span><strong id="wealthLeadV59">–</strong></div>
       <div class="stat"><span>Ø Steigerung seit t=0</span><strong id="baselineMonthlyGrowthV59">–</strong></div>
     </div>
-  </article></section>
+  </article><article class="panel dashboard-savings-goals-v71">
+<h2>Sparziele gesamt</h2>
+<p class="muted">Gesamtfortschritt über alle Sparziele.</p>
+<div class="dashboard-goal-grid-v71">
+<div class="dashboard-goal-box-v71"><span>Min erreicht</span><strong id="dashGoalsMinPctV71">–</strong><small id="dashGoalsMinAmountsV71">–</small></div>
+<div class="dashboard-goal-box-v71"><span>Max erreicht</span><strong id="dashGoalsMaxPctV71">–</strong><small id="dashGoalsMaxAmountsV71">–</small></div>
+<div class="dashboard-goal-box-v71"><span>Endprognose Min</span><strong id="dashGoalsEndMinV71">–</strong></div>
+<div class="dashboard-goal-box-v71"><span>Endprognose Max</span><strong id="dashGoalsEndMaxV71">–</strong></div>
+</div></article>
+</section>
 
 <section id="incomeAnalysis" class="page">
   <article class="panel">

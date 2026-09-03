@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 70;
+const APP_VERSION = 71;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -874,7 +874,23 @@ function addAmexMonthV62(){
   $("cancelNewAmexV62").onclick=closeModal;
 }
 
-function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()}
+function renderDashboardSavingsGoalsV71(){
+ const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+ const wealth=Math.max(0,Number(totalWealth())||0);
+ const totalMin=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[3])||0),0);
+ const totalMax=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[4])||0),0);
+ const p=(x,t)=>t>0?(x/t*100):0;
+ const six=x=>x.toLocaleString("de-DE",{minimumFractionDigits:6,maximumFractionDigits:6})+" %";
+ if($("dashGoalsMinPctV71"))$("dashGoalsMinPctV71").textContent=six(p(wealth,totalMin));
+ if($("dashGoalsMaxPctV71"))$("dashGoalsMaxPctV71").textContent=six(p(wealth,totalMax));
+ if($("dashGoalsMinAmountsV71"))$("dashGoalsMinAmountsV71").textContent=`${fmt(wealth)} / ${fmt(totalMin)}`;
+ if($("dashGoalsMaxAmountsV71"))$("dashGoalsMaxAmountsV71").textContent=`${fmt(wealth)} / ${fmt(totalMax)}`;
+ if($("dashGoalsEndMinV71"))$("dashGoalsEndMinV71").textContent=forecastWithGlobalRateV66(totalMin);
+ if($("dashGoalsEndMaxV71"))$("dashGoalsEndMaxV71").textContent=forecastWithGlobalRateV66(totalMax);
+}
+function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()
+renderDashboardSavingsGoalsV71();
+}
 function modal(html){$('modalContent').innerHTML=html;$('modal').classList.remove('hidden')}
 function closeModal(){$('modal').classList.add('hidden')}
 document.addEventListener('click',e=>{const d=e.target.dataset;if(d.editIncome){editingIncome=d.editIncome;renderIncome()}if(d.cancelIncome!==undefined){editingIncome=null;renderIncome()}if(d.saveIncome){

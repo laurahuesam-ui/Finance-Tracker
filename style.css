@@ -143,3 +143,4 @@ th:first-child,td:first-child{text-align:left}
 .goal-actions-v70{display:flex;gap:.3rem;align-items:center;white-space:nowrap}
 .goal-actions-v70 button{min-width:2rem}
 .goal-actions-v70 button:disabled{opacity:.35;cursor:default}
+.dashboard-goal-grid-v71{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem}.dashboard-goal-box-v71{padding:1rem;border:1px solid var(--line);border-radius:12px;background:#fbfcfe;display:flex;flex-direction:column;gap:.35rem}.dashboard-goal-box-v71 span,.dashboard-goal-box-v71 small{color:var(--muted)}.dashboard-goal-box-v71 strong{font-size:1.2rem}@media(max-width:900px){.dashboard-goal-grid-v71{grid-template-columns:1fr 1fr}}@media(max-width:550px){.dashboard-goal-grid-v71{grid-template-columns:1fr}}
