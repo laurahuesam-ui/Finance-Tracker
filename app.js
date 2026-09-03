@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 72;
+const APP_VERSION = 73;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -1049,4 +1049,59 @@ document.addEventListener("DOMContentLoaded",()=>{
   };
 
   if(btn) btn.onclick=storeRate;
+});
+
+
+document.addEventListener("DOMContentLoaded",()=>{
+  const form=$("priorityGoalFormV73");
+  if(!form) return;
+
+  form.addEventListener("submit",e=>{
+    e.preventDefault();
+
+    const text=id=>String($(id)?.value||"").trim();
+    const num=id=>{
+      const raw=String($(id)?.value??"").trim().replace(",",".");
+      return raw===""?0:Math.max(0,Number(raw)||0);
+    };
+
+    const category=text("newGoalCategoryV73");
+    const subcategory=text("newGoalSubcategoryV73");
+
+    if(!category || !subcategory){
+      alert("Bitte Kategorie und Unterkategorie eingeben.");
+      return;
+    }
+
+    if(!Array.isArray(data.priorityGoals)) data.priorityGoals=[];
+
+    const min=num("newGoalMinV73");
+    const max=num("newGoalMaxV73");
+
+    data.priorityGoals.push([
+      data.priorityGoals.length+1,
+      category,
+      subcategory,
+      min,
+      max,
+      num("newGoalLkMinPaV73"),
+      num("newGoalLkMaxPaV73"),
+      num("newGoalLkMinPmV73"),
+      num("newGoalLkMaxPmV73"),
+      0,
+      0,
+      null
+    ]);
+
+    // Prioritäten sicher fortlaufend halten.
+    data.priorityGoals.forEach((r,i)=>r[0]=i+1);
+
+    form.reset();
+    ["newGoalLkMinPaV73","newGoalLkMaxPaV73","newGoalLkMinPmV73","newGoalLkMaxPmV73"].forEach(id=>{
+      const el=$(id);
+      if(el) el.value="0";
+    });
+
+    save();
+  });
 });

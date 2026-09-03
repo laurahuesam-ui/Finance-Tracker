@@ -148,3 +148,26 @@ th:first-child,td:first-child{text-align:left}
 .dashboard-goal-grid-v72{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(max-width:900px){.dashboard-goal-grid-v72{grid-template-columns:1fr 1fr}}
 @media(max-width:550px){.dashboard-goal-grid-v72{grid-template-columns:1fr}}
+
+.goal-create-grid-v73{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:.8rem;
+  align-items:end;
+}
+.goal-create-grid-v73 label{
+  display:flex;
+  flex-direction:column;
+  gap:.35rem;
+  color:var(--muted);
+  font-size:.88rem;
+}
+.goal-create-actions-v73{
+  grid-column:1/-1;
+  display:flex;
+  justify-content:flex-start;
+  margin-top:.2rem;
+}
+@media(max-width:650px){
+  .goal-create-grid-v73{grid-template-columns:1fr}
+}
