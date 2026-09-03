@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 71;
+const APP_VERSION = 72;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -374,6 +374,8 @@ function renderGoals(){
       <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th></th></tr>
       <tr class="goal-forecast-note-v64"><th colspan="14">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.</th></tr>`;
   }
+
+  renderDashboardSavingsGoalsV71();
 }
 
 const confirmedIncomeFixedCostsV55={
