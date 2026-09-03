@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 67;
+const APP_VERSION = 68;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -229,46 +229,69 @@ function monthsFromCurrentInclusiveToV66(endMonth){
 }
 function forecastWithGlobalRateV66(targetTotal){
   normalizeGlobalGoalRateV66();
-  const wealth=Math.max(0,Number(totalWealth())||0);
-  const remaining=Math.max(0,(Number(targetTotal)||0)-wealth);
+
+  let remaining=Math.max(0,(Number(targetTotal)||0)-Math.max(0,Number(totalWealth())||0));
   if(remaining<=0) return "bereits erreicht";
 
   const saving=Math.max(0,Number(avgSurplus())||0);
   const rate=Math.max(0,Number(data.settings.globalGoalRateV66)||0);
-  const rateMonths=monthsFromCurrentInclusiveToV66(data.settings.globalGoalRateEndV66);
-  const combined=saving+rate;
+  const rateEnd=String(data.settings.globalGoalRateEndV66||"");
 
-  if(rateMonths>0 && combined>0){
-    const needed=Math.ceil(remaining/combined);
-    if(needed<=rateMonths){
-      const d=new Date();
-      d.setDate(1);
-      d.setMonth(d.getMonth()+needed);
-      return d.toLocaleDateString("de-DE");
+  if(saving<=0 && (rate<=0 || !rateEnd)) return "–";
+
+  const now=new Date();
+  let cursor=new Date(now.getFullYear(),now.getMonth(),1);
+
+  // Monatsweise: normaler Sparüberschuss läuft immer weiter.
+  // Die allgemeine Rate wird zusätzlich bis einschließlich "Rate bis" abgezogen.
+  // Keine künstliche 100-Jahre-Grenze.
+  let guard=0;
+  while(remaining>0 && guard<12000){
+    const ym=`${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,"0")}`;
+
+    let payment=saving;
+    if(rate>0 && rateEnd && ym<=rateEnd){
+      payment+=rate;
     }
+
+    if(payment<=0){
+      return "–";
+    }
+
+    remaining=Math.max(0,remaining-payment);
+
+    if(remaining<=0){
+      return cursor.toLocaleDateString("de-DE",{month:"2-digit",year:"numeric"});
+    }
+
+    cursor.setMonth(cursor.getMonth()+1);
+    guard++;
   }
 
-  const rest=Math.max(0,remaining-(rateMonths>0?combined*rateMonths:0));
-  if(rest<=0){
-    const d=new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth()+rateMonths);
-    return d.toLocaleDateString("de-DE");
-  }
-
-  if(saving<=0) return "–";
-  const monthsAfter=Math.ceil(rest/saving);
-  const d=new Date();
-  d.setDate(1);
-  d.setMonth(d.getMonth()+rateMonths+monthsAfter);
-  return d.toLocaleDateString("de-DE");
+  return remaining<=0
+    ? cursor.toLocaleDateString("de-DE",{month:"2-digit",year:"numeric"})
+    : "–";
 }
+
+function globalRateImpactV68(){
+  normalizeGlobalGoalRateV66();
+  const rate=Math.max(0,Number(data.settings.globalGoalRateV66)||0);
+  const end=String(data.settings.globalGoalRateEndV66||"");
+  if(rate<=0 || !end) return 0;
+  const now=new Date();
+  const [y,m]=end.split("-").map(Number);
+  if(!y||!m) return 0;
+  const months=Math.max(0,(y-now.getFullYear())*12+((m-1)-now.getMonth())+1);
+  return rate*months;
+}
+
 function renderGlobalGoalRateV66(){
   normalizeGlobalGoalRateV66();
   const rateInput=$("globalGoalRateV66");
   const endInput=$("globalGoalRateEndV66");
   if(rateInput) rateInput.value=data.settings.globalGoalRateV66||0;
   if(endInput) endInput.value=data.settings.globalGoalRateEndV66||"";
+
   const status=$("globalGoalRateStatusV66");
   if(status){
     const rate=Number(data.settings.globalGoalRateV66)||0;
@@ -276,7 +299,8 @@ function renderGlobalGoalRateV66(){
     if(rate>0 && end){
       const [y,m]=end.split("-").map(Number);
       const label=(y&&m)?new Date(y,m-1,1).toLocaleDateString("de-DE",{month:"2-digit",year:"numeric"}):end;
-      status.textContent=`Aktiv: ${fmt(rate)} pro Monat bis ${label}`;
+      const impact=globalRateImpactV68();
+      status.textContent=`Aktiv: ${fmt(rate)} pro Monat bis ${label} · insgesamt bis dahin ${fmt(impact)} in der Endprognose berücksichtigt`;
     }else{
       status.textContent="Keine allgemeine Rate hinterlegt.";
     }
@@ -323,7 +347,7 @@ function renderGoals(){
       </tr>
       <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th></th></tr>
       <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th></th></tr>
-      <tr class="goal-forecast-note-v64"><th colspan="14">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` plus allgemeine Rate ${fmt(data.settings.globalGoalRateV66)} bis ${data.settings.globalGoalRateEndV66}`:""}. Die Zielbeträge selbst werden nicht verändert.</th></tr>`;
+      <tr class="goal-forecast-note-v64"><th colspan="14">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.</th></tr>`;
   }
 }
 
@@ -928,10 +952,18 @@ document.addEventListener("DOMContentLoaded",()=>{
 
 document.addEventListener("DOMContentLoaded",()=>{
   const btn=$("saveGlobalGoalRateV66");
-  if(btn) btn.onclick=()=>{
+  const rateInput=$("globalGoalRateV66");
+  const endInput=$("globalGoalRateEndV66");
+
+  const storeRate=()=>{
     normalizeGlobalGoalRateV66();
-    data.settings.globalGoalRateV66=Math.max(0,Number($("globalGoalRateV66").value)||0);
-    data.settings.globalGoalRateEndV66=$("globalGoalRateEndV66").value||"";
-    save();
+    data.settings.globalGoalRateV66=Math.max(0,Number(rateInput?.value)||0);
+    data.settings.globalGoalRateEndV66=endInput?.value||"";
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+    renderGoals();
   };
+
+  if(btn) btn.onclick=storeRate;
+  if(rateInput) rateInput.onchange=storeRate;
+  if(endInput) endInput.onchange=storeRate;
 });
