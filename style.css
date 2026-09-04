@@ -183,3 +183,8 @@ th:first-child,td:first-child{text-align:left}
 
 .finance-priority-note-v76{grid-column:1/-1;padding:.75rem .9rem;border:1px solid var(--line);border-radius:10px;background:#fbfcfe;color:var(--muted);font-size:.86rem}
 .finance-summary-v74 .stat small{display:block;margin-top:.25rem;color:var(--muted);font-size:.78rem}
+
+.finance-binding-v78{grid-column:1/-1;padding:.8rem .9rem;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}
+.finance-binding-v78 span{display:flex;align-items:center;gap:.55rem;font-weight:700;color:var(--text)}
+.finance-binding-v78 input{width:auto}
+.finance-binding-v78 small{display:block;margin-top:.35rem;color:var(--muted)}

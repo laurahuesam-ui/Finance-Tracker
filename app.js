@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 77;
+const APP_VERSION = 78;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -330,12 +330,40 @@ function renderGlobalGoalRateV66(){
 }
 
 
+
 function ensureGoalFinancingV74(){
-  if(!data.goalFinancingV74 || typeof data.goalFinancingV74!=="object" || Array.isArray(data.goalFinancingV74)) data.goalFinancingV74={};
-  (data.priorityGoals||[]).forEach((r,i)=>{
-    if(!r[12]) r[12]=`goal-${Date.now()}-${i}-${Math.random().toString(36).slice(2,8)}`;
+  if(!data.goalFinancingV74 || typeof data.goalFinancingV74!=="object" || Array.isArray(data.goalFinancingV74)){
+    data.goalFinancingV74={};
+  }
+
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const existingKeys=Object.keys(data.goalFinancingV74);
+  const alreadyUsed=new Set(rows.map(r=>String(r?.[12]||"")).filter(Boolean));
+  const orphanKeys=existingKeys.filter(k=>!alreadyUsed.has(k));
+  let orphanIndex=0;
+
+  rows.forEach((r,i)=>{
+    if(r[12]) return;
+
+    // Recovery first: if an older update left a financing object orphaned,
+    // reconnect it instead of generating a new key and making the old plan disappear.
+    while(orphanIndex<orphanKeys.length && alreadyUsed.has(orphanKeys[orphanIndex])) orphanIndex++;
+    if(orphanIndex<orphanKeys.length){
+      r[12]=orphanKeys[orphanIndex++];
+      alreadyUsed.add(String(r[12]));
+      return;
+    }
+
+    // Only brand-new goals receive a new id. Never replace an existing financing entry.
+    let id=`goal-v78-${i}-${Math.random().toString(36).slice(2,10)}`;
+    while(data.goalFinancingV74[id] || alreadyUsed.has(id)){
+      id=`goal-v78-${i}-${Math.random().toString(36).slice(2,10)}`;
+    }
+    r[12]=id;
+    alreadyUsed.add(id);
   });
 }
+
 function financingPlanV74(i){
   ensureGoalFinancingV74();
   const r=data.priorityGoals?.[i];
@@ -393,12 +421,19 @@ function priorityFinancingStartV76(i){
     let completed=null;
 
     if(goalHasFinancingV77(x)){
-      // If a financing exists, this goal is considered completed only
-      // when its financing is fully paid off.
-      const sim=financingSimulationV74(x);
-      completed=sim?.paidOff||null;
+      const plan=financingPlanV74(x);
+      if(plan?.bindingCredit===true){
+        // A legally binding financing is authoritative for the priority chain.
+        // If it fully finances the target, completion is exactly its payoff date.
+        // If it only finances part, financingSimulationV74 already combines
+        // saving/equity/grants/credit and returns the resulting payoff date.
+        const sim=financingSimulationV74(x);
+        completed=sim?.paidOff||sim?.financeable||null;
+      }else{
+        // Draft/non-binding financing must not change the global priority forecast.
+        completed=normalGoalForecastDateV77(x);
+      }
     }else{
-      // Without financing, keep using the existing normal savings-goal forecast.
       completed=normalGoalForecastDateV77(x);
     }
 
@@ -494,7 +529,7 @@ function openFinancingV74(i){
   ensureGoalFinancingV74();
   const goal=data.priorityGoals?.[i]; if(!goal)return;
   const id=goal[12];
-  const p=data.goalFinancingV74[id]||{targetMode:"min",customTarget:0,equityMode:"fixed",equity:0,equityPercent:0,savingMode:"fixed",savingValue:0,timingMode:"due",dueDate:"",credits:[],grants:[],once:[]};
+  const p=data.goalFinancingV74[id]||{targetMode:"min",customTarget:0,equityMode:"fixed",equity:0,equityPercent:0,savingMode:"fixed",savingValue:0,timingMode:"due",dueDate:"",bindingCredit:false,credits:[],grants:[],once:[]};
   data.goalFinancingV74[id]=p;
   const sim=financingSimulationV74(i);
   const credits=(p.credits||[]).map((c,j)=>`<tr><td><input data-fc="${j}" data-k="name" value="${escAttrV74(c.name||`Kredit ${j+1}`)}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="amount" value="${Number(c.amount)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="rate" value="${Number(c.rate)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="payment" value="${Number(c.payment)||0}"></td><td><input type="number" step="1" data-fc="${j}" data-k="startMonth" value="${Number(c.startMonth)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="extraAnnual" value="${Number(c.extraAnnual)||0}"></td><td><button type="button" data-remove-credit="${j}">×</button></td></tr>`).join("");
@@ -511,6 +546,10 @@ function openFinancingV74(i){
     </div>
     <h3>Grundlage</h3>
     <div class="form-grid">
+      <label class="finance-binding-v78">
+        <span><input id="finBindingCreditV78" type="checkbox" ${p.bindingCredit===true?"checked":""}> Kredit ist rechtskräftig / verbindlich</span>
+        <small>Nur wenn aktiv, wird die Kreditfinanzierung in den übergeordneten Sparziel- und Prioritätenprognosen berücksichtigt.</small>
+      </label>
       <label>Zeitplanung
         <select id="finTimingModeV76">
           <option value="due" ${(p.timingMode||"due")==="due"?"selected":""}>Fälligkeit festlegen</option>
@@ -521,7 +560,7 @@ function openFinancingV74(i){
         <input id="finDueDateV76" type="date" value="${escAttrV74(p.dueDate||"")}">
       </label>
       <div class="finance-priority-note-v76">
-        <span>Bei „Prioritätenreihenfolge“ beginnt dieses Ziel erst nach Abschluss aller vorherigen Sparziele. Hat ein vorheriges Ziel eine Finanzierung, gilt dessen „Alles abbezahlt am“-Prognose; ohne Finanzierung gilt die normale Sparziel-Prognose.</span>
+        <span>Bei „Prioritätenreihenfolge“ beginnt dieses Ziel erst nach Abschluss aller vorherigen Sparziele. Hat ein vorheriges Ziel eine als rechtskräftig markierte Finanzierung, gilt deren Finanzierungs-/Abzahlungsprognose; bei nicht rechtskräftiger oder fehlender Finanzierung gilt die normale Sparziel-Prognose.</span>
       </div>
       <label>Zielbetrag<select id="finTargetModeV74"><option value="min" ${p.targetMode==="min"?"selected":""}>Min (${fmt(goal[3])})</option><option value="max" ${p.targetMode==="max"?"selected":""}>Max (${fmt(goal[4])})</option><option value="custom" ${p.targetMode==="custom"?"selected":""}>Eigener Betrag</option></select></label>
       <label>Eigener Zielbetrag<input id="finCustomTargetV74" type="number" step=".01" value="${Number(p.customTarget)||0}"></label>
@@ -555,6 +594,38 @@ function openFinancingV74(i){
 }
 function parseTimedV74(v){
   return String(v||"").split(";").map(x=>x.trim()).filter(Boolean).map(x=>{const [amount,month]=x.split("@");return {amount:Math.max(0,Number(String(amount).replace(",","."))||0),month:Math.max(0,Number(month)||0)}}).filter(x=>x.amount>0);
+}
+
+
+function bindingFinancingTotalsV78(){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  let minReduction=0,maxReduction=0,committedCredit=0;
+  let latestPaidOff=null;
+
+  rows.forEach((r,i)=>{
+    if(!goalHasFinancingV77(i)) return;
+    const p=financingPlanV74(i);
+    if(p?.bindingCredit!==true) return;
+
+    const creditTotal=(p.credits||[]).reduce((sum,c)=>sum+Math.max(0,Number(c?.amount)||0),0);
+    if(creditTotal<=0) return;
+
+    committedCredit+=creditTotal;
+    minReduction+=Math.min(Math.max(0,Number(r?.[3])||0),creditTotal);
+    maxReduction+=Math.min(Math.max(0,Number(r?.[4])||0),creditTotal);
+
+    const sim=financingSimulationV74(i);
+    if(sim?.paidOff && (!latestPaidOff || sim.paidOff>latestPaidOff)) latestPaidOff=sim.paidOff;
+  });
+
+  return {minReduction,maxReduction,committedCredit,latestPaidOff};
+}
+function laterForecastV78(normalText,bindingDate){
+  if(!bindingDate) return normalText;
+  const m=String(normalText||"").match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})$/);
+  if(!m) return dateV74(bindingDate);
+  const d=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));
+  return bindingDate>d?dateV74(bindingDate):normalText;
 }
 
 function renderGoals(){
@@ -595,8 +666,11 @@ function renderGoals(){
     const sums=[3,4,5,6,7,8,11].map(ix=>rows.reduce((s,r)=>s+Number(r?.[ix]||0),0));
     const totalMin=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[3])||0),0);
     const totalMax=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[4])||0),0);
-    const endMin=forecastWithGlobalRateV66(totalMin);
-    const endMax=forecastWithGlobalRateV66(totalMax);
+    const bindingV78=bindingFinancingTotalsV78();
+    const remainingMinV78=Math.max(0,totalMin-bindingV78.minReduction);
+    const remainingMaxV78=Math.max(0,totalMax-bindingV78.maxReduction);
+    const endMin=laterForecastV78(forecastWithGlobalRateV66(remainingMinV78),bindingV78.latestPaidOff);
+    const endMax=laterForecastV78(forecastWithGlobalRateV66(remainingMaxV78),bindingV78.latestPaidOff);
 
     f.innerHTML=`
       <tr class="total-row"><th colspan="3">Summe</th>
@@ -605,7 +679,7 @@ function renderGoals(){
       </tr>
       <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th colspan="3"></th></tr>
       <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th colspan="3"></th></tr>
-      <tr class="goal-forecast-note-v64"><th colspan="16">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.</th></tr>`;
+      <tr class="goal-forecast-note-v64"><th colspan="16">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.${bindingV78.committedCredit>0?` Rechtskräftige Kredite: ${fmt(bindingV78.committedCredit)} werden in der Gesamtprognose berücksichtigt; maßgeblich ist mindestens das späteste Kreditende.`:""}</th></tr>`;
   }
 
   renderDashboardSavingsGoalsV71();
@@ -1156,6 +1230,7 @@ if(d.removeCredit!==undefined){
 }
 if(d.saveFinance!==undefined){
   const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingPlanV74(i);if(!p)return;
+  p.bindingCredit=$("finBindingCreditV78")?.checked===true;
   p.timingMode=$("finTimingModeV76")?.value||"due";
   p.dueDate=String($("finDueDateV76")?.value||"");
   p.targetMode=$("finTargetModeV74").value;
