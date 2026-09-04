@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 73;
+const APP_VERSION = 74;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -38,6 +38,7 @@ function normalizeRuntimeDataV64(){
   }
 }
 normalizeRuntimeDataV64();
+ensureGoalFinancingV74();
 
 function normalizeGoalRatesV65(){
   if(!Array.isArray(data.priorityGoals)) return;
@@ -328,6 +329,100 @@ function renderGlobalGoalRateV66(){
   }
 }
 
+
+function ensureGoalFinancingV74(){
+  if(!data.goalFinancingV74 || typeof data.goalFinancingV74!=="object" || Array.isArray(data.goalFinancingV74)) data.goalFinancingV74={};
+  (data.priorityGoals||[]).forEach((r,i)=>{
+    if(!r[12]) r[12]=`goal-${Date.now()}-${i}-${Math.random().toString(36).slice(2,8)}`;
+  });
+}
+function financingPlanV74(i){
+  ensureGoalFinancingV74();
+  const r=data.priorityGoals?.[i];
+  if(!r) return null;
+  return data.goalFinancingV74[r[12]]||null;
+}
+function addMonthsV74(d,n){const x=new Date(d.getFullYear(),d.getMonth(),1);x.setMonth(x.getMonth()+n);return x}
+function dateV74(d){return d instanceof Date&&!isNaN(d)?d.toLocaleDateString("de-DE"):"–"}
+function financingSimulationV74(i){
+  const plan=financingPlanV74(i), goal=data.priorityGoals?.[i];
+  if(!plan||!goal) return null;
+  const target=plan.targetMode==="max"?Number(goal[4]||0):plan.targetMode==="custom"?Number(plan.customTarget||0):Number(goal[3]||0);
+  let fund=Math.max(0,Number(plan.equity||0));
+  const credits=(plan.credits||[]).map(c=>({...c,balance:Math.max(0,Number(c.amount)||0),interestPaid:0}));
+  const grants=(plan.grants||[]).map(x=>({amount:Math.max(0,Number(x.amount)||0),month:Math.max(0,Number(x.month)||0)}));
+  const once=(plan.once||[]).map(x=>({amount:Math.max(0,Number(x.amount)||0),month:Math.max(0,Number(x.month)||0)}));
+  const start=new Date(); start.setDate(1);
+  let financeable=null, paidOff=null, totalInterest=0;
+  const table=[];
+  for(let m=0;m<2400;m++){
+    let saving=0;
+    if(plan.savingMode==="fixed") saving=Math.max(0,Number(plan.savingValue)||0);
+    else if(plan.savingMode==="surplus") saving=Math.max(0,Number(avgSurplus())||0);
+    else if(plan.savingMode==="percent") saving=Math.max(0,Number(avgSurplus())||0)*Math.max(0,Number(plan.savingValue)||0)/100;
+    fund+=saving;
+    grants.filter(x=>x.month===m).forEach(x=>fund+=x.amount);
+    once.filter(x=>x.month===m).forEach(x=>fund+=x.amount);
+    const activeCredit=credits.reduce((sum,c)=>sum+c.balance,0);
+    if(!financeable && fund+activeCredit>=target) financeable=addMonthsV74(start,m);
+    let monthInterest=0, monthPayments=0;
+    credits.forEach(c=>{
+      if(c.balance<=0 || m<Math.max(0,Number(c.startMonth)||0)) return;
+      const interest=c.balance*Math.max(0,Number(c.rate)||0)/100/12;
+      c.balance+=interest;c.interestPaid+=interest;totalInterest+=interest;monthInterest+=interest;
+      let payment=Math.max(0,Number(c.payment)||0);
+      const extra=(Number(c.extraAnnual)||0)>0 && m>0 && m%12===0?Math.max(0,Number(c.extraAnnual)||0):0;
+      const pay=Math.min(c.balance,payment+extra);
+      c.balance-=pay;monthPayments+=pay;
+    });
+    if(m<360 || m%12===0) table.push({m,date:addMonthsV74(start,m),fund,credit:credits.reduce((x,c)=>x+c.balance,0),interest:monthInterest,payments:monthPayments});
+    if(financeable && credits.every(c=>c.balance<=0.005)){paidOff=addMonthsV74(start,m);break}
+  }
+  return {target,financeable,paidOff,totalInterest,table,remainingCredit:credits.reduce((x,c)=>x+c.balance,0)};
+}
+function financingSummaryV74(i){
+  const sim=financingSimulationV74(i);
+  if(!sim) return {financeable:"",paidOff:""};
+  return {financeable:sim.financeable?dateV74(sim.financeable):"–",paidOff:sim.paidOff?dateV74(sim.paidOff):"–"};
+}
+function escAttrV74(v){return esc(String(v??"")).replace(/"/g,"&quot;")}
+function openFinancingV74(i){
+  ensureGoalFinancingV74();
+  const goal=data.priorityGoals?.[i]; if(!goal)return;
+  const id=goal[12];
+  const p=data.goalFinancingV74[id]||{targetMode:"min",customTarget:0,equity:0,savingMode:"fixed",savingValue:0,credits:[],grants:[],once:[]};
+  data.goalFinancingV74[id]=p;
+  const sim=financingSimulationV74(i);
+  const credits=(p.credits||[]).map((c,j)=>`<tr><td><input data-fc="${j}" data-k="name" value="${escAttrV74(c.name||`Kredit ${j+1}`)}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="amount" value="${Number(c.amount)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="rate" value="${Number(c.rate)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="payment" value="${Number(c.payment)||0}"></td><td><input type="number" step="1" data-fc="${j}" data-k="startMonth" value="${Number(c.startMonth)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="extraAnnual" value="${Number(c.extraAnnual)||0}"></td><td><button type="button" data-remove-credit="${j}">×</button></td></tr>`).join("");
+  modal(`<div class="finance-v74" data-finance-index="${i}">
+    <div class="panel-head"><div><h2>Finanzierung – ${esc(goal[1])}: ${esc(goal[2])}</h2><p class="muted">Die normale Sparziel-Prognose bleibt unabhängig hiervon bestehen.</p></div><button type="button" data-close-modal>Schließen</button></div>
+    <div class="finance-summary-v74">
+      <div class="stat"><span>Ziel finanzierbar am</span><strong>${sim?.financeable?dateV74(sim.financeable):"–"}</strong></div>
+      <div class="stat"><span>Alles abbezahlt am</span><strong>${sim?.paidOff?dateV74(sim.paidOff):"–"}</strong></div>
+      <div class="stat"><span>Simulierter Zielbetrag</span><strong>${fmt(sim?.target||0)}</strong></div>
+      <div class="stat"><span>Kreditzinsen gesamt</span><strong>${fmt(sim?.totalInterest||0)}</strong></div>
+    </div>
+    <h3>Grundlage</h3>
+    <div class="form-grid">
+      <label>Zielbetrag<select id="finTargetModeV74"><option value="min" ${p.targetMode==="min"?"selected":""}>Min (${fmt(goal[3])})</option><option value="max" ${p.targetMode==="max"?"selected":""}>Max (${fmt(goal[4])})</option><option value="custom" ${p.targetMode==="custom"?"selected":""}>Eigener Betrag</option></select></label>
+      <label>Eigener Zielbetrag<input id="finCustomTargetV74" type="number" step=".01" value="${Number(p.customTarget)||0}"></label>
+      <label>Eigenkapital<input id="finEquityV74" type="number" step=".01" value="${Number(p.equity)||0}"></label>
+      <label>Sparen<select id="finSavingModeV74"><option value="fixed" ${p.savingMode==="fixed"?"selected":""}>Fester Betrag</option><option value="surplus" ${p.savingMode==="surplus"?"selected":""}>Ø Monatsüberschuss</option><option value="percent" ${p.savingMode==="percent"?"selected":""}>Anteil vom Ø Monatsüberschuss</option></select></label>
+      <label>Sparbetrag / Anteil %<input id="finSavingValueV74" type="number" step=".01" value="${Number(p.savingValue)||0}"></label>
+    </div>
+    <h3>Kredite</h3><div class="table-wrap"><table><thead><tr><th>Name</th><th>Summe</th><th>Zins % p.a.</th><th>Rate p.m.</th><th>Start in Monaten</th><th>Sondertilgung/Jahr</th><th></th></tr></thead><tbody>${credits||'<tr><td colspan="7" class="muted">Noch kein Kredit.</td></tr>'}</tbody></table></div>
+    <button type="button" data-add-credit>Kredit hinzufügen</button>
+    <h3>Zuschüsse / Einmalzahlungen</h3>
+    <p class="muted">Optional: Betrag und Monat ab heute. Mehrere Einträge mit Semikolon trennen, z. B. 1000@6; 500@12.</p>
+    <div class="form-grid"><label>Zuschüsse<input id="finGrantsV74" value="${escAttrV74((p.grants||[]).map(x=>`${x.amount}@${x.month}`).join("; "))}"></label><label>Einmalzahlungen<input id="finOnceV74" value="${escAttrV74((p.once||[]).map(x=>`${x.amount}@${x.month}`).join("; "))}"></label></div>
+    <div class="finance-actions-v74"><button type="button" data-save-finance>Speichern & simulieren</button><button type="button" class="danger" data-delete-finance>Finanzierung löschen</button></div>
+    ${sim?`<details><summary>Monatliche Simulation anzeigen</summary><div class="table-wrap"><table><thead><tr><th>Monat</th><th>Angespart</th><th>Restschuld Kredite</th><th>Zinsen</th><th>Kreditrate</th></tr></thead><tbody>${sim.table.map(x=>`<tr><td>${dateV74(x.date)}</td><td>${fmt(x.fund)}</td><td>${fmt(x.credit)}</td><td>${fmt(x.interest)}</td><td>${fmt(x.payments)}</td></tr>`).join("")}</tbody></table></div></details>`:""}
+  </div>`);
+}
+function parseTimedV74(v){
+  return String(v||"").split(";").map(x=>x.trim()).filter(Boolean).map(x=>{const [amount,month]=x.split("@");return {amount:Math.max(0,Number(String(amount).replace(",","."))||0),month:Math.max(0,Number(month)||0)}}).filter(x=>x.amount>0);
+}
+
 function renderGoals(){
   syncFirstGoal();
   normalizeGlobalGoalRateV66();
@@ -350,10 +445,14 @@ function renderGoals(){
     <td>${r[5]==null?"–":fmt(r[5])}</td><td>${r[6]==null?"–":fmt(r[6])}</td>
     <td>${r[7]==null?"–":fmt(r[7])}</td><td>${r[8]==null?"–":fmt(r[8])}</td>
     <td>${pct(r[9])}</td><td>${pct(r[10])}</td><td>${r[11]==null?"–":fmt(r[11])}</td>
-    <td>${forecasts[i]}</td><td class="goal-actions-v70">
+    <td>${forecasts[i]}</td>
+    <td>${financingSummaryV74(i).financeable||""}</td>
+    <td>${financingSummaryV74(i).paidOff||""}</td>
+    <td class="goal-actions-v70">
       <button data-goal-up="${i}" ${i===0?"disabled":""} title="Nach oben">↑</button>
       <button data-goal-down="${i}" ${i===rows.length-1?"disabled":""} title="Nach unten">↓</button>
       <button data-edit-goal="${i}">Bearbeiten</button>
+      <button data-finance-goal="${i}">Finanzierung</button>
     </td>
   </tr>`).join("");
 
@@ -368,11 +467,11 @@ function renderGoals(){
     f.innerHTML=`
       <tr class="total-row"><th colspan="3">Summe</th>
         ${sums.slice(0,6).map(x=>`<th>${fmt(x)}</th>`).join("")}
-        <th>–</th><th>–</th><th>${fmt(sums[6])}</th><th>–</th><th></th>
+        <th>–</th><th>–</th><th>${fmt(sums[6])}</th><th>–</th><th></th><th></th><th></th>
       </tr>
-      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th></th></tr>
-      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th></th></tr>
-      <tr class="goal-forecast-note-v64"><th colspan="14">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.</th></tr>`;
+      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th colspan="3"></th></tr>
+      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th colspan="3"></th></tr>
+      <tr class="goal-forecast-note-v64"><th colspan="16">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.</th></tr>`;
   }
 
   renderDashboardSavingsGoalsV71();
@@ -911,7 +1010,28 @@ if(d.saveFuel){
   editingFuel=null;
   save();
 }
-if(d.deleteFuel){data.fuelEntries=data.fuelEntries.filter(x=>x.id!==d.deleteFuel);save()}if(d.editCapital){editingCapital=d.editCapital;renderCapitalTable()}if(d.cancelCapital!==undefined){editingCapital=null;renderCapitalTable()}if(d.saveCapital){const r=data.capitalHistory.find(x=>x.month===d.saveCapital);document.querySelectorAll('[data-cap-field]').forEach(x=>r[x.dataset.capField]=Number(x.value)||0);r.total=Number(r.sparkasseInterest||0)+Number(r.trInterest||0)+Number(r.dividend||0);editingCapital=null;save()}if(d.editFixed){const x=data.fixedCosts.find(v=>v.id===d.editFixed);modal(`<h2>${esc(x.name)} bearbeiten</h2><label>Tag<input id="mDay" type="number" min="1" max="31" value="${x.day}"></label><label>Betrag<input id="mAmount" type="number" step="0.01" value="${x.amount}"></label><button id="mSaveFixed">Speichern</button>`);$('mSaveFixed').onclick=()=>{x.day=Number($('mDay').value)||1;x.amount=Number($('mAmount').value)||0;closeModal();save()}}if(d.editAsset){const a=data.assets.find(v=>v.id===d.editAsset);const stock=a.type==='stock';modal(`<h2>${esc(a.name)} aktualisieren</h2><label>Neuer Stand<input id="mBal" type="number" step="0.01" value="${a.balance}"></label><label>${stock?'Dividende pro Monat':'Zinssatz p. a. (%)'}<input id="mYield" type="number" step="0.01" value="${stock?a.monthlyDividend:a.rate}"></label>${stock?`<p>Berechnete Dividendenrendite: <strong id="mRendite"></strong></p>`:''}<button id="mSaveAsset">Speichern</button>`);const upd=()=>{if(stock)set('mRendite',pct(Number($('mBal').value)?Number($('mYield').value)*12/Number($('mBal').value)*100:0))};if(stock){$('mBal').oninput=upd;$('mYield').oninput=upd;upd()}$('mSaveAsset').onclick=()=>{a.balance=Number($('mBal').value)||0;if(stock)a.monthlyDividend=Number($('mYield').value)||0;else a.rate=Number($('mYield').value)||0;closeModal();save()}}if(d.goalUp!==undefined){
+if(d.deleteFuel){data.fuelEntries=data.fuelEntries.filter(x=>x.id!==d.deleteFuel);save()}if(d.editCapital){editingCapital=d.editCapital;renderCapitalTable()}if(d.cancelCapital!==undefined){editingCapital=null;renderCapitalTable()}if(d.saveCapital){const r=data.capitalHistory.find(x=>x.month===d.saveCapital);document.querySelectorAll('[data-cap-field]').forEach(x=>r[x.dataset.capField]=Number(x.value)||0);r.total=Number(r.sparkasseInterest||0)+Number(r.trInterest||0)+Number(r.dividend||0);editingCapital=null;save()}if(d.editFixed){const x=data.fixedCosts.find(v=>v.id===d.editFixed);modal(`<h2>${esc(x.name)} bearbeiten</h2><label>Tag<input id="mDay" type="number" min="1" max="31" value="${x.day}"></label><label>Betrag<input id="mAmount" type="number" step="0.01" value="${x.amount}"></label><button id="mSaveFixed">Speichern</button>`);$('mSaveFixed').onclick=()=>{x.day=Number($('mDay').value)||1;x.amount=Number($('mAmount').value)||0;closeModal();save()}}if(d.editAsset){const a=data.assets.find(v=>v.id===d.editAsset);const stock=a.type==='stock';modal(`<h2>${esc(a.name)} aktualisieren</h2><label>Neuer Stand<input id="mBal" type="number" step="0.01" value="${a.balance}"></label><label>${stock?'Dividende pro Monat':'Zinssatz p. a. (%)'}<input id="mYield" type="number" step="0.01" value="${stock?a.monthlyDividend:a.rate}"></label>${stock?`<p>Berechnete Dividendenrendite: <strong id="mRendite"></strong></p>`:''}<button id="mSaveAsset">Speichern</button>`);const upd=()=>{if(stock)set('mRendite',pct(Number($('mBal').value)?Number($('mYield').value)*12/Number($('mBal').value)*100:0))};if(stock){$('mBal').oninput=upd;$('mYield').oninput=upd;upd()}$('mSaveAsset').onclick=()=>{a.balance=Number($('mBal').value)||0;if(stock)a.monthlyDividend=Number($('mYield').value)||0;else a.rate=Number($('mYield').value)||0;closeModal();save()}}if(d.financeGoal!==undefined){openFinancingV74(Number(d.financeGoal));return}
+if(d.closeModal!==undefined){closeModal();return}
+if(d.addCredit!==undefined){
+  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingPlanV74(i);if(!p)return;
+  p.credits=p.credits||[];p.credits.push({name:`Kredit ${p.credits.length+1}`,amount:0,rate:0,payment:0,startMonth:0,extraAnnual:0});openFinancingV74(i);return
+}
+if(d.removeCredit!==undefined){
+  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingPlanV74(i);if(!p)return;
+  p.credits.splice(Number(d.removeCredit),1);openFinancingV74(i);return
+}
+if(d.saveFinance!==undefined){
+  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingPlanV74(i);if(!p)return;
+  p.targetMode=$("finTargetModeV74").value;p.customTarget=Number($("finCustomTargetV74").value)||0;p.equity=Number($("finEquityV74").value)||0;p.savingMode=$("finSavingModeV74").value;p.savingValue=Number($("finSavingValueV74").value)||0;
+  p.grants=parseTimedV74($("finGrantsV74").value);p.once=parseTimedV74($("finOnceV74").value);
+  document.querySelectorAll("[data-fc]").forEach(inp=>{const j=Number(inp.dataset.fc),k=inp.dataset.k;if(!p.credits[j])return;p.credits[j][k]=k==="name"?inp.value:(Number(inp.value)||0)});
+  save();openFinancingV74(i);return
+}
+if(d.deleteFinance!==undefined){
+  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const goal=data.priorityGoals?.[i];if(!goal)return;
+  if(confirm("Finanzierungsplanung für dieses Sparziel löschen?")){delete data.goalFinancingV74[goal[12]];save();closeModal()}return
+}
+if(d.goalUp!==undefined){
   const i=Number(d.goalUp);
   if(i>0){
     [data.priorityGoals[i-1],data.priorityGoals[i]]=[data.priorityGoals[i],data.priorityGoals[i-1]];

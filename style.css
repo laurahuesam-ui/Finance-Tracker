@@ -171,3 +171,12 @@ th:first-child,td:first-child{text-align:left}
 @media(max-width:650px){
   .goal-create-grid-v73{grid-template-columns:1fr}
 }
+
+.finance-summary-v74{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.7rem;margin:1rem 0}
+.finance-summary-v74 .stat{padding:.8rem;border:1px solid var(--line);border-radius:12px}
+.finance-v74 h3{margin-top:1.25rem}
+.finance-v74 table input{min-width:90px;width:100%}
+.finance-actions-v74{display:flex;gap:.6rem;flex-wrap:wrap;margin:1rem 0}
+.finance-v74 details{margin-top:1rem}
+@media(max-width:850px){.finance-summary-v74{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.finance-summary-v74{grid-template-columns:1fr}}
