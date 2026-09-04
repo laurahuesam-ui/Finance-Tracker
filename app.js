@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 75;
+const APP_VERSION = 76;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -344,6 +344,46 @@ function financingPlanV74(i){
 }
 function addMonthsV74(d,n){const x=new Date(d.getFullYear(),d.getMonth(),1);x.setMonth(x.getMonth()+n);return x}
 function dateV74(d){return d instanceof Date&&!isNaN(d)?d.toLocaleDateString("de-DE"):"–"}
+
+function priorityFinancingStartV76(i){
+  const now=new Date();
+  now.setDate(1);
+  if(i<=0) return now;
+
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const wealth=Math.max(0,Number(totalWealth())||0);
+  const monthlySaving=Math.max(0,Number(avgSurplus())||0);
+
+  let previousMinTotal=0;
+  for(let x=0;x<i;x++){
+    previousMinTotal+=Math.max(0,Number(rows[x]?.[3])||0);
+  }
+
+  const remaining=Math.max(0,previousMinTotal-wealth);
+  if(remaining<=0) return now;
+  if(monthlySaving<=0) return null;
+
+  return addMonthsV74(now,Math.ceil(remaining/monthlySaving));
+}
+function financingStartDateV76(i,plan){
+  const now=new Date();
+  now.setDate(1);
+  if((plan?.timingMode||"due")==="priority"){
+    return priorityFinancingStartV76(i);
+  }
+  return now;
+}
+function parseDateV76(v){
+  const raw=String(v||"").trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const d=new Date(raw+"T12:00:00");
+  return isNaN(d)?null:d;
+}
+function monthDiffV76(a,b){
+  if(!(a instanceof Date)||!(b instanceof Date)) return null;
+  return (a.getFullYear()-b.getFullYear())*12+(a.getMonth()-b.getMonth());
+}
+
 function financingSimulationV74(i){
   const plan=financingPlanV74(i), goal=data.priorityGoals?.[i];
   if(!plan||!goal) return null;
@@ -361,7 +401,9 @@ function financingSimulationV74(i){
   const credits=(plan.credits||[]).map(c=>({...c,balance:Math.max(0,Number(c.amount)||0),interestPaid:0}));
   const grants=(plan.grants||[]).map(x=>({amount:Math.max(0,Number(x.amount)||0),month:Math.max(0,Number(x.month)||0)}));
   const once=(plan.once||[]).map(x=>({amount:Math.max(0,Number(x.amount)||0),month:Math.max(0,Number(x.month)||0)}));
-  const start=new Date(); start.setDate(1);
+  const start=financingStartDateV76(i,plan);
+  if(!start) return {target,financeable:null,paidOff:null,totalInterest:0,startingEquity,table:[],remainingCredit:credits.reduce((x,c)=>x+c.balance,0),start:null,dueDate:parseDateV76(plan.dueDate),dueStatus:"Prioritäten-Prognose nicht berechenbar"};
+  const dueDate=parseDateV76(plan.dueDate);
   let financeable=null, paidOff=null, totalInterest=0;
   const table=[];
   for(let m=0;m<2400;m++){
@@ -387,7 +429,16 @@ function financingSimulationV74(i){
     if(m<360 || m%12===0) table.push({m,date:addMonthsV74(start,m),fund,credit:credits.reduce((x,c)=>x+c.balance,0),interest:monthInterest,payments:monthPayments});
     if(financeable && credits.every(c=>c.balance<=0.005)){paidOff=addMonthsV74(start,m);break}
   }
-  return {target,financeable,paidOff,totalInterest,startingEquity,table,remainingCredit:credits.reduce((x,c)=>x+c.balance,0)};
+  let dueStatus="";
+  if((plan.timingMode||"due")==="due" && dueDate){
+    if(financeable){
+      const diff=monthDiffV76(financeable,dueDate);
+      dueStatus=diff<=0?"Bis zur Fälligkeit finanzierbar":`${diff} Monat${diff===1?"":"e"} nach Fälligkeit finanzierbar`;
+    }else{
+      dueStatus="Bis zur Fälligkeit nicht berechenbar";
+    }
+  }
+  return {target,financeable,paidOff,totalInterest,startingEquity,table,remainingCredit:credits.reduce((x,c)=>x+c.balance,0),start,dueDate,dueStatus};
 }
 function financingSummaryV74(i){
   const sim=financingSimulationV74(i);
@@ -399,7 +450,7 @@ function openFinancingV74(i){
   ensureGoalFinancingV74();
   const goal=data.priorityGoals?.[i]; if(!goal)return;
   const id=goal[12];
-  const p=data.goalFinancingV74[id]||{targetMode:"min",customTarget:0,equityMode:"fixed",equity:0,equityPercent:0,savingMode:"fixed",savingValue:0,credits:[],grants:[],once:[]};
+  const p=data.goalFinancingV74[id]||{targetMode:"min",customTarget:0,equityMode:"fixed",equity:0,equityPercent:0,savingMode:"fixed",savingValue:0,timingMode:"due",dueDate:"",credits:[],grants:[],once:[]};
   data.goalFinancingV74[id]=p;
   const sim=financingSimulationV74(i);
   const credits=(p.credits||[]).map((c,j)=>`<tr><td><input data-fc="${j}" data-k="name" value="${escAttrV74(c.name||`Kredit ${j+1}`)}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="amount" value="${Number(c.amount)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="rate" value="${Number(c.rate)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="payment" value="${Number(c.payment)||0}"></td><td><input type="number" step="1" data-fc="${j}" data-k="startMonth" value="${Number(c.startMonth)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="extraAnnual" value="${Number(c.extraAnnual)||0}"></td><td><button type="button" data-remove-credit="${j}">×</button></td></tr>`).join("");
@@ -408,12 +459,26 @@ function openFinancingV74(i){
     <div class="finance-summary-v74">
       <div class="stat"><span>Ziel finanzierbar am</span><strong>${sim?.financeable?dateV74(sim.financeable):"–"}</strong></div>
       <div class="stat"><span>Alles abbezahlt am</span><strong>${sim?.paidOff?dateV74(sim.paidOff):"–"}</strong></div>
+      <div class="stat"><span>Finanzierungsstart</span><strong>${sim?.start?dateV74(sim.start):"–"}</strong></div>
+      <div class="stat"><span>Fälligkeit / Status</span><strong>${(p.timingMode||"due")==="priority"?"nach Prioritätenreihenfolge":(sim?.dueDate?dateV74(sim.dueDate):"–")}</strong><small>${sim?.dueStatus||""}</small></div>
       <div class="stat"><span>Simulierter Zielbetrag</span><strong>${fmt(sim?.target||0)}</strong></div>
       <div class="stat"><span>Verwendetes Eigenkapital</span><strong>${fmt(sim?.startingEquity||0)}</strong></div>
       <div class="stat"><span>Kreditzinsen gesamt</span><strong>${fmt(sim?.totalInterest||0)}</strong></div>
     </div>
     <h3>Grundlage</h3>
     <div class="form-grid">
+      <label>Zeitplanung
+        <select id="finTimingModeV76">
+          <option value="due" ${(p.timingMode||"due")==="due"?"selected":""}>Fälligkeit festlegen</option>
+          <option value="priority" ${p.timingMode==="priority"?"selected":""}>Prioritätenreihenfolge folgen</option>
+        </select>
+      </label>
+      <label>Fällig am
+        <input id="finDueDateV76" type="date" value="${escAttrV74(p.dueDate||"")}">
+      </label>
+      <div class="finance-priority-note-v76">
+        <span>Bei „Prioritätenreihenfolge“ beginnt dieses Ziel erst nach Abschluss aller vorherigen Sparziele laut normaler Sparziel-Prognose.</span>
+      </div>
       <label>Zielbetrag<select id="finTargetModeV74"><option value="min" ${p.targetMode==="min"?"selected":""}>Min (${fmt(goal[3])})</option><option value="max" ${p.targetMode==="max"?"selected":""}>Max (${fmt(goal[4])})</option><option value="custom" ${p.targetMode==="custom"?"selected":""}>Eigener Betrag</option></select></label>
       <label>Eigener Zielbetrag<input id="finCustomTargetV74" type="number" step=".01" value="${Number(p.customTarget)||0}"></label>
       <label>Eigenkapital verwenden
@@ -1047,6 +1112,8 @@ if(d.removeCredit!==undefined){
 }
 if(d.saveFinance!==undefined){
   const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingPlanV74(i);if(!p)return;
+  p.timingMode=$("finTimingModeV76")?.value||"due";
+  p.dueDate=String($("finDueDateV76")?.value||"");
   p.targetMode=$("finTargetModeV74").value;
   p.customTarget=Number($("finCustomTargetV74").value)||0;
   p.equityMode=$("finEquityModeV75")?.value||"fixed";
