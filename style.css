@@ -188,3 +188,5 @@ th:first-child,td:first-child{text-align:left}
 .finance-binding-v78 span{display:flex;align-items:center;gap:.55rem;font-weight:700;color:var(--text)}
 .finance-binding-v78 input{width:auto}
 .finance-binding-v78 small{display:block;margin-top:.35rem;color:var(--muted)}
+
+.finance-safety-v81{padding:.7rem .85rem;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-size:.84rem}

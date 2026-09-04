@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 80;
+const APP_VERSION = 81;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -19,6 +19,20 @@ const currentMonth=()=>{const d=new Date();return `${d.getFullYear()}-${String(d
 const daysInMonth=ym=>{const [y,m]=ym.split("-").map(Number);return new Date(y,m,0).getDate()};
 function load(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));return x&&typeof x==='object'?{...clone(DEFAULTS),...x}:clone(DEFAULTS)}catch{return clone(DEFAULTS)}}
 let data=load();
+
+function financingSafetyBackupV81(reason="before-change"){
+  try{
+    const payload={
+      createdAt:new Date().toISOString(),
+      reason,
+      storageKey:STORAGE_KEY,
+      goalFinancingV74:clone(data.goalFinancingV74||{}),
+      priorityGoals:clone(data.priorityGoals||[]),
+      settings:clone(data.settings||{})
+    };
+    localStorage.setItem("finanzenPwaFinancingSafetyV81",JSON.stringify(payload));
+  }catch(e){}
+}
 
 function normalizeRuntimeDataV64(){
   const arrayKeys=["capitalHistory","incomeHistory","amexHistory","fixedCosts","assets","priorityGoals","fuelEntries","goals"];
@@ -77,7 +91,7 @@ function applyFixedCostsFromMay2026V54(){
 
   data.settings = data.settings || {};
   data.settings.fixedCostsFromMay2026Version = 54;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  // V81: Startup normalization is memory-only. Never rewrite the user's saved data just by loading an update.
 }
 applyFixedCostsFromMay2026V54();
 
@@ -85,7 +99,7 @@ applyFixedCostsFromMay2026V54();
 function normalizeDataV51(){
  if(!Array.isArray(data.assets))data.assets=[];
  if(!data.assets.some(a=>a.id==="sparkasse-giro"||String(a.name||"").toLowerCase()==="sparkasse girokonto"))data.assets.unshift({id:"sparkasse-giro",name:"Sparkasse Girokonto",type:"bank",balance:0,rate:0});
- localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+ // V81: Do not persist anything automatically during startup.
 }
 normalizeDataV51();
 function save(){captureSnapshotOnDataChangeV61();localStorage.setItem(STORAGE_KEY,JSON.stringify(data));renderAll()}
@@ -329,106 +343,117 @@ function renderGlobalGoalRateV66(){
 
 
 function ensureGoalFinancingV74(){
-  // Read-only compatibility helper. Never creates or rewrites financing data.
-  return !!(
-    data.goalFinancingV74 &&
-    typeof data.goalFinancingV74==="object" &&
-    !Array.isArray(data.goalFinancingV74)
-  );
+  return !!financingStoreV81();
 }
-function financingStoreV80(){
+function financingStoreV81(){
   return (
     data.goalFinancingV74 &&
     typeof data.goalFinancingV74==="object" &&
     !Array.isArray(data.goalFinancingV74)
   ) ? data.goalFinancingV74 : null;
 }
-function financingPlanScoreV80(p){
-  if(!p || typeof p!=="object" || Array.isArray(p)) return -1;
+function financingPlanScoreV81(p,row=null){
+  if(!p || typeof p!=="object" || Array.isArray(p)) return -1e9;
   let score=0;
-  if(p.bindingCredit===true) score+=1000;
-  score+=(p.credits||[]).length*100;
-  score+=(p.credits||[]).reduce((sum,c)=>sum+(Math.max(0,Number(c?.amount)||0)>0?100:0),0);
-  if(Math.max(0,Number(p.equity)||0)>0) score+=20;
-  if(Math.max(0,Number(p.equityPercent)||0)>0) score+=20;
-  if(Math.max(0,Number(p.savingValue)||0)>0) score+=20;
-  score+=(p.grants||[]).length*10;
-  score+=(p.once||[]).length*10;
-  if(p.dueDate) score+=5;
+  if(p.bindingCredit===true) score+=10000;
+  const creditTotal=(p.credits||[]).reduce((sum,c)=>sum+Math.max(0,Number(c?.amount)||0),0);
+  if((p.credits||[]).length) score+=500;
+  if(row){
+    const min=Math.max(0,Number(row?.[3])||0), max=Math.max(0,Number(row?.[4])||0);
+    if(min>0 && Math.abs(creditTotal-min)<0.01) score+=50000;
+    if(max>0 && Math.abs(creditTotal-max)<0.01) score+=40000;
+    if(p.targetMode==="custom" && Math.abs(Number(p.customTarget||0)-min)<0.01) score+=5000;
+  }
+  if(Math.max(0,Number(p.equity)||0)>0) score+=50;
+  if(Math.max(0,Number(p.equityPercent)||0)>0) score+=50;
+  if(Math.max(0,Number(p.savingValue)||0)>0) score+=50;
+  score+=(p.grants||[]).length*20+(p.once||[]).length*20;
   return score;
 }
-function financingIndexFromKeyV80(key){
-  let m=String(key||"").match(/^goal-(\d+)-(\d+)-/);       // V74: goal-TIMESTAMP-INDEX-rand
-  if(m) return Number(m[2]);
-  m=String(key||"").match(/^goal-v78-(\d+)-/);             // V78: goal-v78-INDEX-rand
-  if(m) return Number(m[1]);
-  m=String(key||"").match(/^goal-v79-(\d+)-(\d+)-/);       // V79: goal-v79-TIMESTAMP-INDEX-rand
-  if(m) return Number(m[2]);
-  m=String(key||"").match(/^goal-v80-(\d+)-(\d+)-/);       // V80: goal-v80-TIMESTAMP-INDEX-rand
-  if(m) return Number(m[2]);
+function financingIndexFromKeyV81(key){
+  const k=String(key||"");
+  let m=k.match(/^goal-(\d+)-(\d+)-/); if(m)return Number(m[2]);
+  m=k.match(/^goal-v78-(\d+)-/); if(m)return Number(m[1]);
+  m=k.match(/^goal-v79-(\d+)-(\d+)-/); if(m)return Number(m[2]);
+  m=k.match(/^goal-v80-(\d+)-(\d+)-/); if(m)return Number(m[2]);
+  m=k.match(/^goal-v81-(\d+)-(\d+)-/); if(m)return Number(m[2]);
   return null;
 }
-function financingKeyV80(i){
+function goalFingerprintV81(row){
+  return `${String(row?.[1]||"").trim()}|||${String(row?.[2]||"").trim()}`;
+}
+function financingKeyV81(i){
   const row=data.priorityGoals?.[i];
-  const store=financingStoreV80();
-  if(!row || !store) return null;
+  const store=financingStoreV81();
+  if(!row||!store)return null;
 
-  // 1) Proper direct linkage always wins.
+  // A valid direct link is authoritative and is only READ here.
   if(typeof row[12]==="string" && row[12] && store[row[12]]) return row[12];
 
-  // 2) Future repaired records can identify their goal explicitly.
-  const fingerprint=`${String(row[1]||"")}|||${String(row[2]||"")}`;
-  const byRef=Object.keys(store).filter(k=>store[k]?.goalRefV80===fingerprint);
+  const keys=Object.keys(store);
+  const fingerprint=goalFingerprintV81(row);
+
+  // Saved identity metadata is the safest recovery path.
+  const byRef=keys.filter(k=>store[k]?.goalRefV80===fingerprint || store[k]?.goalRefV81===fingerprint);
   if(byRef.length){
-    byRef.sort((x,y)=>financingPlanScoreV80(store[y])-financingPlanScoreV80(store[x]));
+    byRef.sort((x,y)=>financingPlanScoreV81(store[y],row)-financingPlanScoreV81(store[x],row));
     return byRef[0];
   }
 
-  // 3) Recover financing entries orphaned by V65's destructive Number(r[12]).
-  // Old financing ids contain the zero-based goal index at creation time.
-  const candidates=Object.keys(store).filter(k=>financingIndexFromKeyV80(k)===i);
-  if(!candidates.length) return null;
-  candidates.sort((x,y)=>financingPlanScoreV80(store[y])-financingPlanScoreV80(store[x]));
-  return candidates[0];
+  // Strong content match: a legally binding loan whose principal exactly
+  // equals this goal is much safer than relying on an old list index.
+  const exact=keys.filter(k=>{
+    const p=store[k];
+    if(p?.bindingCredit!==true)return false;
+    const total=(p.credits||[]).reduce((sum,c)=>sum+Math.max(0,Number(c?.amount)||0),0);
+    const min=Math.max(0,Number(row?.[3])||0), max=Math.max(0,Number(row?.[4])||0);
+    return (min>0&&Math.abs(total-min)<0.01)||(max>0&&Math.abs(total-max)<0.01);
+  });
+  if(exact.length===1)return exact[0];
+  if(exact.length>1){
+    exact.sort((x,y)=>financingPlanScoreV81(store[y],row)-financingPlanScoreV81(store[x],row));
+    return exact[0];
+  }
+
+  // Last compatibility fallback for old V74/V78/V79/V80 ids.
+  const byOldIndex=keys.filter(k=>financingIndexFromKeyV81(k)===i);
+  if(byOldIndex.length){
+    byOldIndex.sort((x,y)=>financingPlanScoreV81(store[y],row)-financingPlanScoreV81(store[x],row));
+    return byOldIndex[0];
+  }
+  return null;
 }
 function financingPlanV74(i){
-  const store=financingStoreV80();
-  if(!store) return null;
-  const key=financingKeyV80(i);
+  const store=financingStoreV81();
+  if(!store)return null;
+  const key=financingKeyV81(i);
   return key?store[key]||null:null;
 }
 function financingIdForSaveV79(i){
-  const r=data.priorityGoals?.[i];
-  if(!r) return null;
-
-  // Reuse every recoverable existing financing. Never replace it with a blank one.
-  const recovered=financingKeyV80(i);
+  const row=data.priorityGoals?.[i];
+  if(!row)return null;
+  const recovered=financingKeyV81(i);
   if(recovered){
-    r[12]=recovered; // repair linkage only on explicit Save
+    // Repair ONLY on the user's explicit Save action.
+    row[12]=recovered;
     return recovered;
   }
-
   if(!data.goalFinancingV74 || typeof data.goalFinancingV74!=="object" || Array.isArray(data.goalFinancingV74)){
     data.goalFinancingV74={};
   }
-  let id=`goal-v80-${Date.now()}-${i}-${Math.random().toString(36).slice(2,9)}`;
-  while(data.goalFinancingV74[id]){
-    id=`goal-v80-${Date.now()}-${i}-${Math.random().toString(36).slice(2,9)}`;
-  }
-  r[12]=id;
+  let id=`goal-v81-${Date.now()}-${i}-${Math.random().toString(36).slice(2,9)}`;
+  while(data.goalFinancingV74[id]) id=`goal-v81-${Date.now()}-${i}-${Math.random().toString(36).slice(2,9)}`;
+  row[12]=id;
   return id;
 }
-function cloneFinancingV79(v){
-  return v==null?null:JSON.parse(JSON.stringify(v));
-}
+function cloneFinancingV79(v){return v==null?null:JSON.parse(JSON.stringify(v));}
 const financingDraftsV79={};
 function defaultFinancingV79(){
   return {targetMode:"min",customTarget:0,equityMode:"fixed",equity:0,equityPercent:0,savingMode:"fixed",savingValue:0,timingMode:"due",dueDate:"",bindingCredit:false,credits:[],grants:[],once:[]};
 }
 function financingDraftV79(i){
-  if(financingDraftsV79[i]) return financingDraftsV79[i];
-  const existing=financingPlanV74(i);
-  financingDraftsV79[i]=cloneFinancingV79(existing)||defaultFinancingV79();
+  if(financingDraftsV79[i])return financingDraftsV79[i];
+  financingDraftsV79[i]=cloneFinancingV79(financingPlanV74(i))||defaultFinancingV79();
   return financingDraftsV79[i];
 }
 
@@ -458,9 +483,8 @@ function normalGoalForecastDateV77(i){
   return addMonthsV74(now,Math.ceil(remaining/monthlySaving));
 }
 
-function goalHasFinancingV77(i){
-  return !!financingPlanV74(i);
-}
+function goalHasFinancingV77(i){return !!financingPlanV74(i);}
+
 
 function priorityFinancingStartV76(i){
   const now=new Date();
@@ -637,7 +661,7 @@ function openFinancingV74(i){
     <h3>Zuschüsse / Einmalzahlungen</h3>
     <p class="muted">Optional: Betrag und Monat ab heute. Mehrere Einträge mit Semikolon trennen, z. B. 1000@6; 500@12.</p>
     <div class="form-grid"><label>Zuschüsse<input id="finGrantsV74" value="${escAttrV74((p.grants||[]).map(x=>`${x.amount}@${x.month}`).join("; "))}"></label><label>Einmalzahlungen<input id="finOnceV74" value="${escAttrV74((p.once||[]).map(x=>`${x.amount}@${x.month}`).join("; "))}"></label></div>
-    <div class="finance-actions-v74"><button type="button" data-save-finance>Speichern & simulieren</button><button type="button" class="danger" data-delete-finance>Finanzierung löschen</button></div>
+    <p class="finance-safety-v81">Sicherheitsmodus: Öffnen/Simulieren verändert keine gespeicherte Finanzierung. Erst „Speichern &amp; simulieren“ schreibt diese eine Finanzierung; davor wird automatisch eine Finanzierungs-Sicherheitskopie erstellt.</p><div class="finance-actions-v74"><button type="button" data-save-finance>Speichern & simulieren</button><button type="button" class="danger" data-delete-finance>Finanzierung löschen</button></div>
     ${sim?`<details><summary>Monatliche Simulation anzeigen</summary><div class="table-wrap"><table><thead><tr><th>Monat</th><th>Angespart</th><th>Restschuld Kredite</th><th>Zinsen</th><th>Kreditrate</th></tr></thead><tbody>${sim.table.map(x=>`<tr><td>${dateV74(x.date)}</td><td>${fmt(x.fund)}</td><td>${fmt(x.credit)}</td><td>${fmt(x.interest)}</td><td>${fmt(x.payments)}</td></tr>`).join("")}</tbody></table></div></details>`:""}
   </div>`);
 }
@@ -648,109 +672,103 @@ function parseTimedV74(v){
 
 
 
-function bindingCreditAmountV79(i){
+function bindingCreditAmountV81(i){
   const p=financingPlanV74(i);
-  if(p?.bindingCredit!==true) return 0;
+  if(p?.bindingCredit!==true)return 0;
   return (p.credits||[]).reduce((sum,c)=>sum+Math.max(0,Number(c?.amount)||0),0);
 }
-function bindingPaidOffDateV79(i){
-  if(bindingCreditAmountV79(i)<=0) return null;
-  const sim=financingSimulationV74(i);
-  return sim?.paidOff||null;
+function bindingPaidOffDateV81(i){
+  if(bindingCreditAmountV81(i)<=0)return null;
+  return financingSimulationV74(i)?.paidOff||null;
 }
-function normalDateForAmountV80(amount){
-  const now=new Date();
-  now.setDate(1);
+function savingsDateForCumulativeV81(cumulative){
+  const now=new Date(); now.setDate(1);
   const wealth=Math.max(0,Number(totalWealth())||0);
   const saving=Math.max(0,Number(avgSurplus())||0);
-  const remaining=Math.max(0,Number(amount||0)-wealth);
-  if(remaining<=0) return now;
-  if(saving<=0) return null;
+  const remaining=Math.max(0,Number(cumulative||0)-wealth);
+  if(remaining<=0)return now;
+  if(saving<=0)return null;
   return addMonthsV74(now,Math.ceil(remaining/saving));
 }
-function maxDateV79(a,b){
+function maxDateV81(a,b){
   if(!a)return b||null;
   if(!b)return a||null;
   return a>b?a:b;
 }
-function effectiveGoalForecastsV80(mode="min"){
+function goalForecastPlanV81(mode="min"){
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
-  const ix=mode==="max"?4:3;
-  let cumulativeToSave=0;
-  let latestPriorBindingEnd=null;
-  let bindingSeen=false;
+  const amountIndex=mode==="max"?4:3;
+  let cumulativeSavings=0;
+  let anyBindingSeen=false;
   const dates=[];
-  const changed=[];
+  const useEffective=[];
 
-  rows.forEach((r,i)=>{
-    const goalAmount=Math.max(0,Number(r?.[ix])||0);
-    const credit=bindingCreditAmountV79(i);
-    const binding=credit>0;
-    const bindingEnd=binding?bindingPaidOffDateV79(i):null;
-    const covered=binding?Math.min(goalAmount,credit):0;
-    const remainder=Math.max(0,goalAmount-covered);
+  rows.forEach((row,i)=>{
+    const amount=Math.max(0,Number(row?.[amountIndex])||0);
+    const principal=bindingCreditAmountV81(i);
+    const binding=principal>0;
+    const covered=binding?Math.min(amount,principal):0;
+    const remainder=Math.max(0,amount-covered);
+    cumulativeSavings+=remainder;
 
-    cumulativeToSave+=remainder;
-    const savingsDate=normalDateForAmountV80(cumulativeToSave);
-
+    const savingsDate=savingsDateForCumulativeV81(cumulativeSavings);
+    const paidOff=binding?bindingPaidOffDateV81(i):null;
     let completion=savingsDate;
 
-    if(binding && covered>=goalAmount && goalAmount>0 && bindingEnd){
-      // User rule: when the legally binding credit covers the whole target,
-      // THIS goal's forecast is exactly the credit payoff date.
-      completion=bindingEnd;
-    }else{
-      // Partial/no binding: both savings path and all earlier binding loans
-      // that belong to the priority chain must be finished.
-      completion=maxDateV79(savingsDate,latestPriorBindingEnd);
-      if(bindingEnd) completion=maxDateV79(completion,bindingEnd);
+    if(binding && covered>=amount && amount>0){
+      // Absolute rule requested by user:
+      // fully covered binding credit => exact loan payoff forecast.
+      completion=paidOff;
+    }else if(binding){
+      // Partial binding coverage: both the uncovered savings remainder and
+      // the binding loan must be complete.
+      completion=maxDateV81(savingsDate,paidOff);
     }
 
-    if(bindingEnd) latestPriorBindingEnd=maxDateV79(latestPriorBindingEnd,bindingEnd);
-    if(binding) bindingSeen=true;
-
+    if(binding)anyBindingSeen=true;
     dates.push(completion);
-    changed.push(bindingSeen);
+    useEffective.push(anyBindingSeen);
   });
 
-  return {dates,changed,cumulativeToSave,latestBindingEnd:latestPriorBindingEnd};
+  return {dates,useEffective,cumulativeSavings};
 }
-function dateTextV79(d){
-  return d?dateV74(d):"–";
+function dateTextV81(d){return d?dateV74(d):"–";}
+function bindingTotalsV81(){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  let totalCredit=0,minCovered=0,maxCovered=0,latestPaidOff=null;
+  rows.forEach((row,i)=>{
+    const principal=bindingCreditAmountV81(i);
+    if(principal<=0)return;
+    totalCredit+=principal;
+    minCovered+=Math.min(Math.max(0,Number(row?.[3])||0),principal);
+    maxCovered+=Math.min(Math.max(0,Number(row?.[4])||0),principal);
+    latestPaidOff=maxDateV81(latestPaidOff,bindingPaidOffDateV81(i));
+  });
+  return {totalCredit,minCovered,maxCovered,latestPaidOff};
 }
-function parseForecastDateV80(text){
+function parseForecastDateV81(text){
   const m=String(text||"").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4,6})$/);
   if(!m)return null;
   const d=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));
   return isNaN(d)?null:d;
 }
-function endForecastWithRateAndBindingV80(mode="min"){
-  const eff=effectiveGoalForecastsV80(mode);
+function endForecastV81(mode="min"){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const ix=mode==="max"?4:3;
+  const total=rows.reduce((sum,row)=>sum+Math.max(0,Number(row?.[ix])||0),0);
+  const b=bindingTotalsV81();
+  const covered=mode==="max"?b.maxCovered:b.minCovered;
+  const remainingTarget=Math.max(0,total-covered);
 
-  // ALL one-time targets remain represented:
-  // only the principal actually supplied by a legally binding credit is removed
-  // from the amount that still has to be accumulated from wealth/saving/rate.
-  const normalText=forecastWithGlobalRateV66(eff.cumulativeToSave);
-  let savingsEnd=parseForecastDateV80(normalText);
-  if(normalText==="bereits erreicht"){
+  // This preserves the existing general-rate logic exactly, but applies it
+  // to the complete remaining target after binding-credit coverage.
+  const txt=forecastWithGlobalRateV66(remainingTarget);
+  let savingsEnd=parseForecastDateV81(txt);
+  if(txt==="bereits erreicht"){
     savingsEnd=new Date(); savingsEnd.setDate(1);
   }
-
-  // The full plan is not complete before every legally binding credit is paid.
-  const end=maxDateV79(savingsEnd,eff.latestBindingEnd);
-  return end?dateTextV79(end):(normalText||"–");
-}
-function bindingForecastInfoV80(){
-  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
-  let totalCredit=0,minCovered=0,maxCovered=0;
-  rows.forEach((r,i)=>{
-    const credit=bindingCreditAmountV79(i);
-    if(credit<=0)return;
-    totalCredit+=credit;
-    minCovered+=Math.min(Math.max(0,Number(r?.[3])||0),credit);
-    maxCovered+=Math.min(Math.max(0,Number(r?.[4])||0),credit);
-  });
-  return {totalCredit,minCovered,maxCovered};
+  const finalDate=maxDateV81(savingsEnd,b.latestPaidOff);
+  return finalDate?dateTextV81(finalDate):(txt||"–");
 }
 
 function renderGoals(){
@@ -769,9 +787,9 @@ function renderGoals(){
       return forecastGoalAmountV64(Math.max(0,cumulativeMin-wealth),monthlySaving);
     });
   })();
-  const effectiveMinV80=effectiveGoalForecastsV80("min");
+  const effectiveMinV81=goalForecastPlanV81("min");
   const forecasts=rows.map((r,i)=>{
-    return effectiveMinV80.changed[i]?dateTextV79(effectiveMinV80.dates[i]):normalForecasts[i];
+    return effectiveMinV81.useEffective[i]?dateTextV81(effectiveMinV81.dates[i]):normalForecasts[i];
   });
 
   const b=$("priorityGoalsBody");
@@ -797,9 +815,9 @@ function renderGoals(){
     const sums=[3,4,5,6,7,8,11].map(ix=>rows.reduce((s,r)=>s+Number(r?.[ix]||0),0));
     const totalMin=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[3])||0),0);
     const totalMax=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[4])||0),0);
-    const bindingV79=bindingForecastInfoV80();
-    const endMin=endForecastWithRateAndBindingV80("min");
-    const endMax=endForecastWithRateAndBindingV80("max");
+    const bindingV79=bindingTotalsV81();
+    const endMin=endForecastV81("min");
+    const endMax=endForecastV81("max");
 
     f.innerHTML=`
       <tr class="total-row"><th colspan="3">Summe</th>
@@ -808,7 +826,7 @@ function renderGoals(){
       </tr>
       <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th colspan="3"></th></tr>
       <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th colspan="3"></th></tr>
-      <tr class="goal-forecast-note-v64"><th colspan="16">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.${bindingV79.totalCredit>0?` Rechtskräftige Kredite: ${fmt(bindingV79.totalCredit)}. Davon ersetzen ${fmt(bindingV79.minCovered)} der Min-Sparsumme bzw. ${fmt(bindingV79.maxCovered)} der Max-Sparsumme; nicht gedeckte Beträge bleiben vollständig in der Endprognose enthalten. Bei vollständiger Deckung ist die Prognose dieses Sparziels exakt das Kreditende; alle folgenden Prognosen rechnen mit der dadurch reduzierten Sparsumme weiter. Die Endprognose enthält alle übrigen Zielbeträge und endet nicht vor dem letzten rechtskräftigen Kredit.`:""}</th></tr>`;
+      <tr class="goal-forecast-note-v64"><th colspan="16">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.${bindingV79.totalCredit>0?` Rechtskräftige Kredite: ${fmt(bindingV79.totalCredit)}. Davon ersetzen ${fmt(bindingV79.minCovered)} der Min-Sparsumme bzw. ${fmt(bindingV79.maxCovered)} der Max-Sparsumme; nicht gedeckte Beträge bleiben vollständig in der Endprognose enthalten. Bei vollständiger Deckung ist die Prognose dieses Sparziels exakt das Kreditende. Alle folgenden Sparziele rechnen mit der um rechtskräftig gedeckte Beträge reduzierten kumulierten Sparsumme weiter. Die Endprognose enthält die vollständige Summe aller nicht durch rechtskräftige Kredite gedeckten Zielbeträge, die allgemeine Rate und endet nicht vor dem letzten rechtskräftigen Kredit.`:""}</th></tr>`;
   }
 
   renderDashboardSavingsGoalsV71();
@@ -1386,16 +1404,20 @@ if(d.saveFinance!==undefined){
     p.credits[j][k]=k==="name"?inp.value:(Number(inp.value)||0);
   });
 
+  financingSafetyBackupV81("before-financing-save");
   const id=financingIdForSaveV79(i);
   if(!id)return;
   if(!data.goalFinancingV74 || typeof data.goalFinancingV74!=="object" || Array.isArray(data.goalFinancingV74)){
     data.goalFinancingV74={};
   }
 
-  // Only this specific financing is updated, and only after explicit Save.
+  // Merge into the existing financing object instead of replacing it.
+  // Unknown/older fields are preserved.
   const goal=data.priorityGoals?.[i];
-  const stored=cloneFinancingV79(p);
-  stored.goalRefV80=`${String(goal?.[1]||"")}|||${String(goal?.[2]||"")}`;
+  const existing=(data.goalFinancingV74[id]&&typeof data.goalFinancingV74[id]==="object")?data.goalFinancingV74[id]:{};
+  const stored={...cloneFinancingV79(existing),...cloneFinancingV79(p)};
+  stored.goalRefV80=existing.goalRefV80||goalFingerprintV81(goal);
+  stored.goalRefV81=goalFingerprintV81(goal);
   data.goalFinancingV74[id]=stored;
   delete financingDraftsV79[i];
   save();
@@ -1404,8 +1426,10 @@ if(d.saveFinance!==undefined){
 }
 if(d.deleteFinance!==undefined){
   const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const goal=data.priorityGoals?.[i];if(!goal)return;
-  if(confirm("Finanzierungsplanung für dieses Sparziel löschen?")){
-    if(data.goalFinancingV74 && goal[12]) delete data.goalFinancingV74[goal[12]];
+  if(confirm("Finanzierungsplanung für dieses Sparziel wirklich löschen?")){
+    financingSafetyBackupV81("before-financing-delete");
+    const key=financingKeyV81(i);
+    if(data.goalFinancingV74 && key) delete data.goalFinancingV74[key];
     delete financingDraftsV79[i];
     save();closeModal()
   }return
