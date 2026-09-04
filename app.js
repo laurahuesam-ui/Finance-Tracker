@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 76;
+const APP_VERSION = 77;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -345,26 +345,70 @@ function financingPlanV74(i){
 function addMonthsV74(d,n){const x=new Date(d.getFullYear(),d.getMonth(),1);x.setMonth(x.getMonth()+n);return x}
 function dateV74(d){return d instanceof Date&&!isNaN(d)?d.toLocaleDateString("de-DE"):"–"}
 
-function priorityFinancingStartV76(i){
-  const now=new Date();
-  now.setDate(1);
-  if(i<=0) return now;
 
+function normalGoalForecastDateV77(i){
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  if(i<0 || i>=rows.length) return null;
+
   const wealth=Math.max(0,Number(totalWealth())||0);
   const monthlySaving=Math.max(0,Number(avgSurplus())||0);
 
-  let previousMinTotal=0;
-  for(let x=0;x<i;x++){
-    previousMinTotal+=Math.max(0,Number(rows[x]?.[3])||0);
+  let cumulativeMin=0;
+  for(let x=0;x<=i;x++){
+    cumulativeMin+=Math.max(0,Number(rows[x]?.[3])||0);
   }
 
-  const remaining=Math.max(0,previousMinTotal-wealth);
+  const remaining=Math.max(0,cumulativeMin-wealth);
+  const now=new Date();
+  now.setDate(1);
+
   if(remaining<=0) return now;
   if(monthlySaving<=0) return null;
 
   return addMonthsV74(now,Math.ceil(remaining/monthlySaving));
 }
+
+function goalHasFinancingV77(i){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const row=rows[i];
+  if(!row || !row[12]) return false;
+
+  // IMPORTANT: read only. Do not create/replace financing entries here.
+  return !!(
+    data.goalFinancingV74 &&
+    typeof data.goalFinancingV74==="object" &&
+    !Array.isArray(data.goalFinancingV74) &&
+    data.goalFinancingV74[row[12]]
+  );
+}
+
+function priorityFinancingStartV76(i){
+  const now=new Date();
+  now.setDate(1);
+  if(i<=0) return now;
+
+  let latest=now;
+
+  for(let x=0;x<i;x++){
+    let completed=null;
+
+    if(goalHasFinancingV77(x)){
+      // If a financing exists, this goal is considered completed only
+      // when its financing is fully paid off.
+      const sim=financingSimulationV74(x);
+      completed=sim?.paidOff||null;
+    }else{
+      // Without financing, keep using the existing normal savings-goal forecast.
+      completed=normalGoalForecastDateV77(x);
+    }
+
+    if(!completed) return null;
+    if(completed>latest) latest=completed;
+  }
+
+  return latest;
+}
+
 function financingStartDateV76(i,plan){
   const now=new Date();
   now.setDate(1);
@@ -459,7 +503,7 @@ function openFinancingV74(i){
     <div class="finance-summary-v74">
       <div class="stat"><span>Ziel finanzierbar am</span><strong>${sim?.financeable?dateV74(sim.financeable):"–"}</strong></div>
       <div class="stat"><span>Alles abbezahlt am</span><strong>${sim?.paidOff?dateV74(sim.paidOff):"–"}</strong></div>
-      <div class="stat"><span>Finanzierungsstart</span><strong>${sim?.start?dateV74(sim.start):"–"}</strong></div>
+      <div class="stat"><span>Finanzierungsstart</span><strong>${sim?.start?dateV74(sim.start):"–"}</strong><small>${(p.timingMode||"due")==="priority"?"vorherige Ziele: Finanzierung falls vorhanden, sonst normale Prognose":""}</small></div>
       <div class="stat"><span>Fälligkeit / Status</span><strong>${(p.timingMode||"due")==="priority"?"nach Prioritätenreihenfolge":(sim?.dueDate?dateV74(sim.dueDate):"–")}</strong><small>${sim?.dueStatus||""}</small></div>
       <div class="stat"><span>Simulierter Zielbetrag</span><strong>${fmt(sim?.target||0)}</strong></div>
       <div class="stat"><span>Verwendetes Eigenkapital</span><strong>${fmt(sim?.startingEquity||0)}</strong></div>
@@ -477,7 +521,7 @@ function openFinancingV74(i){
         <input id="finDueDateV76" type="date" value="${escAttrV74(p.dueDate||"")}">
       </label>
       <div class="finance-priority-note-v76">
-        <span>Bei „Prioritätenreihenfolge“ beginnt dieses Ziel erst nach Abschluss aller vorherigen Sparziele laut normaler Sparziel-Prognose.</span>
+        <span>Bei „Prioritätenreihenfolge“ beginnt dieses Ziel erst nach Abschluss aller vorherigen Sparziele. Hat ein vorheriges Ziel eine Finanzierung, gilt dessen „Alles abbezahlt am“-Prognose; ohne Finanzierung gilt die normale Sparziel-Prognose.</span>
       </div>
       <label>Zielbetrag<select id="finTargetModeV74"><option value="min" ${p.targetMode==="min"?"selected":""}>Min (${fmt(goal[3])})</option><option value="max" ${p.targetMode==="max"?"selected":""}>Max (${fmt(goal[4])})</option><option value="custom" ${p.targetMode==="custom"?"selected":""}>Eigener Betrag</option></select></label>
       <label>Eigener Zielbetrag<input id="finCustomTargetV74" type="number" step=".01" value="${Number(p.customTarget)||0}"></label>
