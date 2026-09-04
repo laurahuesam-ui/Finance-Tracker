@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 74;
+const APP_VERSION = 75;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -348,7 +348,16 @@ function financingSimulationV74(i){
   const plan=financingPlanV74(i), goal=data.priorityGoals?.[i];
   if(!plan||!goal) return null;
   const target=plan.targetMode==="max"?Number(goal[4]||0):plan.targetMode==="custom"?Number(plan.customTarget||0):Number(goal[3]||0);
-  let fund=Math.max(0,Number(plan.equity||0));
+  const currentWealth=Math.max(0,Number(totalWealth())||0);
+  let startingEquity=0;
+  if(plan.equityMode==="wealth"){
+    startingEquity=currentWealth;
+  }else if(plan.equityMode==="wealthPercent"){
+    startingEquity=currentWealth*Math.min(100,Math.max(0,Number(plan.equityPercent)||0))/100;
+  }else{
+    startingEquity=Math.max(0,Number(plan.equity||0));
+  }
+  let fund=startingEquity;
   const credits=(plan.credits||[]).map(c=>({...c,balance:Math.max(0,Number(c.amount)||0),interestPaid:0}));
   const grants=(plan.grants||[]).map(x=>({amount:Math.max(0,Number(x.amount)||0),month:Math.max(0,Number(x.month)||0)}));
   const once=(plan.once||[]).map(x=>({amount:Math.max(0,Number(x.amount)||0),month:Math.max(0,Number(x.month)||0)}));
@@ -378,7 +387,7 @@ function financingSimulationV74(i){
     if(m<360 || m%12===0) table.push({m,date:addMonthsV74(start,m),fund,credit:credits.reduce((x,c)=>x+c.balance,0),interest:monthInterest,payments:monthPayments});
     if(financeable && credits.every(c=>c.balance<=0.005)){paidOff=addMonthsV74(start,m);break}
   }
-  return {target,financeable,paidOff,totalInterest,table,remainingCredit:credits.reduce((x,c)=>x+c.balance,0)};
+  return {target,financeable,paidOff,totalInterest,startingEquity,table,remainingCredit:credits.reduce((x,c)=>x+c.balance,0)};
 }
 function financingSummaryV74(i){
   const sim=financingSimulationV74(i);
@@ -390,7 +399,7 @@ function openFinancingV74(i){
   ensureGoalFinancingV74();
   const goal=data.priorityGoals?.[i]; if(!goal)return;
   const id=goal[12];
-  const p=data.goalFinancingV74[id]||{targetMode:"min",customTarget:0,equity:0,savingMode:"fixed",savingValue:0,credits:[],grants:[],once:[]};
+  const p=data.goalFinancingV74[id]||{targetMode:"min",customTarget:0,equityMode:"fixed",equity:0,equityPercent:0,savingMode:"fixed",savingValue:0,credits:[],grants:[],once:[]};
   data.goalFinancingV74[id]=p;
   const sim=financingSimulationV74(i);
   const credits=(p.credits||[]).map((c,j)=>`<tr><td><input data-fc="${j}" data-k="name" value="${escAttrV74(c.name||`Kredit ${j+1}`)}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="amount" value="${Number(c.amount)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="rate" value="${Number(c.rate)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="payment" value="${Number(c.payment)||0}"></td><td><input type="number" step="1" data-fc="${j}" data-k="startMonth" value="${Number(c.startMonth)||0}"></td><td><input type="number" step=".01" data-fc="${j}" data-k="extraAnnual" value="${Number(c.extraAnnual)||0}"></td><td><button type="button" data-remove-credit="${j}">×</button></td></tr>`).join("");
@@ -400,13 +409,29 @@ function openFinancingV74(i){
       <div class="stat"><span>Ziel finanzierbar am</span><strong>${sim?.financeable?dateV74(sim.financeable):"–"}</strong></div>
       <div class="stat"><span>Alles abbezahlt am</span><strong>${sim?.paidOff?dateV74(sim.paidOff):"–"}</strong></div>
       <div class="stat"><span>Simulierter Zielbetrag</span><strong>${fmt(sim?.target||0)}</strong></div>
+      <div class="stat"><span>Verwendetes Eigenkapital</span><strong>${fmt(sim?.startingEquity||0)}</strong></div>
       <div class="stat"><span>Kreditzinsen gesamt</span><strong>${fmt(sim?.totalInterest||0)}</strong></div>
     </div>
     <h3>Grundlage</h3>
     <div class="form-grid">
       <label>Zielbetrag<select id="finTargetModeV74"><option value="min" ${p.targetMode==="min"?"selected":""}>Min (${fmt(goal[3])})</option><option value="max" ${p.targetMode==="max"?"selected":""}>Max (${fmt(goal[4])})</option><option value="custom" ${p.targetMode==="custom"?"selected":""}>Eigener Betrag</option></select></label>
       <label>Eigener Zielbetrag<input id="finCustomTargetV74" type="number" step=".01" value="${Number(p.customTarget)||0}"></label>
-      <label>Eigenkapital<input id="finEquityV74" type="number" step=".01" value="${Number(p.equity)||0}"></label>
+      <label>Eigenkapital verwenden
+        <select id="finEquityModeV75">
+          <option value="fixed" ${(p.equityMode||"fixed")==="fixed"?"selected":""}>Fester Betrag</option>
+          <option value="wealth" ${p.equityMode==="wealth"?"selected":""}>Gesamtes aktuelles Gesamtvermögen</option>
+          <option value="wealthPercent" ${p.equityMode==="wealthPercent"?"selected":""}>Anteil vom aktuellen Gesamtvermögen</option>
+        </select>
+      </label>
+      <label>Fester Eigenkapitalbetrag
+        <input id="finEquityV74" type="number" min="0" step=".01" value="${Number(p.equity)||0}">
+      </label>
+      <label>Anteil Gesamtvermögen %
+        <input id="finEquityPercentV75" type="number" min="0" max="100" step=".01" value="${Number(p.equityPercent)||0}">
+      </label>
+      <label>Aktuelles Gesamtvermögen
+        <input type="text" value="${fmt(totalWealth())}" readonly>
+      </label>
       <label>Sparen<select id="finSavingModeV74"><option value="fixed" ${p.savingMode==="fixed"?"selected":""}>Fester Betrag</option><option value="surplus" ${p.savingMode==="surplus"?"selected":""}>Ø Monatsüberschuss</option><option value="percent" ${p.savingMode==="percent"?"selected":""}>Anteil vom Ø Monatsüberschuss</option></select></label>
       <label>Sparbetrag / Anteil %<input id="finSavingValueV74" type="number" step=".01" value="${Number(p.savingValue)||0}"></label>
     </div>
@@ -1022,7 +1047,13 @@ if(d.removeCredit!==undefined){
 }
 if(d.saveFinance!==undefined){
   const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingPlanV74(i);if(!p)return;
-  p.targetMode=$("finTargetModeV74").value;p.customTarget=Number($("finCustomTargetV74").value)||0;p.equity=Number($("finEquityV74").value)||0;p.savingMode=$("finSavingModeV74").value;p.savingValue=Number($("finSavingValueV74").value)||0;
+  p.targetMode=$("finTargetModeV74").value;
+  p.customTarget=Number($("finCustomTargetV74").value)||0;
+  p.equityMode=$("finEquityModeV75")?.value||"fixed";
+  p.equity=Math.max(0,Number($("finEquityV74").value)||0);
+  p.equityPercent=Math.min(100,Math.max(0,Number($("finEquityPercentV75")?.value)||0));
+  p.savingMode=$("finSavingModeV74").value;
+  p.savingValue=Number($("finSavingValueV74").value)||0;
   p.grants=parseTimedV74($("finGrantsV74").value);p.once=parseTimedV74($("finOnceV74").value);
   document.querySelectorAll("[data-fc]").forEach(inp=>{const j=Number(inp.dataset.fc),k=inp.dataset.k;if(!p.credits[j])return;p.credits[j][k]=k==="name"?inp.value:(Number(inp.value)||0)});
   save();openFinancingV74(i);return
