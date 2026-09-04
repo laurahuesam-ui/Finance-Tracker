@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 79;
+const APP_VERSION = 80;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -40,14 +40,10 @@ function normalizeRuntimeDataV64(){
 normalizeRuntimeDataV64();
 
 function normalizeGoalRatesV65(){
+  // V80: Legacy per-goal rate fields were removed long ago.
+  // IMPORTANT: indices 12+ are now used by financing linkage.
+  // Never coerce, initialize, overwrite or otherwise modify them here.
   if(!Array.isArray(data.priorityGoals)) return;
-  data.priorityGoals.forEach(r=>{
-    if(!Array.isArray(r)) return;
-    if(r.length<13) r[12]=0;
-    if(r.length<14) r[13]="";
-    r[12]=Math.max(0,Number(r[12])||0);
-    r[13]=String(r[13]||"");
-  });
 }
 normalizeGoalRatesV65();
 
@@ -331,35 +327,93 @@ function renderGlobalGoalRateV66(){
 
 
 
+
 function ensureGoalFinancingV74(){
-  // V79: financing storage is only initialized on an explicit financing save.
-  // Loading/rendering the app must never rewrite ids or financing objects.
+  // Read-only compatibility helper. Never creates or rewrites financing data.
   return !!(
     data.goalFinancingV74 &&
     typeof data.goalFinancingV74==="object" &&
     !Array.isArray(data.goalFinancingV74)
   );
 }
+function financingStoreV80(){
+  return (
+    data.goalFinancingV74 &&
+    typeof data.goalFinancingV74==="object" &&
+    !Array.isArray(data.goalFinancingV74)
+  ) ? data.goalFinancingV74 : null;
+}
+function financingPlanScoreV80(p){
+  if(!p || typeof p!=="object" || Array.isArray(p)) return -1;
+  let score=0;
+  if(p.bindingCredit===true) score+=1000;
+  score+=(p.credits||[]).length*100;
+  score+=(p.credits||[]).reduce((sum,c)=>sum+(Math.max(0,Number(c?.amount)||0)>0?100:0),0);
+  if(Math.max(0,Number(p.equity)||0)>0) score+=20;
+  if(Math.max(0,Number(p.equityPercent)||0)>0) score+=20;
+  if(Math.max(0,Number(p.savingValue)||0)>0) score+=20;
+  score+=(p.grants||[]).length*10;
+  score+=(p.once||[]).length*10;
+  if(p.dueDate) score+=5;
+  return score;
+}
+function financingIndexFromKeyV80(key){
+  let m=String(key||"").match(/^goal-(\d+)-(\d+)-/);       // V74: goal-TIMESTAMP-INDEX-rand
+  if(m) return Number(m[2]);
+  m=String(key||"").match(/^goal-v78-(\d+)-/);             // V78: goal-v78-INDEX-rand
+  if(m) return Number(m[1]);
+  m=String(key||"").match(/^goal-v79-(\d+)-(\d+)-/);       // V79: goal-v79-TIMESTAMP-INDEX-rand
+  if(m) return Number(m[2]);
+  m=String(key||"").match(/^goal-v80-(\d+)-(\d+)-/);       // V80: goal-v80-TIMESTAMP-INDEX-rand
+  if(m) return Number(m[2]);
+  return null;
+}
+function financingKeyV80(i){
+  const row=data.priorityGoals?.[i];
+  const store=financingStoreV80();
+  if(!row || !store) return null;
+
+  // 1) Proper direct linkage always wins.
+  if(typeof row[12]==="string" && row[12] && store[row[12]]) return row[12];
+
+  // 2) Future repaired records can identify their goal explicitly.
+  const fingerprint=`${String(row[1]||"")}|||${String(row[2]||"")}`;
+  const byRef=Object.keys(store).filter(k=>store[k]?.goalRefV80===fingerprint);
+  if(byRef.length){
+    byRef.sort((x,y)=>financingPlanScoreV80(store[y])-financingPlanScoreV80(store[x]));
+    return byRef[0];
+  }
+
+  // 3) Recover financing entries orphaned by V65's destructive Number(r[12]).
+  // Old financing ids contain the zero-based goal index at creation time.
+  const candidates=Object.keys(store).filter(k=>financingIndexFromKeyV80(k)===i);
+  if(!candidates.length) return null;
+  candidates.sort((x,y)=>financingPlanScoreV80(store[y])-financingPlanScoreV80(store[x]));
+  return candidates[0];
+}
 function financingPlanV74(i){
-  const r=data.priorityGoals?.[i];
-  if(!r || !r[12]) return null;
-  if(!data.goalFinancingV74 || typeof data.goalFinancingV74!=="object" || Array.isArray(data.goalFinancingV74)) return null;
-  return data.goalFinancingV74[r[12]]||null;
+  const store=financingStoreV80();
+  if(!store) return null;
+  const key=financingKeyV80(i);
+  return key?store[key]||null:null;
 }
 function financingIdForSaveV79(i){
   const r=data.priorityGoals?.[i];
   if(!r) return null;
 
-  // Keep every existing id exactly as-is.
-  if(r[12]) return r[12];
+  // Reuse every recoverable existing financing. Never replace it with a blank one.
+  const recovered=financingKeyV80(i);
+  if(recovered){
+    r[12]=recovered; // repair linkage only on explicit Save
+    return recovered;
+  }
 
-  // Create an id ONLY because the user explicitly saves a new financing.
   if(!data.goalFinancingV74 || typeof data.goalFinancingV74!=="object" || Array.isArray(data.goalFinancingV74)){
     data.goalFinancingV74={};
   }
-  let id=`goal-v79-${Date.now()}-${i}-${Math.random().toString(36).slice(2,9)}`;
+  let id=`goal-v80-${Date.now()}-${i}-${Math.random().toString(36).slice(2,9)}`;
   while(data.goalFinancingV74[id]){
-    id=`goal-v79-${Date.now()}-${i}-${Math.random().toString(36).slice(2,9)}`;
+    id=`goal-v80-${Date.now()}-${i}-${Math.random().toString(36).slice(2,9)}`;
   }
   r[12]=id;
   return id;
@@ -405,17 +459,7 @@ function normalGoalForecastDateV77(i){
 }
 
 function goalHasFinancingV77(i){
-  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
-  const row=rows[i];
-  if(!row || !row[12]) return false;
-
-  // IMPORTANT: read only. Do not create/replace financing entries here.
-  return !!(
-    data.goalFinancingV74 &&
-    typeof data.goalFinancingV74==="object" &&
-    !Array.isArray(data.goalFinancingV74) &&
-    data.goalFinancingV74[row[12]]
-  );
+  return !!financingPlanV74(i);
 }
 
 function priorityFinancingStartV76(i){
@@ -603,8 +647,8 @@ function parseTimedV74(v){
 
 
 
+
 function bindingCreditAmountV79(i){
-  if(!goalHasFinancingV77(i)) return 0;
   const p=financingPlanV74(i);
   if(p?.bindingCredit!==true) return 0;
   return (p.credits||[]).reduce((sum,c)=>sum+Math.max(0,Number(c?.amount)||0),0);
@@ -614,7 +658,7 @@ function bindingPaidOffDateV79(i){
   const sim=financingSimulationV74(i);
   return sim?.paidOff||null;
 }
-function normalDateForAmountV79(amount){
+function normalDateForAmountV80(amount){
   const now=new Date();
   now.setDate(1);
   const wealth=Math.max(0,Number(totalWealth())||0);
@@ -629,64 +673,76 @@ function maxDateV79(a,b){
   if(!b)return a||null;
   return a>b?a:b;
 }
-function effectiveGoalForecastsV79(mode="min"){
+function effectiveGoalForecastsV80(mode="min"){
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
   const ix=mode==="max"?4:3;
   let cumulativeToSave=0;
-  let latestBindingEnd=null;
+  let latestPriorBindingEnd=null;
+  let bindingSeen=false;
   const dates=[];
+  const changed=[];
 
   rows.forEach((r,i)=>{
     const goalAmount=Math.max(0,Number(r?.[ix])||0);
-    const bindingCredit=bindingCreditAmountV79(i);
-    const covered=Math.min(goalAmount,bindingCredit);
+    const credit=bindingCreditAmountV79(i);
+    const binding=credit>0;
+    const bindingEnd=binding?bindingPaidOffDateV79(i):null;
+    const covered=binding?Math.min(goalAmount,credit):0;
     const remainder=Math.max(0,goalAmount-covered);
 
     cumulativeToSave+=remainder;
+    const savingsDate=normalDateForAmountV80(cumulativeToSave);
 
-    const bindingEnd=bindingPaidOffDateV79(i);
-    if(bindingEnd) latestBindingEnd=maxDateV79(latestBindingEnd,bindingEnd);
+    let completion=savingsDate;
 
-    const normalDate=normalDateForAmountV79(cumulativeToSave);
-    let completion=maxDateV79(normalDate,latestBindingEnd);
-
-    // If this binding credit covers the whole goal, its own displayed forecast
-    // is exactly the credit payoff date, provided previous priorities are not later.
-    if(bindingCredit>=goalAmount && goalAmount>0 && bindingEnd){
-      const previous=dates.length?dates[dates.length-1]:null;
-      completion=maxDateV79(previous,bindingEnd);
+    if(binding && covered>=goalAmount && goalAmount>0 && bindingEnd){
+      // User rule: when the legally binding credit covers the whole target,
+      // THIS goal's forecast is exactly the credit payoff date.
+      completion=bindingEnd;
+    }else{
+      // Partial/no binding: both savings path and all earlier binding loans
+      // that belong to the priority chain must be finished.
+      completion=maxDateV79(savingsDate,latestPriorBindingEnd);
+      if(bindingEnd) completion=maxDateV79(completion,bindingEnd);
     }
 
+    if(bindingEnd) latestPriorBindingEnd=maxDateV79(latestPriorBindingEnd,bindingEnd);
+    if(binding) bindingSeen=true;
+
     dates.push(completion);
+    changed.push(bindingSeen);
   });
 
-  return {dates,cumulativeToSave,latestBindingEnd};
+  return {dates,changed,cumulativeToSave,latestBindingEnd:latestPriorBindingEnd};
 }
 function dateTextV79(d){
   return d?dateV74(d):"–";
 }
-function endForecastWithRateAndBindingV79(mode="min"){
-  const eff=effectiveGoalForecastsV79(mode);
-  const normalText=forecastWithGlobalRateV66(eff.cumulativeToSave);
+function parseForecastDateV80(text){
+  const m=String(text||"").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4,6})$/);
+  if(!m)return null;
+  const d=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));
+  return isNaN(d)?null:d;
+}
+function endForecastWithRateAndBindingV80(mode="min"){
+  const eff=effectiveGoalForecastsV80(mode);
 
-  // Parse actual German dates correctly. V78 accidentally matched literal "\\d".
-  const m=String(normalText||"").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4,6})$/);
-  let normalDate=null;
-  if(m){
-    normalDate=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));
-    if(isNaN(normalDate))normalDate=null;
-  }else if(normalText==="bereits erreicht"){
-    normalDate=new Date(); normalDate.setDate(1);
+  // ALL one-time targets remain represented:
+  // only the principal actually supplied by a legally binding credit is removed
+  // from the amount that still has to be accumulated from wealth/saving/rate.
+  const normalText=forecastWithGlobalRateV66(eff.cumulativeToSave);
+  let savingsEnd=parseForecastDateV80(normalText);
+  if(normalText==="bereits erreicht"){
+    savingsEnd=new Date(); savingsEnd.setDate(1);
   }
 
-  const end=maxDateV79(normalDate,eff.latestBindingEnd);
-  return end?dateTextV79(end):normalText||"–";
+  // The full plan is not complete before every legally binding credit is paid.
+  const end=maxDateV79(savingsEnd,eff.latestBindingEnd);
+  return end?dateTextV79(end):(normalText||"–");
 }
-function bindingForecastInfoV79(){
+function bindingForecastInfoV80(){
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
-  let totalCredit=0;
-  let minCovered=0;
-  let maxCovered=0;
+  let totalCredit=0,minCovered=0,maxCovered=0;
   rows.forEach((r,i)=>{
     const credit=bindingCreditAmountV79(i);
     if(credit<=0)return;
@@ -713,10 +769,9 @@ function renderGoals(){
       return forecastGoalAmountV64(Math.max(0,cumulativeMin-wealth),monthlySaving);
     });
   })();
-  const effectiveMinV79=effectiveGoalForecastsV79("min");
+  const effectiveMinV80=effectiveGoalForecastsV80("min");
   const forecasts=rows.map((r,i)=>{
-    const binding=bindingCreditAmountV79(i)>0;
-    return binding?dateTextV79(effectiveMinV79.dates[i]):normalForecasts[i];
+    return effectiveMinV80.changed[i]?dateTextV79(effectiveMinV80.dates[i]):normalForecasts[i];
   });
 
   const b=$("priorityGoalsBody");
@@ -742,9 +797,9 @@ function renderGoals(){
     const sums=[3,4,5,6,7,8,11].map(ix=>rows.reduce((s,r)=>s+Number(r?.[ix]||0),0));
     const totalMin=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[3])||0),0);
     const totalMax=rows.reduce((s,r)=>s+Math.max(0,Number(r?.[4])||0),0);
-    const bindingV79=bindingForecastInfoV79();
-    const endMin=endForecastWithRateAndBindingV79("min");
-    const endMax=endForecastWithRateAndBindingV79("max");
+    const bindingV79=bindingForecastInfoV80();
+    const endMin=endForecastWithRateAndBindingV80("min");
+    const endMax=endForecastWithRateAndBindingV80("max");
 
     f.innerHTML=`
       <tr class="total-row"><th colspan="3">Summe</th>
@@ -753,7 +808,7 @@ function renderGoals(){
       </tr>
       <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th colspan="3"></th></tr>
       <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th colspan="3"></th></tr>
-      <tr class="goal-forecast-note-v64"><th colspan="16">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.${bindingV79.totalCredit>0?` Rechtskräftige Kredite: ${fmt(bindingV79.totalCredit)}. Davon ersetzen ${fmt(bindingV79.minCovered)} der Min-Sparsumme bzw. ${fmt(bindingV79.maxCovered)} der Max-Sparsumme; nicht gedeckte Beträge bleiben vollständig in der Endprognose enthalten. Kreditenden werden als Mindest-Endzeitpunkt berücksichtigt.`:""}</th></tr>`;
+      <tr class="goal-forecast-note-v64"><th colspan="16">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.${bindingV79.totalCredit>0?` Rechtskräftige Kredite: ${fmt(bindingV79.totalCredit)}. Davon ersetzen ${fmt(bindingV79.minCovered)} der Min-Sparsumme bzw. ${fmt(bindingV79.maxCovered)} der Max-Sparsumme; nicht gedeckte Beträge bleiben vollständig in der Endprognose enthalten. Bei vollständiger Deckung ist die Prognose dieses Sparziels exakt das Kreditende; alle folgenden Prognosen rechnen mit der dadurch reduzierten Sparsumme weiter. Die Endprognose enthält alle übrigen Zielbeträge und endet nicht vor dem letzten rechtskräftigen Kredit.`:""}</th></tr>`;
   }
 
   renderDashboardSavingsGoalsV71();
@@ -1338,7 +1393,10 @@ if(d.saveFinance!==undefined){
   }
 
   // Only this specific financing is updated, and only after explicit Save.
-  data.goalFinancingV74[id]=cloneFinancingV79(p);
+  const goal=data.priorityGoals?.[i];
+  const stored=cloneFinancingV79(p);
+  stored.goalRefV80=`${String(goal?.[1]||"")}|||${String(goal?.[2]||"")}`;
+  data.goalFinancingV74[id]=stored;
   delete financingDraftsV79[i];
   save();
   openFinancingV74(i);
