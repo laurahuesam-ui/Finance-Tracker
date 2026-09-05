@@ -195,4 +195,4 @@ th:first-child,td:first-child{text-align:left}
 .finance-grant-binding-v82 label{display:flex;align-items:center;gap:.4rem;white-space:nowrap}
 .finance-grant-binding-v82 input{min-width:auto;width:auto}
 
-.finance-binding-cell-v83 label{display:flex;align-items:center;gap:.4rem;white-space:nowrap}.finance-binding-cell-v83 input{width:auto;min-width:auto}
+.finance-binding-v84 label{display:flex;align-items:center;gap:.35rem;white-space:nowrap}.finance-binding-v84 input{width:auto;min-width:auto}.finance-grants-v82 input,.finance-grants-v82 select,.finance-subsidies-v84 input,.finance-subsidies-v84 select{min-width:100px}
