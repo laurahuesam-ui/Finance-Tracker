@@ -190,3 +190,7 @@ th:first-child,td:first-child{text-align:left}
 .finance-binding-v78 small{display:block;margin-top:.35rem;color:var(--muted)}
 
 .finance-safety-v81{padding:.7rem .85rem;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-size:.84rem}
+
+.finance-grants-v82 select,.finance-grants-v82 input{min-width:110px}
+.finance-grant-binding-v82 label{display:flex;align-items:center;gap:.4rem;white-space:nowrap}
+.finance-grant-binding-v82 input{min-width:auto;width:auto}
