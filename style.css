@@ -194,3 +194,5 @@ th:first-child,td:first-child{text-align:left}
 .finance-grants-v82 select,.finance-grants-v82 input{min-width:110px}
 .finance-grant-binding-v82 label{display:flex;align-items:center;gap:.4rem;white-space:nowrap}
 .finance-grant-binding-v82 input{min-width:auto;width:auto}
+
+.finance-binding-cell-v83 label{display:flex;align-items:center;gap:.4rem;white-space:nowrap}.finance-binding-cell-v83 input{width:auto;min-width:auto}
