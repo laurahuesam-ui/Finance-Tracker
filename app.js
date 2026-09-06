@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 86;
+const APP_VERSION = 87;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -768,6 +768,56 @@ function financingSummaryV74(i){
   return {financeable:sim.financeable?dateV74(sim.financeable):"–",paidOff:sim.paidOff?dateV74(sim.paidOff):"–"};
 }
 function escAttrV74(v){return esc(String(v??"")).replace(/"/g,"&quot;")}
+
+function syncFinancingDraftFromDomV87(i){
+  const box=document.querySelector(`[data-finance-index="${i}"]`);
+  if(!box)return financingDraftV79(i);
+
+  const p=financingDraftV79(i);
+  if(!p)return null;
+  const el=id=>document.getElementById(id);
+
+  if(el("finTimingModeV76")) p.timingMode=el("finTimingModeV76").value||"due";
+  if(el("finDueDateV76")) p.dueDate=String(el("finDueDateV76").value||"");
+  if(el("finTargetModeV74")) p.targetMode=el("finTargetModeV74").value;
+  if(el("finCustomTargetV74")) p.customTarget=Number(el("finCustomTargetV74").value)||0;
+  if(el("finEquityModeV75")) p.equityMode=el("finEquityModeV75").value||"fixed";
+  if(el("finEquityV74")) p.equity=Math.max(0,Number(el("finEquityV74").value)||0);
+  if(el("finEquityPercentV75")) p.equityPercent=Math.min(100,Math.max(0,Number(el("finEquityPercentV75").value)||0));
+  if(el("finSavingModeV74")) p.savingMode=el("finSavingModeV74").value;
+  if(el("finSavingValueV74")) p.savingValue=Number(el("finSavingValueV74").value)||0;
+  if(el("finOnceV74")) p.once=parseTimedV74(el("finOnceV74").value);
+
+  p.credits=p.credits||[];
+  box.querySelectorAll("[data-fc]").forEach(inp=>{
+    const j=Number(inp.dataset.fc),k=inp.dataset.k;
+    if(!p.credits[j])return;
+    if(k==="bindingCredit") p.credits[j][k]=inp.checked===true;
+    else p.credits[j][k]=k==="name"?inp.value:(Number(inp.value)||0);
+  });
+  p.bindingCredit=p.credits.some(c=>c?.bindingCredit===true);
+
+  p.grants=(p.grants||[]).map(normalizedGrantV85);
+  box.querySelectorAll("[data-fg]").forEach(inp=>{
+    const j=Number(inp.dataset.fg),k=inp.dataset.gk;
+    if(!p.grants[j])return;
+    if(k==="bindingGrant") p.grants[j][k]=inp.checked===true;
+    else if(k==="name" || k==="mode") p.grants[j][k]=inp.value;
+    else p.grants[j][k]=Math.max(0,Number(inp.value)||0);
+  });
+
+  p.subsidies=(p.subsidies||[]).map(normalizedSubsidyV85);
+  box.querySelectorAll("[data-fs]").forEach(inp=>{
+    const j=Number(inp.dataset.fs),k=inp.dataset.sk;
+    if(!p.subsidies[j])return;
+    if(k==="bindingSubsidy") p.subsidies[j][k]=inp.checked===true;
+    else if(k==="name" || k==="mode") p.subsidies[j][k]=inp.value;
+    else p.subsidies[j][k]=Math.max(0,Number(inp.value)||0);
+  });
+
+  return p;
+}
+
 function openFinancingV74(i){
   const goal=data.priorityGoals?.[i]; if(!goal)return;
   const p=financingDraftV79(i);
@@ -877,7 +927,7 @@ function openFinancingV74(i){
       <button type="button" data-save-finance>Speichern & simulieren</button>
       <button type="button" class="danger" data-delete-finance>Finanzierungsplanung löschen</button>
     </div>
-    <p class="muted">Sicherheitsmodus: Öffnen/Simulieren verändert keine gespeicherte Finanzierung. Erst „Speichern & simulieren“ schreibt diese eine Finanzierung; davor wird automatisch eine Finanzierungs-Sicherheitskopie erstellt.</p>
+    <p class="muted">Sicherheitsmodus: Beim Hinzufügen oder Entfernen von Kredit, Förderkredit oder Zuschuss werden zuerst alle aktuell eingegebenen Finanzierungsfelder in den Entwurf übernommen. Erst „Speichern & simulieren“ schreibt dauerhaft; davor wird automatisch eine Finanzierungs-Sicherheitskopie erstellt.</p>
   </div>`);
 }
 
@@ -1629,33 +1679,33 @@ if(d.closeModal!==undefined){
   closeModal();return
 }
 if(d.addCredit!==undefined){
-  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingDraftV79(i);if(!p)return;
+  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=syncFinancingDraftFromDomV87(i);if(!p)return;
   p.credits=p.credits||[];p.credits.push({name:`Kredit ${p.credits.length+1}`,amount:0,rate:0,payment:0,startMonth:0,extraAnnual:0,bindingCredit:false});openFinancingV74(i);return
 }
 if(d.removeCredit!==undefined){
-  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingDraftV79(i);if(!p)return;
+  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=syncFinancingDraftFromDomV87(i);if(!p)return;
   p.credits.splice(Number(d.removeCredit),1);openFinancingV74(i);return
 }
 if(d.addGrant!==undefined){
-  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingDraftV79(i);if(!p)return;
+  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=syncFinancingDraftFromDomV87(i);if(!p)return;
   p.grants=p.grants||[];
   p.grants.push({name:`Förderkredit ${p.grants.length+1}`,mode:"amount",minValue:0,maxValue:0,rate:0,nominalRate:0,payment:0,month:0,extraAnnual:0,bindingGrant:false});
   openFinancingV74(i);return
 }
 if(d.removeGrant!==undefined){
-  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingDraftV79(i);if(!p)return;
+  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=syncFinancingDraftFromDomV87(i);if(!p)return;
   p.grants=p.grants||[];
   p.grants.splice(Number(d.removeGrant),1);
   openFinancingV74(i);return
 }
 if(d.addSubsidy!==undefined){
-  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingDraftV79(i);if(!p)return;
+  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=syncFinancingDraftFromDomV87(i);if(!p)return;
   p.subsidies=p.subsidies||[];
   p.subsidies.push({name:`Zuschuss ${p.subsidies.length+1}`,mode:"amount",minValue:0,maxValue:0,month:0,bindingSubsidy:false});
   openFinancingV74(i);return
 }
 if(d.removeSubsidy!==undefined){
-  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=financingDraftV79(i);if(!p)return;
+  const box=e.target.closest("[data-finance-index]");const i=Number(box?.dataset.financeIndex);const p=syncFinancingDraftFromDomV87(i);if(!p)return;
   p.subsidies=p.subsidies||[];
   p.subsidies.splice(Number(d.removeSubsidy),1);
   openFinancingV74(i);return
@@ -1663,44 +1713,8 @@ if(d.removeSubsidy!==undefined){
 if(d.saveFinance!==undefined){
   const box=e.target.closest("[data-finance-index]");
   const i=Number(box?.dataset.financeIndex);
-  const p=financingDraftV79(i);
+  const p=syncFinancingDraftFromDomV87(i);
   if(!p)return;
-
-  p.timingMode=$("finTimingModeV76")?.value||"due";
-  p.dueDate=String($("finDueDateV76")?.value||"");
-  p.targetMode=$("finTargetModeV74").value;
-  p.customTarget=Number($("finCustomTargetV74").value)||0;
-  p.equityMode=$("finEquityModeV75")?.value||"fixed";
-  p.equity=Math.max(0,Number($("finEquityV74").value)||0);
-  p.equityPercent=Math.min(100,Math.max(0,Number($("finEquityPercentV75")?.value)||0));
-  p.savingMode=$("finSavingModeV74").value;
-  p.savingValue=Number($("finSavingValueV74").value)||0;
-  p.once=parseTimedV74($("finOnceV74").value);
-
-  document.querySelectorAll("[data-fc]").forEach(inp=>{
-    const j=Number(inp.dataset.fc),k=inp.dataset.k;
-    if(!p.credits[j])return;
-    if(k==="bindingCredit") p.credits[j][k]=inp.checked===true; else p.credits[j][k]=k==="name"?inp.value:(Number(inp.value)||0);
-  });
-  // Compatibility flag only; all new calculations use the direct per-credit checkbox.
-  p.bindingCredit=(p.credits||[]).some(c=>c?.bindingCredit===true);
-
-  p.grants=(p.grants||[]).map(normalizedGrantV85);
-  document.querySelectorAll("[data-fg]").forEach(inp=>{
-    const j=Number(inp.dataset.fg),k=inp.dataset.gk;
-    if(!p.grants[j])return;
-    if(k==="bindingGrant") p.grants[j][k]=inp.checked===true;
-    else if(k==="name" || k==="mode") p.grants[j][k]=inp.value;
-    else p.grants[j][k]=Math.max(0,Number(inp.value)||0);
-  });
-  p.subsidies=(p.subsidies||[]).map(normalizedSubsidyV85);
-  document.querySelectorAll("[data-fs]").forEach(inp=>{
-    const j=Number(inp.dataset.fs),k=inp.dataset.sk;
-    if(!p.subsidies[j])return;
-    if(k==="bindingSubsidy") p.subsidies[j][k]=inp.checked===true;
-    else if(k==="name" || k==="mode") p.subsidies[j][k]=inp.value;
-    else p.subsidies[j][k]=Math.max(0,Number(inp.value)||0);
-  });
 
   financingSafetyBackupV81("before-financing-save");
   const id=financingIdForSaveV79(i);
@@ -1729,10 +1743,11 @@ if(d.saveFinance!==undefined){
     return;
   }
 
-  delete financingDraftsV79[i];
+  // Keep exactly the just-saved object as the active draft.
+  // This prevents a lookup/recovery step from losing credits when the user
+  // immediately adds a Förderkredit or Zuschuss.
+  financingDraftsV79[i]=cloneFinancingV79(stored);
 
-  // Rendering happens only AFTER the verified localStorage write.
-  // Even if a display calculation has an error, the financing is already safe.
   try{
     renderAll();
   }catch(err){
