@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 87;
+const APP_VERSION = 88;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -768,6 +768,20 @@ function financingSummaryV74(i){
   return {financeable:sim.financeable?dateV74(sim.financeable):"–",paidOff:sim.paidOff?dateV74(sim.paidOff):"–"};
 }
 function escAttrV74(v){return esc(String(v??"")).replace(/"/g,"&quot;")}
+
+
+function parseTimedV74(text){
+  const raw=String(text||"").trim();
+  if(!raw)return [];
+  return raw.split(";").map(part=>part.trim()).filter(Boolean).map(part=>{
+    const bits=part.split("@");
+    if(bits.length!==2)return null;
+    const amount=Math.max(0,Number(String(bits[0]).trim().replace(",","."))||0);
+    const month=Math.max(0,Math.floor(Number(String(bits[1]).trim().replace(",","."))||0));
+    if(amount<=0)return null;
+    return {amount,month};
+  }).filter(Boolean);
+}
 
 function syncFinancingDraftFromDomV87(i){
   const box=document.querySelector(`[data-finance-index="${i}"]`);
