@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 85;
+const APP_VERSION = 86;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -19,6 +19,20 @@ const currentMonth=()=>{const d=new Date();return `${d.getFullYear()}-${String(d
 const daysInMonth=ym=>{const [y,m]=ym.split("-").map(Number);return new Date(y,m,0).getDate()};
 function load(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));return x&&typeof x==='object'?{...clone(DEFAULTS),...x}:clone(DEFAULTS)}catch{return clone(DEFAULTS)}}
 let data=load();
+
+
+function persistFinancingStateV86(){
+  const payload=JSON.stringify(data);
+  localStorage.setItem(STORAGE_KEY,payload);
+
+  // Immediate round-trip verification: if the browser did not store the
+  // current financing state, fail here instead of pretending the save worked.
+  const check=localStorage.getItem(STORAGE_KEY);
+  if(check!==payload){
+    throw new Error("Finanzierung konnte nicht dauerhaft gespeichert werden.");
+  }
+  return true;
+}
 
 function financingSafetyBackupV81(reason="before-change"){
   try{
@@ -801,7 +815,7 @@ function openFinancingV74(i){
     .reduce((sum,g)=>sum+subsidyValueV85(g,sim?.target||0,(p.targetMode==="max"?"max":"min")),0);
 
   modal(`<div class="finance-v74" data-finance-index="${i}">
-    <div class="panel-head"><div><h2>Finanzierung – ${esc(goal[1])}: ${esc(goal[2])}</h2><p class="muted">Nur direkt am jeweiligen Kredit, Förderkredit oder Zuschuss rechtskräftig markierte Einträge verändern die Sparziel-Prognose.</p></div><button type="button" data-close-modal>Schließen</button></div>
+    <div class="panel-head"><div><h2>Finanzierung – ${esc(goal[1])}: ${esc(goal[2])}</h2><p class="muted">Nur direkt am jeweiligen Kredit, Förderkredit oder Zuschuss rechtskräftig markierte Einträge verändern die Sparziel-Prognose.</p>${p.lastSavedAtV86?`<p class="finance-saved-v86">Gespeichert: ${new Date(p.lastSavedAtV86).toLocaleString("de-DE")}</p>`:""}</div><button type="button" data-close-modal>Schließen</button></div>
     <div class="finance-summary-v74">
       <div class="stat"><span>Ziel finanzierbar am</span><strong>${sim?.financeable?dateV74(sim.financeable):"–"}</strong></div>
       <div class="stat"><span>Alles abbezahlt am</span><strong>${sim?.paidOff?dateV74(sim.paidOff):"–"}</strong></div>
@@ -1702,9 +1716,29 @@ if(d.saveFinance!==undefined){
   const stored={...cloneFinancingV79(existing),...cloneFinancingV79(p)};
   stored.goalRefV80=existing.goalRefV80||goalFingerprintV81(goal);
   stored.goalRefV81=goalFingerprintV81(goal);
+  stored.lastSavedAtV86=new Date().toISOString();
   data.goalFinancingV74[id]=stored;
+
+  // Financing persistence is intentionally independent from renderAll().
+  // This prevents a forecast/render error from cancelling or hiding a valid save.
+  try{
+    persistFinancingStateV86();
+  }catch(err){
+    console.error("Finanzierung speichern fehlgeschlagen:",err);
+    alert("Die Finanzierung konnte nicht gespeichert werden. Bitte nichts schließen und erneut versuchen.");
+    return;
+  }
+
   delete financingDraftsV79[i];
-  save();
+
+  // Rendering happens only AFTER the verified localStorage write.
+  // Even if a display calculation has an error, the financing is already safe.
+  try{
+    renderAll();
+  }catch(err){
+    console.error("Anzeige nach Finanzierungsspeicherung fehlgeschlagen:",err);
+  }
+
   openFinancingV74(i);
   return
 }
@@ -1714,8 +1748,19 @@ if(d.deleteFinance!==undefined){
     financingSafetyBackupV81("before-financing-delete");
     const key=financingKeyV81(i);
     if(data.goalFinancingV74 && key) delete data.goalFinancingV74[key];
+    if(goal && goal[12]===key) delete goal[12];
+
+    try{
+      persistFinancingStateV86();
+    }catch(err){
+      console.error("Finanzierung löschen fehlgeschlagen:",err);
+      alert("Die Änderung konnte nicht gespeichert werden.");
+      return;
+    }
+
     delete financingDraftsV79[i];
-    save();closeModal()
+    try{renderAll()}catch(err){console.error("Anzeige nach Finanzierungslöschung fehlgeschlagen:",err)}
+    closeModal()
   }return
 }
 if(d.goalUp!==undefined){

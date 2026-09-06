@@ -198,3 +198,5 @@ th:first-child,td:first-child{text-align:left}
 .finance-binding-v85 label{display:flex;align-items:center;gap:.35rem;white-space:nowrap}
 .finance-binding-v85 input{width:auto;min-width:auto}
 .finance-grants-v85 input,.finance-grants-v85 select,.finance-subsidies-v85 input,.finance-subsidies-v85 select{min-width:100px}
+
+.finance-saved-v86{margin:.35rem 0 0;font-size:.9rem;font-weight:700}
