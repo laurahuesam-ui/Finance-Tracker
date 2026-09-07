@@ -198,3 +198,24 @@ th:first-child,td:first-child{text-align:left}
 .finance-binding-v89 label{display:flex;align-items:center;gap:.35rem;white-space:nowrap}
 .finance-binding-v89 input{width:auto;min-width:auto}
 .finance-grants-v89 input,.finance-grants-v89 select,.finance-subsidies-v89 input,.finance-subsidies-v89 select{min-width:100px}
+
+.finance-bind-badge-v91{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  font-weight:700;
+  white-space:nowrap;
+}
+.finance-bind-icon-v91{
+  display:inline-grid;
+  place-items:center;
+  width:1.35rem;
+  height:1.35rem;
+  border:1px solid currentColor;
+  border-radius:50%;
+  font-size:.9rem;
+  line-height:1;
+}
+.finance-bind-badge-v91.empty{opacity:.55}
+.finance-bind-badge-v91.none{opacity:.8}
+.finance-bind-badge-v91.partial{opacity:.9}

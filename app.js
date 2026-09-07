@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 90;
+const APP_VERSION = 91;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -1045,6 +1045,70 @@ function endForecastV81(mode="min"){
   return finalDate?dateTextV81(finalDate):(txt||"–");
 }
 
+
+function financingBindingStatusV91(i){
+  const p=financingPlanV74(i);
+  if(!p)return {has:false,all:false,any:false,parts:[]};
+
+  const parts=[];
+
+  (p.credits||[]).forEach(c=>{
+    if(Math.max(0,Number(c?.amount)||0)>0){
+      parts.push({
+        type:"Kredit",
+        name:String(c?.name||"Kredit"),
+        binding:creditBindingV89(c,p)
+      });
+    }
+  });
+
+  (p.grants||[]).map(normalizedGrantV82).forEach(g=>{
+    if(Math.max(0,Number(g.minValue)||0)>0 || Math.max(0,Number(g.maxValue)||0)>0){
+      parts.push({
+        type:"Förderkredit",
+        name:String(g.name||"Förderkredit"),
+        binding:g.bindingGrant===true
+      });
+    }
+  });
+
+  (p.subsidies||[]).map(normalizedSubsidyV89).forEach(g=>{
+    if(Math.max(0,Number(g.minValue)||0)>0 || Math.max(0,Number(g.maxValue)||0)>0){
+      parts.push({
+        type:"Zuschuss",
+        name:String(g.name||"Zuschuss"),
+        binding:g.bindingSubsidy===true
+      });
+    }
+  });
+
+  return {
+    has:parts.length>0,
+    all:parts.length>0 && parts.every(x=>x.binding===true),
+    any:parts.some(x=>x.binding===true),
+    parts
+  };
+}
+
+function financingBindingBadgeV91(i){
+  const st=financingBindingStatusV91(i);
+  if(!st.has){
+    return '<span class="finance-bind-badge-v91 empty" title="Keine Finanzierung hinterlegt">–</span>';
+  }
+
+  const details=st.parts
+    .map(x=>`${x.binding?"✓":"✗"} ${x.type}: ${x.name}`)
+    .join(" · ");
+
+  if(st.all){
+    return `<span class="finance-bind-badge-v91 all" title="${escAttrV74(details)}"><span class="finance-bind-icon-v91">✓</span> rechtskräftig</span>`;
+  }
+  if(st.any){
+    return `<span class="finance-bind-badge-v91 partial" title="${escAttrV74(details)}"><span class="finance-bind-icon-v91">◐</span> teilweise</span>`;
+  }
+  return `<span class="finance-bind-badge-v91 none" title="${escAttrV74(details)}"><span class="finance-bind-icon-v91">✗</span> nicht rechtskräftig</span>`;
+}
+
 function renderGoals(){
   syncFirstGoal();
   normalizeGlobalGoalRateV66();
@@ -1074,6 +1138,7 @@ function renderGoals(){
     <td>${r[7]==null?"–":fmt(r[7])}</td><td>${r[8]==null?"–":fmt(r[8])}</td>
     <td>${pct(r[9])}</td><td>${pct(r[10])}</td><td>${r[11]==null?"–":fmt(r[11])}</td>
     <td>${forecasts[i]}</td>
+    <td>${financingBindingBadgeV91(i)}</td>
     <td>${financingSummaryV74(i).financeable||""}</td>
     <td>${financingSummaryV74(i).paidOff||""}</td>
     <td class="goal-actions-v70">
@@ -1096,11 +1161,11 @@ function renderGoals(){
     f.innerHTML=`
       <tr class="total-row"><th colspan="3">Summe</th>
         ${sums.slice(0,6).map(x=>`<th>${fmt(x)}</th>`).join("")}
-        <th>–</th><th>–</th><th>${fmt(sums[6])}</th><th>–</th><th></th><th></th><th></th>
+        <th>–</th><th>–</th><th>${fmt(sums[6])}</th><th>–</th><th></th><th></th><th></th><th></th>
       </tr>
-      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th colspan="3"></th></tr>
-      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th colspan="3"></th></tr>
-      <tr class="goal-forecast-note-v64"><th colspan="16">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.${bindingV79.totalCredit>0?` Rechtskräftige Kredite: ${fmt(bindingV79.totalCredit)}. Rechtskräftige Förderkredite: ${fmt(bindingV79.totalGrantMin)} bezogen auf Min bzw. ${fmt(bindingV79.totalGrantMax)} bezogen auf Max. Rechtskräftige Zuschüsse: ${fmt(bindingV79.totalSubsidyMin)} bezogen auf Min bzw. ${fmt(bindingV79.totalSubsidyMax)} bezogen auf Max. Zusammen ersetzen sie ${fmt(bindingV79.minCovered)} der Min-Sparsumme bzw. ${fmt(bindingV79.maxCovered)} der Max-Sparsumme; nicht gedeckte Beträge bleiben vollständig in der Endprognose enthalten. Bei vollständiger Deckung ist die Prognose dieses Sparziels exakt das Kreditende. Alle folgenden Sparziele rechnen mit der um rechtskräftig gedeckte Beträge reduzierten kumulierten Sparsumme weiter. Die Endprognose enthält die vollständige Summe aller nicht durch rechtskräftige Kredite gedeckten Zielbeträge, die allgemeine Rate und endet nicht vor dem letzten rechtskräftigen Kredit.`:""}</th></tr>`;
+      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th colspan="4"></th></tr>
+      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th colspan="4"></th></tr>
+      <tr class="goal-forecast-note-v64"><th colspan="17">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.${bindingV79.totalCredit>0?` Rechtskräftige Kredite: ${fmt(bindingV79.totalCredit)}. Rechtskräftige Förderkredite: ${fmt(bindingV79.totalGrantMin)} bezogen auf Min bzw. ${fmt(bindingV79.totalGrantMax)} bezogen auf Max. Rechtskräftige Zuschüsse: ${fmt(bindingV79.totalSubsidyMin)} bezogen auf Min bzw. ${fmt(bindingV79.totalSubsidyMax)} bezogen auf Max. Zusammen ersetzen sie ${fmt(bindingV79.minCovered)} der Min-Sparsumme bzw. ${fmt(bindingV79.maxCovered)} der Max-Sparsumme; nicht gedeckte Beträge bleiben vollständig in der Endprognose enthalten. Bei vollständiger Deckung ist die Prognose dieses Sparziels exakt das Kreditende. Alle folgenden Sparziele rechnen mit der um rechtskräftig gedeckte Beträge reduzierten kumulierten Sparsumme weiter. Die Endprognose enthält die vollständige Summe aller nicht durch rechtskräftige Kredite gedeckten Zielbeträge, die allgemeine Rate und endet nicht vor dem letzten rechtskräftigen Kredit.`:""}</th></tr>`;
   }
 
   renderDashboardSavingsGoalsV71();
