@@ -219,3 +219,19 @@ th:first-child,td:first-child{text-align:left}
 .finance-bind-badge-v91.empty{opacity:.55}
 .finance-bind-badge-v91.none{opacity:.8}
 .finance-bind-badge-v91.partial{opacity:.9}
+
+.finance-bind-action-v92{
+  display:inline-grid;
+  place-items:center;
+  width:1.45rem;
+  height:1.45rem;
+  border:1px solid currentColor;
+  border-radius:50%;
+  font-size:.9rem;
+  font-weight:800;
+  line-height:1;
+  vertical-align:middle;
+  flex:0 0 auto;
+}
+.finance-bind-action-v92.partial{opacity:.9}
+.finance-bind-action-v92.none{opacity:.75}

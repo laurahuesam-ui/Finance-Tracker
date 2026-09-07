@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 91;
+const APP_VERSION = 92;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -1109,6 +1109,22 @@ function financingBindingBadgeV91(i){
   return `<span class="finance-bind-badge-v91 none" title="${escAttrV74(details)}"><span class="finance-bind-icon-v91">✗</span> nicht rechtskräftig</span>`;
 }
 
+
+function financingBindingActionIconV92(i){
+  const st=financingBindingStatusV91(i);
+  if(!st.has)return '';
+
+  const details=st.parts
+    .map(x=>`${x.binding?'✓':'✗'} ${x.type}: ${x.name}`)
+    .join(' · ');
+
+  const cls=st.all?'all':(st.any?'partial':'none');
+  const icon=st.all?'✓':(st.any?'◐':'✗');
+  const label=st.all?'Finanzierung vollständig rechtskräftig':(st.any?'Finanzierung teilweise rechtskräftig':'Finanzierung nicht rechtskräftig');
+
+  return `<span class="finance-bind-action-v92 ${cls}" title="${escAttrV74(label+' · '+details)}" aria-label="${escAttrV74(label)}">${icon}</span>`;
+}
+
 function renderGoals(){
   syncFirstGoal();
   normalizeGlobalGoalRateV66();
@@ -1138,13 +1154,13 @@ function renderGoals(){
     <td>${r[7]==null?"–":fmt(r[7])}</td><td>${r[8]==null?"–":fmt(r[8])}</td>
     <td>${pct(r[9])}</td><td>${pct(r[10])}</td><td>${r[11]==null?"–":fmt(r[11])}</td>
     <td>${forecasts[i]}</td>
-    <td>${financingBindingBadgeV91(i)}</td>
     <td>${financingSummaryV74(i).financeable||""}</td>
     <td>${financingSummaryV74(i).paidOff||""}</td>
     <td class="goal-actions-v70">
       <button data-goal-up="${i}" ${i===0?"disabled":""} title="Nach oben">↑</button>
       <button data-goal-down="${i}" ${i===rows.length-1?"disabled":""} title="Nach unten">↓</button>
       <button data-edit-goal="${i}">Bearbeiten</button>
+      ${financingBindingActionIconV92(i)}
       <button data-finance-goal="${i}">Finanzierung</button>
     </td>
   </tr>`).join("");
@@ -1161,11 +1177,11 @@ function renderGoals(){
     f.innerHTML=`
       <tr class="total-row"><th colspan="3">Summe</th>
         ${sums.slice(0,6).map(x=>`<th>${fmt(x)}</th>`).join("")}
-        <th>–</th><th>–</th><th>${fmt(sums[6])}</th><th>–</th><th></th><th></th><th></th><th></th>
+        <th>–</th><th>–</th><th>${fmt(sums[6])}</th><th>–</th><th></th><th></th><th></th>
       </tr>
-      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th colspan="4"></th></tr>
-      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th colspan="4"></th></tr>
-      <tr class="goal-forecast-note-v64"><th colspan="17">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.${bindingV79.totalCredit>0?` Rechtskräftige Kredite: ${fmt(bindingV79.totalCredit)}. Rechtskräftige Förderkredite: ${fmt(bindingV79.totalGrantMin)} bezogen auf Min bzw. ${fmt(bindingV79.totalGrantMax)} bezogen auf Max. Rechtskräftige Zuschüsse: ${fmt(bindingV79.totalSubsidyMin)} bezogen auf Min bzw. ${fmt(bindingV79.totalSubsidyMax)} bezogen auf Max. Zusammen ersetzen sie ${fmt(bindingV79.minCovered)} der Min-Sparsumme bzw. ${fmt(bindingV79.maxCovered)} der Max-Sparsumme; nicht gedeckte Beträge bleiben vollständig in der Endprognose enthalten. Bei vollständiger Deckung ist die Prognose dieses Sparziels exakt das Kreditende. Alle folgenden Sparziele rechnen mit der um rechtskräftig gedeckte Beträge reduzierten kumulierten Sparsumme weiter. Die Endprognose enthält die vollständige Summe aller nicht durch rechtskräftige Kredite gedeckten Zielbeträge, die allgemeine Rate und endet nicht vor dem letzten rechtskräftigen Kredit.`:""}</th></tr>`;
+      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Min</th><th>${endMin}</th><th colspan="3"></th></tr>
+      <tr class="goal-end-forecast-v64"><th colspan="12">Endprognose Max</th><th>${endMax}</th><th colspan="3"></th></tr>
+      <tr class="goal-forecast-note-v64"><th colspan="16">Basis: Ø Monatsüberschuss ${fmt(monthlySaving)}${Number(data.settings.globalGoalRateV66)>0&&data.settings.globalGoalRateEndV66?` + Rate ${fmt(data.settings.globalGoalRateV66)} pro Monat bis ${data.settings.globalGoalRateEndV66} (= ${fmt(globalRateImpactV68())} zusätzlich berücksichtigt)`:""}. Die Zielbeträge selbst werden nicht verändert.${bindingV79.totalCredit>0?` Rechtskräftige Kredite: ${fmt(bindingV79.totalCredit)}. Rechtskräftige Förderkredite: ${fmt(bindingV79.totalGrantMin)} bezogen auf Min bzw. ${fmt(bindingV79.totalGrantMax)} bezogen auf Max. Rechtskräftige Zuschüsse: ${fmt(bindingV79.totalSubsidyMin)} bezogen auf Min bzw. ${fmt(bindingV79.totalSubsidyMax)} bezogen auf Max. Zusammen ersetzen sie ${fmt(bindingV79.minCovered)} der Min-Sparsumme bzw. ${fmt(bindingV79.maxCovered)} der Max-Sparsumme; nicht gedeckte Beträge bleiben vollständig in der Endprognose enthalten. Bei vollständiger Deckung ist die Prognose dieses Sparziels exakt das Kreditende. Alle folgenden Sparziele rechnen mit der um rechtskräftig gedeckte Beträge reduzierten kumulierten Sparsumme weiter. Die Endprognose enthält die vollständige Summe aller nicht durch rechtskräftige Kredite gedeckten Zielbeträge, die allgemeine Rate und endet nicht vor dem letzten rechtskräftigen Kredit.`:""}</th></tr>`;
   }
 
   renderDashboardSavingsGoalsV71();
