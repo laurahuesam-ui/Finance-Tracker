@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 89;
+const APP_VERSION = 90;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -631,17 +631,24 @@ function financingSimulationV74(i,planOverride=null,rangeModeOverride=null){
 
   let fund=startingEquity;
 
-  const normalCredits=bindingCreditsV89(plan).map(c=>({
-    ...c,
-    loanType:"normal",
-    balance:Math.max(0,Number(c.amount)||0),
-    interestPaid:0,
-    startMonth:Math.max(0,Number(c.startMonth)||0)
-  }));
+  // Finanzierung dieses Ziels:
+  // Jede tatsächlich eingetragene positive Finanzierung wird berücksichtigt.
+  // "rechtskräftig" steuert nur, ob sie auch die übergreifende Sparziel-
+  // Prioritäten-/Endprognose verändert; sie darf die lokale Finanzierungsrechnung
+  // nicht auf 0 setzen.
+  const normalCredits=(plan.credits||[])
+    .filter(c=>Math.max(0,Number(c?.amount)||0)>0)
+    .map(c=>({
+      ...c,
+      loanType:"normal",
+      amount:Math.max(0,Number(c.amount)||0),
+      balance:Math.max(0,Number(c.amount)||0),
+      interestPaid:0,
+      startMonth:Math.max(0,Number(c.startMonth)||0)
+    }));
 
   const fundingCredits=(plan.grants||[])
     .map(normalizedGrantV82)
-    .filter(grantIsBindingV82)
     .map(g=>{
       const amount=grantValueV82(g,target,rangeMode);
       return {
@@ -652,14 +659,15 @@ function financingSimulationV74(i,planOverride=null,rangeModeOverride=null){
         interestPaid:0,
         startMonth:g.month
       };
-    });
+    })
+    .filter(g=>g.amount>0);
 
   const credits=[...normalCredits,...fundingCredits];
 
   const subsidies=(plan.subsidies||[])
     .map(normalizedSubsidyV89)
-    .filter(g=>g.bindingSubsidy===true)
-    .map(g=>({amount:subsidyValueV89(g,target,rangeMode),month:g.month}));
+    .map(g=>({amount:subsidyValueV89(g,target,rangeMode),month:g.month}))
+    .filter(g=>g.amount>0);
 
   const once=(plan.once||[]).map(x=>({
     amount:Math.max(0,Number(x.amount)||0),
@@ -669,6 +677,9 @@ function financingSimulationV74(i,planOverride=null,rangeModeOverride=null){
   const start=financingStartDateV76(i,plan);
   if(!start) return {
     target,financeable:null,paidOff:null,totalInterest:0,startingEquity,table:[],
+    creditAmount:credits.filter(c=>c.loanType==="normal").reduce((x,c)=>x+Math.max(0,Number(c.amount)||0),0),
+    fundingCreditAmount:credits.filter(c=>c.loanType==="funding").reduce((x,c)=>x+Math.max(0,Number(c.amount)||0),0),
+    subsidyAmount:subsidies.reduce((x,g)=>x+Math.max(0,Number(g.amount)||0),0),
     remainingCredit:credits.reduce((x,c)=>x+c.balance,0),
     start:null,dueDate:parseDateV76(plan.dueDate),
     dueStatus:"Prioritäten-Prognose nicht berechenbar"
@@ -688,8 +699,10 @@ function financingSimulationV74(i,planOverride=null,rangeModeOverride=null){
     subsidies.filter(x=>x.month===m).forEach(x=>fund+=x.amount);
     once.filter(x=>x.month===m).forEach(x=>fund+=x.amount);
 
-    const activeCredit=credits.reduce((sum,c)=>sum+c.balance,0);
-    if(!financeable && fund+activeCredit>=target) financeable=addMonthsV74(start,m);
+    const disbursedCredit=credits.reduce((sum,c)=>{
+      return sum+(m>=Math.max(0,Number(c.startMonth)||0)?Math.max(0,Number(c.amount)||0):0);
+    },0);
+    if(!financeable && fund+disbursedCredit>=target) financeable=addMonthsV74(start,m);
 
     let monthInterest=0,monthPayments=0;
     credits.forEach(c=>{
@@ -742,6 +755,9 @@ function financingSimulationV74(i,planOverride=null,rangeModeOverride=null){
 
   return {
     target,financeable,paidOff,totalInterest,startingEquity,table,
+    creditAmount:credits.filter(c=>c.loanType==="normal").reduce((x,c)=>x+Math.max(0,Number(c.amount)||0),0),
+    fundingCreditAmount:credits.filter(c=>c.loanType==="funding").reduce((x,c)=>x+Math.max(0,Number(c.amount)||0),0),
+    subsidyAmount:subsidies.reduce((x,g)=>x+Math.max(0,Number(g.amount)||0),0),
     remainingCredit:credits.reduce((x,c)=>x+c.balance,0),
     start,dueDate,dueStatus
   };
@@ -846,7 +862,7 @@ function openFinancingV74(i){
   </tr>`).join("");
 
   modal(`<div class="finance-v74" data-finance-index="${i}">
-    <div class="panel-head"><div><h2>Finanzierung – ${esc(goal[1])}: ${esc(goal[2])}</h2><p class="muted">Kredite, Förderkredite und Zuschüsse werden jeweils direkt am Eintrag als rechtskräftig markiert.</p></div><button type="button" data-close-modal>Schließen</button></div>
+    <div class="panel-head"><div><h2>Finanzierung – ${esc(goal[1])}: ${esc(goal[2])}</h2><p class="muted">Alle eingetragenen Beträge werden in dieser Finanzierungsrechnung berücksichtigt. „rechtskräftig“ bedeutet zusätzlich, dass der Betrag auch die übergreifende Sparziel-/Prioritätenprognose verändern darf.</p></div><button type="button" data-close-modal>Schließen</button></div>
     <div class="finance-summary-v74">
       <div class="stat"><span>Ziel finanzierbar am</span><strong>${sim?.financeable?dateV74(sim.financeable):"–"}</strong></div>
       <div class="stat"><span>Alles abbezahlt am</span><strong>${sim?.paidOff?dateV74(sim.paidOff):"–"}</strong></div>
@@ -854,6 +870,9 @@ function openFinancingV74(i){
       <div class="stat"><span>Fälligkeit / Status</span><strong>${(p.timingMode||"due")==="priority"?"nach Prioritätenreihenfolge":(sim?.dueDate?dateV74(sim.dueDate):"–")}</strong><small>${sim?.dueStatus||""}</small></div>
       <div class="stat"><span>Simulierter Zielbetrag</span><strong>${fmt(sim?.target||0)}</strong></div>
       <div class="stat"><span>Verwendetes Eigenkapital</span><strong>${fmt(sim?.startingEquity||0)}</strong></div>
+      <div class="stat"><span>Normale Kredite eingerechnet</span><strong>${fmt(sim?.creditAmount||0)}</strong></div>
+      <div class="stat"><span>Förderkredite eingerechnet</span><strong>${fmt(sim?.fundingCreditAmount||0)}</strong></div>
+      <div class="stat"><span>Zuschüsse eingerechnet</span><strong>${fmt(sim?.subsidyAmount||0)}</strong></div>
       <div class="stat"><span>Kreditzinsen gesamt</span><strong>${fmt(sim?.totalInterest||0)}</strong></div>
     </div>
 
