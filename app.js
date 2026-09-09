@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 93;
+const APP_VERSION = 94;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -1125,6 +1125,95 @@ function financingBindingActionIconV92(i){
   return `<span class="finance-bind-action-v92 ${cls}" title="${escAttrV74(label+' · '+details)}" aria-label="${escAttrV74(label)}">${icon}</span>`;
 }
 
+
+let simulationSurplusV94=null;
+
+function simulationSavingsDateV94(cumulative,saving){
+  const now=new Date();now.setDate(1);
+  const remaining=Math.max(0,Number(cumulative||0)-Math.max(0,Number(totalWealth())||0));
+  if(remaining<=0)return now;
+  saving=Math.max(0,Number(saving)||0);
+  return saving>0?addMonthsV74(now,Math.ceil(remaining/saving)):null;
+}
+function simulationGoalForecastPlanV94(mode,saving){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const ix=mode==="max"?4:3;
+  let cumulative=0;
+  return rows.map((row,i)=>{
+    const amount=Math.max(0,Number(row?.[ix])||0);
+    const principal=bindingCreditAmountV81(i);
+    const funding=bindingGrantAmountV82(i,amount,mode);
+    const subsidy=bindingSubsidyAmountV89(i,amount,mode);
+    const loan=principal+funding;
+    cumulative+=Math.max(0,amount-Math.min(amount,loan+subsidy));
+    const savingsDate=simulationSavingsDateV94(cumulative,saving);
+    const paidOff=loan>0?bindingPaidOffDateV81(i,mode):null;
+    if(loan>=amount&&amount>0)return paidOff;
+    return loan>0?maxDateV81(savingsDate,paidOff):savingsDate;
+  });
+}
+function simulationForecastWithGlobalRateV94(targetTotal,saving){
+  normalizeGlobalGoalRateV66();
+  const remaining=Math.max(0,(Number(targetTotal)||0)-Math.max(0,Number(totalWealth())||0));
+  if(remaining<=0)return "bereits erreicht";
+  saving=Math.max(0,Number(saving)||0);
+  const rate=Math.max(0,Number(data.settings.globalGoalRateV66)||0);
+  const rateMonths=globalRateMonthsV69();
+  const combined=saving+(rateMonths>0?rate:0);
+  let months=0;
+  if(rateMonths>0&&combined>0){
+    const first=combined*rateMonths;
+    if(remaining<=first)months=Math.ceil(remaining/combined);
+    else{
+      if(saving<=0)return "–";
+      months=rateMonths+Math.ceil((remaining-first)/saving);
+    }
+  }else{
+    if(saving<=0)return "–";
+    months=Math.ceil(remaining/saving);
+  }
+  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+months);
+  return d.toLocaleDateString("de-DE");
+}
+function simulationEndForecastV94(mode,saving){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const ix=mode==="max"?4:3;
+  const total=rows.reduce((sum,row)=>sum+Math.max(0,Number(row?.[ix])||0),0);
+  const b=bindingTotalsV81();
+  const covered=mode==="max"?b.maxCovered:b.minCovered;
+  const txt=simulationForecastWithGlobalRateV94(Math.max(0,total-covered),saving);
+  let end=parseForecastDateV81(txt);
+  if(txt==="bereits erreicht"){end=new Date();end.setDate(1)}
+  return dateTextV81(maxDateV81(end,b.latestPaidOff));
+}
+function simulationFinancingTextV94(i){
+  const row=data.priorityGoals?.[i], amount=Math.max(0,Number(row?.[3])||0);
+  const c=bindingCreditAmountV81(i),g=bindingGrantAmountV82(i,amount,"min"),z=bindingSubsidyAmountV89(i,amount,"min");
+  const x=[];if(c)x.push(`Kredit ${fmt(c)}`);if(g)x.push(`Förderkredit ${fmt(g)}`);if(z)x.push(`Zuschuss ${fmt(z)}`);
+  return x.length?x.join(" · "):"–";
+}
+function renderSimulationV94(){
+  const input=$("simulationSurplusV94");if(!input)return;
+  const actual=Math.max(0,Number(avgSurplus())||0);
+  if(simulationSurplusV94===null){simulationSurplusV94=actual;input.value=actual.toFixed(2)}
+  const saving=Math.max(0,Number(simulationSurplusV94)||0);
+  const mins=simulationGoalForecastPlanV94("min",saving),maxs=simulationGoalForecastPlanV94("max",saving);
+  $("simulationSurplusResultV94").textContent=fmt(saving);
+  $("simulationEndMinV94").textContent=simulationEndForecastV94("min",saving);
+  $("simulationEndMaxV94").textContent=simulationEndForecastV94("max",saving);
+  $("simulationBasisV94").textContent=`Aktueller echter Ø Monatsüberschuss: ${fmt(actual)} · verwendeter Simulationswert: ${fmt(saving)}.`;
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  $("simulationGoalsBodyV94").innerHTML=rows.map((r,i)=>{
+    const fin=financingSummaryV74(i);
+    return `<tr><td>${r[0]??""}</td><td>${esc(r[1])}</td><td>${esc(r[2])}</td><td>${r[3]==null?"–":fmt(r[3])}</td><td>${r[4]==null?"–":fmt(r[4])}</td><td>${simulationFinancingTextV94(i)}</td><td>${dateTextV81(mins[i])}</td><td>${dateTextV81(maxs[i])}</td><td>${fin.financeable||"–"}</td><td>${fin.paidOff||"–"}</td></tr>`;
+  }).join("");
+}
+function bindSimulationV94(){
+  const run=$("runSimulationV94"),reset=$("resetSimulationV94"),input=$("simulationSurplusV94");
+  if(run)run.onclick=()=>{simulationSurplusV94=Math.max(0,Number(input?.value)||0);renderSimulationV94()};
+  if(reset)reset.onclick=()=>{simulationSurplusV94=Math.max(0,Number(avgSurplus())||0);if(input)input.value=simulationSurplusV94.toFixed(2);renderSimulationV94()};
+}
+
 function renderGoals(){
   syncFirstGoal();
   normalizeGlobalGoalRateV66();
@@ -1950,6 +2039,7 @@ function renderDashboardSavingsGoalsV71(){
 }
 function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()
 renderDashboardSavingsGoalsV71();
+renderSimulationV94();
 }
 function modal(html){$('modalContent').innerHTML=html;$('modal').classList.remove('hidden')}
 function closeModal(){$('modal').classList.add('hidden')}
@@ -2152,6 +2242,7 @@ $('importBackup').onchange=async e=>{
   }
 };
 $('deleteAll').onclick=()=>{if(confirm('Alle Daten auf Stammdaten zurücksetzen?')){data=clone(DEFAULTS);save()}};
+bindSimulationV94();
 renderAll();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 

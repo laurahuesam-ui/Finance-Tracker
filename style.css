@@ -272,3 +272,7 @@ th:first-child,td:first-child{text-align:left}
     width:100%;
   }
 }
+
+.simulation-controls-v94{display:flex;gap:1rem;align-items:flex-end;flex-wrap:wrap}
+.simulation-controls-v94 label{min-width:15rem;flex:1}
+@media(max-width:700px){.simulation-controls-v94{align-items:stretch}.simulation-controls-v94 label,.simulation-controls-v94 button{width:100%;min-width:0}}
