@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 92;
+const APP_VERSION = 93;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -1469,7 +1469,8 @@ function buildSnapshotV61(){
       cent:forecastDateForCapitalTargetV59(nextCent[1],tr)?.toISOString()||null,
       savings:sg?.min?forecastDateForWealthTargetV59(sg.min)?.toISOString()||null:null
     },
-    targets:{wealth:nextWealth,passive:nextPassive,cent:nextCent[0]}
+    targets:{wealth:nextWealth,passive:nextPassive,cent:nextCent[0]},
+    savingsOverviewV93:savingsOverviewSnapshotV93()
   };
 }
 function registerGoalFirstForecastsV61(snapshot){
@@ -1490,6 +1491,7 @@ function ensureInitialAugustSnapshotV61(){
     const snap=buildSnapshotV61();
     state.snapshots[SNAPSHOT_START_MONTH_V59]=snap;
     registerGoalFirstForecastsV61(snap);
+    registerSavingsFirstForecastsV93(snap);
     localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
   }
 }
@@ -1500,10 +1502,22 @@ function captureSnapshotOnDataChangeV61(){
   const ym=monthKeyV59();
   if(ym<SNAPSHOT_START_MONTH_V59) return;
   const state=ensureProgressStateV59();
-  if(state.snapshots[ym]) return;
+
+  if(state.snapshots[ym]){
+    // V93 migration: on an explicit data save, enrich an existing monthly
+    // snapshot once with the new savings-total/through-goal forecasts.
+    // Existing historical snapshot fields are never overwritten.
+    if(!state.snapshots[ym].savingsOverviewV93){
+      state.snapshots[ym].savingsOverviewV93=savingsOverviewSnapshotV93();
+      registerSavingsFirstForecastsV93(state.snapshots[ym]);
+    }
+    return;
+  }
+
   const snap=buildSnapshotV61();
   state.snapshots[ym]=snap;
   registerGoalFirstForecastsV61(snap);
+  registerSavingsFirstForecastsV93(snap);
 }
 function previousSnapshotV59(){
   const state=ensureProgressStateV59();
@@ -1685,19 +1699,254 @@ function addAmexMonthV62(){
   $("cancelNewAmexV62").onclick=closeModal;
 }
 
+
+function bindingTotalsThroughGoalV93(lastIndex,mode="min"){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const last=Math.min(Math.max(0,Number(lastIndex)||0),Math.max(0,rows.length-1));
+  let covered=0,latestPaidOff=null;
+
+  for(let i=0;i<=last;i++){
+    const row=rows[i];
+    const amount=Math.max(0,Number(row?.[mode==="max"?4:3])||0);
+    const principal=bindingCreditAmountV81(i);
+    const grant=bindingGrantAmountV82(i,amount,mode);
+    const subsidy=bindingSubsidyAmountV89(i,amount,mode);
+    covered+=Math.min(amount,principal+grant+subsidy);
+
+    if(principal+grant>0){
+      latestPaidOff=maxDateV81(latestPaidOff,bindingPaidOffDateV81(i,mode));
+    }
+  }
+  return {covered,latestPaidOff};
+}
+
+function forecastThroughGoalV93(lastIndex,mode="min"){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  if(!rows.length)return "–";
+  const last=Math.min(Math.max(0,Number(lastIndex)||0),rows.length-1);
+  const ix=mode==="max"?4:3;
+  let total=0;
+  for(let i=0;i<=last;i++) total+=Math.max(0,Number(rows[i]?.[ix])||0);
+
+  const b=bindingTotalsThroughGoalV93(last,mode);
+  const remainingTarget=Math.max(0,total-b.covered);
+  const txt=forecastWithGlobalRateV66(remainingTarget);
+  let savingsEnd=parseForecastDateV81(txt);
+  if(txt==="bereits erreicht"){
+    savingsEnd=new Date();
+    savingsEnd.setDate(1);
+  }
+  const finalDate=maxDateV81(savingsEnd,b.latestPaidOff);
+  return finalDate?dateTextV81(finalDate):(txt||"–");
+}
+
+function forecastIsoFromTextV93(text){
+  const d=parseForecastDateV81(text);
+  return d?d.toISOString():null;
+}
+
+function savingsOverviewSnapshotV93(){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const wealth=Math.max(0,Number(totalWealth())||0);
+  const totalMin=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[3])||0),0);
+  const totalMax=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[4])||0),0);
+  const through=rows.map((r,i)=>({
+    key:String(r?.[12]||goalFingerprintV81(r)||i),
+    min:forecastIsoFromTextV93(forecastThroughGoalV93(i,"min")),
+    max:forecastIsoFromTextV93(forecastThroughGoalV93(i,"max"))
+  }));
+  return {
+    totalMin,
+    totalMax,
+    minPct:totalMin>0?wealth/totalMin*100:0,
+    maxPct:totalMax>0?wealth/totalMax*100:0,
+    endMin:forecastIsoFromTextV93(endForecastV81("min")),
+    endMax:forecastIsoFromTextV93(endForecastV81("max")),
+    through
+  };
+}
+
+function registerSavingsFirstForecastsV93(snapshot){
+  const overview=snapshot?.savingsOverviewV93;
+  if(!overview)return;
+  const state=ensureProgressStateV59();
+  const month=snapshot.month||monthKeyV59();
+
+  const pairs=[
+    ["savings-total-min-v93",overview.endMin],
+    ["savings-total-max-v93",overview.endMax]
+  ];
+  (overview.through||[]).forEach(x=>{
+    pairs.push([`savings-through-${x.key}-min-v93`,x.min]);
+    pairs.push([`savings-through-${x.key}-max-v93`,x.max]);
+  });
+  pairs.forEach(([k,v])=>{
+    if(v && !state.goalForecasts[k])state.goalForecasts[k]={first:v,firstMonth:month};
+  });
+}
+
+function selectedDashboardGoalIndexV93(){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  if(!rows.length)return 0;
+  const raw=Number(data.settings?.dashboardGoalForecastIndexV93);
+  return Number.isInteger(raw)&&raw>=0&&raw<rows.length?raw:0;
+}
+
+function dashboardGoalKeyV93(i){
+  const r=data.priorityGoals?.[i];
+  return String(r?.[12]||goalFingerprintV81(r)||i);
+}
+
+function savingsForecastMetaV93(key,currentText,previousIso=null){
+  const current=parseForecastDateV81(currentText);
+  const state=ensureProgressStateV59();
+  const first=state.goalForecasts?.[key]?.first?new Date(state.goalForecasts[key].first):null;
+  const prev=previousIso?new Date(previousIso):null;
+
+  const bits=[];
+  if(first && current){
+    const d=diffDaysV59(current,first);
+    bits.push(d===0?"seit erster Prognose unverändert":`seit erster Prognose ${humanTimeGainV59(d)}`);
+  }
+  if(prev && current){
+    const d=diffDaysV59(current,prev);
+    bits.push(d===0?"unverändert zum letzten Monatsstand":`${humanTimeGainV59(d)} als letzter Monatsstand`);
+  }
+  if(!bits.length)bits.push("Prognosenveränderung wird ab Version 93 gespeichert");
+  return bits.join(" · ");
+}
+
+function signedPointsV93(v){
+  if(v==null || !Number.isFinite(Number(v)))return "–";
+  const n=Number(v);
+  const sign=n>0?"+":"";
+  return `${sign}${n.toLocaleString("de-DE",{minimumFractionDigits:6,maximumFractionDigits:6})} Prozentpunkte`;
+}
+
+function ensureCurrentSavingsTrackingV93(){
+  const state=ensureProgressStateV59();
+  const ym=monthKeyV59();
+  const current=state.snapshots?.[ym];
+  if(current && !current.savingsOverviewV93){
+    current.savingsOverviewV93=savingsOverviewSnapshotV93();
+    registerSavingsFirstForecastsV93(current);
+  }
+}
+
 function renderDashboardSavingsGoalsV71(){
- const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
- const wealth=Math.max(0,Number(totalWealth())||0);
- const totalMin=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[3])||0),0);
- const totalMax=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[4])||0),0);
- const p=(x,t)=>t>0?(x/t*100):0;
- const six=x=>x.toLocaleString("de-DE",{minimumFractionDigits:6,maximumFractionDigits:6})+" %";
- if($("dashGoalsMinPctV71"))$("dashGoalsMinPctV71").textContent=six(p(wealth,totalMin));
- if($("dashGoalsMaxPctV71"))$("dashGoalsMaxPctV71").textContent=six(p(wealth,totalMax));
- if($("dashGoalsMinAmountsV71"))$("dashGoalsMinAmountsV71").textContent=`${fmt(wealth)} / ${fmt(totalMin)}`;
- if($("dashGoalsMaxAmountsV71"))$("dashGoalsMaxAmountsV71").textContent=`${fmt(wealth)} / ${fmt(totalMax)}`;
- if($("dashGoalsEndMinV71"))$("dashGoalsEndMinV71").textContent=forecastWithGlobalRateV66(totalMin);
- if($("dashGoalsEndMaxV71"))$("dashGoalsEndMaxV71").textContent=forecastWithGlobalRateV66(totalMax);
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const wealth=Math.max(0,Number(totalWealth())||0);
+  const totalMin=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[3])||0),0);
+  const totalMax=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[4])||0),0);
+  const p=(x,t)=>t>0?(x/t*100):0;
+  const six=x=>x.toLocaleString("de-DE",{minimumFractionDigits:6,maximumFractionDigits:6})+" %";
+
+  const minPct=p(wealth,totalMin);
+  const maxPct=p(wealth,totalMax);
+  const endMin=endForecastV81("min");
+  const endMax=endForecastV81("max");
+
+  if($("dashGoalsMinPctV71"))$("dashGoalsMinPctV71").textContent=six(minPct);
+  if($("dashGoalsMaxPctV71"))$("dashGoalsMaxPctV71").textContent=six(maxPct);
+  if($("dashGoalsMinAmountsV71"))$("dashGoalsMinAmountsV71").textContent=`${fmt(wealth)} / ${fmt(totalMin)}`;
+  if($("dashGoalsMaxAmountsV71"))$("dashGoalsMaxAmountsV71").textContent=`${fmt(wealth)} / ${fmt(totalMax)}`;
+  if($("dashGoalsEndMinV71"))$("dashGoalsEndMinV71").textContent=endMin;
+  if($("dashGoalsEndMaxV71"))$("dashGoalsEndMaxV71").textContent=endMax;
+
+  const prev=previousSnapshotV59();
+  if($("dashGoalsProgressHeadlineV93")){
+    $("dashGoalsProgressHeadlineV93").textContent=prev
+      ?`Vergleich mit ${monthLabel(prev.month)}`
+      :"Noch kein vorheriger Monatsstand vorhanden";
+  }
+
+  // Progress can be compared to an older wealth snapshot immediately.
+  // It is expressed against the current total target sums so the table structure
+  // and existing historical snapshots do not need to be rewritten.
+  const prevMinPct=prev&&totalMin>0?Number(prev.wealth||0)/totalMin*100:null;
+  const prevMaxPct=prev&&totalMax>0?Number(prev.wealth||0)/totalMax*100:null;
+  if($("dashGoalsMinChangeV93")){
+    $("dashGoalsMinChangeV93").textContent=prevMinPct==null
+      ?"noch kein Vormonatsvergleich"
+      :`${signedPointsV93(minPct-prevMinPct)} seit letztem Monatsstand`;
+  }
+  if($("dashGoalsMaxChangeV93")){
+    $("dashGoalsMaxChangeV93").textContent=prevMaxPct==null
+      ?"noch kein Vormonatsvergleich"
+      :`${signedPointsV93(maxPct-prevMaxPct)} seit letztem Monatsstand`;
+  }
+
+  const prevOverview=prev?.savingsOverviewV93||null;
+  if($("dashGoalsEndMinMetaV93")){
+    $("dashGoalsEndMinMetaV93").textContent=savingsForecastMetaV93(
+      "savings-total-min-v93",endMin,prevOverview?.endMin||null
+    );
+  }
+  if($("dashGoalsEndMaxMetaV93")){
+    $("dashGoalsEndMaxMetaV93").textContent=savingsForecastMetaV93(
+      "savings-total-max-v93",endMax,prevOverview?.endMax||null
+    );
+  }
+
+  const select=$("dashGoalForecastSelectV93");
+  if(!rows.length){
+    if(select)select.innerHTML="";
+    return;
+  }
+
+  const selected=selectedDashboardGoalIndexV93();
+  if(select){
+    const wanted=String(selected);
+    const signature=rows.map((r,i)=>`${i}:${r?.[0]}:${r?.[1]}:${r?.[2]}`).join("|");
+    if(select.dataset.signature!==signature){
+      select.innerHTML=rows.map((r,i)=>{
+        const label=`${r?.[0]??i+1} · ${String(r?.[1]||"")}${r?.[2]?` – ${String(r[2])}`:""}`;
+        return `<option value="${i}">${esc(label)}</option>`;
+      }).join("");
+      select.dataset.signature=signature;
+    }
+    select.value=wanted;
+    select.onchange=()=>{
+      const i=Math.min(Math.max(0,Number(select.value)||0),rows.length-1);
+      if(!data.settings || typeof data.settings!=="object")data.settings={};
+      data.settings.dashboardGoalForecastIndexV93=i;
+
+      // This is an explicit user action. It may enrich the current monthly
+      // snapshot with the new V93 forecast fields, but never rewrites old fields.
+      ensureCurrentSavingsTrackingV93();
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+      renderDashboardSavingsGoalsV71();
+    };
+  }
+
+  let cumulativeMin=0,cumulativeMax=0;
+  for(let i=0;i<=selected;i++){
+    cumulativeMin+=Math.max(0,Number(rows[i]?.[3])||0);
+    cumulativeMax+=Math.max(0,Number(rows[i]?.[4])||0);
+  }
+
+  const throughMin=forecastThroughGoalV93(selected,"min");
+  const throughMax=forecastThroughGoalV93(selected,"max");
+  const key=dashboardGoalKeyV93(selected);
+  const prevThrough=prevOverview?.through?.[selected]||null;
+
+  if($("dashGoalThroughMinAmountV93"))$("dashGoalThroughMinAmountV93").textContent=fmt(cumulativeMin);
+  if($("dashGoalThroughMaxAmountV93"))$("dashGoalThroughMaxAmountV93").textContent=fmt(cumulativeMax);
+  if($("dashGoalThroughMinProgressV93"))$("dashGoalThroughMinProgressV93").textContent=`${six(p(wealth,cumulativeMin))} erreicht`;
+  if($("dashGoalThroughMaxProgressV93"))$("dashGoalThroughMaxProgressV93").textContent=`${six(p(wealth,cumulativeMax))} erreicht`;
+  if($("dashGoalThroughMinDateV93"))$("dashGoalThroughMinDateV93").textContent=throughMin;
+  if($("dashGoalThroughMaxDateV93"))$("dashGoalThroughMaxDateV93").textContent=throughMax;
+
+  if($("dashGoalThroughMinMetaV93")){
+    $("dashGoalThroughMinMetaV93").textContent=savingsForecastMetaV93(
+      `savings-through-${key}-min-v93`,throughMin,prevThrough?.min||null
+    );
+  }
+  if($("dashGoalThroughMaxMetaV93")){
+    $("dashGoalThroughMaxMetaV93").textContent=savingsForecastMetaV93(
+      `savings-through-${key}-max-v93`,throughMax,prevThrough?.max||null
+    );
+  }
 }
 function renderAll(){enforceConfirmedIncomeFixedCostsV55();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()
 renderDashboardSavingsGoalsV71();

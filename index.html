@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 92</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 93</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -97,6 +97,7 @@
         <div>
           <h2>Sparziele gesamt</h2>
           <p class="muted">Gesamtvermögen im Verhältnis zur Summe aller Sparziele.</p>
+          <p class="muted" id="dashGoalsProgressHeadlineV93">Prognosevergleich wird erfasst</p>
         </div>
       </div>
       <div class="stats-grid dashboard-goal-grid-v72">
@@ -104,21 +105,58 @@
           <span>Min erreicht</span>
           <strong id="dashGoalsMinPctV71">–</strong>
           <small id="dashGoalsMinAmountsV71">–</small>
+          <small id="dashGoalsMinChangeV93" class="forecast-change-v93">–</small>
         </div>
         <div class="stat">
           <span>Max erreicht</span>
           <strong id="dashGoalsMaxPctV71">–</strong>
           <small id="dashGoalsMaxAmountsV71">–</small>
+          <small id="dashGoalsMaxChangeV93" class="forecast-change-v93">–</small>
         </div>
         <div class="stat">
           <span>Endprognose Min</span>
           <strong id="dashGoalsEndMinV71">–</strong>
-          <small>inkl. allgemeiner Rate</small>
+          <small id="dashGoalsEndMinMetaV93">inkl. allgemeiner Rate</small>
         </div>
         <div class="stat">
           <span>Endprognose Max</span>
           <strong id="dashGoalsEndMaxV71">–</strong>
-          <small>inkl. allgemeiner Rate</small>
+          <small id="dashGoalsEndMaxMetaV93">inkl. allgemeiner Rate</small>
+        </div>
+      </div>
+
+      <div class="dashboard-through-goal-v93">
+        <div class="panel-head dashboard-through-head-v93">
+          <div>
+            <h3>Prognose bis einschließlich Sparziel</h3>
+            <p class="muted">Min-/Max-Prognose kumuliert bis zum ausgewählten Sparziel.</p>
+          </div>
+          <label class="dashboard-goal-select-v93">
+            <span>Sparziel auswählen</span>
+            <select id="dashGoalForecastSelectV93"></select>
+          </label>
+        </div>
+        <div class="stats-grid dashboard-goal-grid-v72">
+          <div class="stat">
+            <span>Kumuliert Min</span>
+            <strong id="dashGoalThroughMinAmountV93">–</strong>
+            <small id="dashGoalThroughMinProgressV93">–</small>
+          </div>
+          <div class="stat">
+            <span>Kumuliert Max</span>
+            <strong id="dashGoalThroughMaxAmountV93">–</strong>
+            <small id="dashGoalThroughMaxProgressV93">–</small>
+          </div>
+          <div class="stat">
+            <span>Prognose Min</span>
+            <strong id="dashGoalThroughMinDateV93">–</strong>
+            <small id="dashGoalThroughMinMetaV93">–</small>
+          </div>
+          <div class="stat">
+            <span>Prognose Max</span>
+            <strong id="dashGoalThroughMaxDateV93">–</strong>
+            <small id="dashGoalThroughMaxMetaV93">–</small>
+          </div>
         </div>
       </div>
     </article>
@@ -386,7 +424,7 @@
         <h2>Finanzübersicht</h2>
         <p class="muted">Automatisch aus Vermögen, Einnahmen, Ausgaben und Fixkosten berechnet.</p>
       </div>
-      <span class="badge">Version 92</span>
+      <span class="badge">Version 93</span>
     </div>
     <div class="stats-grid">
       <div class="stat"><span>Gesamtvermögen</span><strong id="v6TotalWealth">–</strong></div>
