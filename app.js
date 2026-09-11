@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 95;
+const APP_VERSION = 96;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -1883,7 +1883,7 @@ function savingsOverviewSnapshotV93(){
   const totalMin=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[3])||0),0);
   const totalMax=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[4])||0),0);
   const through=rows.map((r,i)=>({
-    key:String(r?.[12]||goalFingerprintV81(r)||i),
+    key:String(goalFingerprintV81(r)||`goal-${i}`),
     min:forecastIsoFromTextV93(forecastThroughGoalV93(i,"min")),
     max:forecastIsoFromTextV93(forecastThroughGoalV93(i,"max"))
   }));
@@ -1926,7 +1926,10 @@ function selectedDashboardGoalIndexV93(){
 
 function dashboardGoalKeyV93(i){
   const r=data.priorityGoals?.[i];
-  return String(r?.[12]||goalFingerprintV81(r)||i);
+  // V96: Forecast history belongs to the savings goal itself, not to its
+  // financing-link id. Using the financing id here caused the history key
+  // to change as soon as financing was first saved/relinked.
+  return String(goalFingerprintV81(r)||`goal-${i}`);
 }
 
 function savingsForecastMetaV93(key,currentText,previousIso=null){
@@ -1944,7 +1947,11 @@ function savingsForecastMetaV93(key,currentText,previousIso=null){
     const d=diffDaysV59(current,prev);
     bits.push(d===0?"unverändert zum letzten Monatsstand":`${humanTimeGainV59(d)} als letzter Monatsstand`);
   }
-  if(!bits.length)bits.push("Prognosenveränderung wird ab Version 93 gespeichert");
+  if(!bits.length){
+    bits.push("noch kein gespeicherter Vergleichswert vorhanden");
+  }else if(!prev && current){
+    bits.push("kein Prognosewert im letzten Monatsstand gespeichert");
+  }
   return bits.join(" · ");
 }
 
@@ -1955,17 +1962,58 @@ function signedPointsV93(v){
   return `${sign}${n.toLocaleString("de-DE",{minimumFractionDigits:6,maximumFractionDigits:6})} Prozentpunkte`;
 }
 
+
+function backfillSavingsForecastKeysV96(snapshot){
+  const overview=snapshot?.savingsOverviewV93;
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  if(!overview || !Array.isArray(overview.through))return;
+
+  const state=ensureProgressStateV59();
+  const month=snapshot.month||monthKeyV59();
+
+  rows.forEach((r,i)=>{
+    const item=overview.through[i];
+    if(!item)return;
+    const stableKey=String(goalFingerprintV81(r)||`goal-${i}`);
+    item.key=stableKey;
+
+    const minKey=`savings-through-${stableKey}-min-v93`;
+    const maxKey=`savings-through-${stableKey}-max-v93`;
+
+    if(item.min && !state.goalForecasts[minKey]){
+      state.goalForecasts[minKey]={first:item.min,firstMonth:month};
+    }
+    if(item.max && !state.goalForecasts[maxKey]){
+      state.goalForecasts[maxKey]={first:item.max,firstMonth:month};
+    }
+  });
+
+  if(overview.endMin && !state.goalForecasts["savings-total-min-v93"]){
+    state.goalForecasts["savings-total-min-v93"]={first:overview.endMin,firstMonth:month};
+  }
+  if(overview.endMax && !state.goalForecasts["savings-total-max-v93"]){
+    state.goalForecasts["savings-total-max-v93"]={first:overview.endMax,firstMonth:month};
+  }
+}
+
 function ensureCurrentSavingsTrackingV93(){
   const state=ensureProgressStateV59();
   const ym=monthKeyV59();
   const current=state.snapshots?.[ym];
-  if(current && !current.savingsOverviewV93){
+  if(!current)return;
+
+  if(!current.savingsOverviewV93){
     current.savingsOverviewV93=savingsOverviewSnapshotV93();
-    registerSavingsFirstForecastsV93(current);
   }
+
+  // V96: Always backfill missing goal forecast keys. Previously this ran
+  // only when the whole V93 block was missing.
+  backfillSavingsForecastKeysV96(current);
+  registerSavingsFirstForecastsV93(current);
 }
 
 function renderDashboardSavingsGoalsV71(){
+  ensureCurrentSavingsTrackingV93();
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
   const wealth=Math.max(0,Number(totalWealth())||0);
   const totalMin=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[3])||0),0);
