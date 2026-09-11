@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 94;
+const APP_VERSION = 95;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -415,13 +415,26 @@ function financingKeyV81(i){
     return exact[0];
   }
 
-  // Last compatibility fallback for old V74/V78/V79/V80 ids.
-  const byOldIndex=keys.filter(k=>financingIndexFromKeyV81(k)===i);
-  if(byOldIndex.length){
-    byOldIndex.sort((x,y)=>financingPlanScoreV81(store[y],row)-financingPlanScoreV81(store[x],row));
-    return byOldIndex[0];
-  }
+  // V95: Never attach financing by current list index.
+  // A goal may move up/down or another goal above may be removed. In that case
+  // an index-based fallback would silently give this goal the financing of a
+  // different row. Only a direct saved id or a matching goal fingerprint may
+  // resolve financing automatically.
   return null;
+}
+
+function financingLinkHealthV95(){
+  const store=financingStoreV81();
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  if(!store)return {linked:0,invalid:0};
+  let linked=0,invalid=0;
+  rows.forEach(row=>{
+    if(typeof row?.[12]==="string" && row[12]){
+      if(store[row[12]])linked++;
+      else invalid++;
+    }
+  });
+  return {linked,invalid};
 }
 function financingPlanV74(i){
   const store=financingStoreV81();
@@ -448,13 +461,43 @@ function financingIdForSaveV79(i){
 }
 function cloneFinancingV79(v){return v==null?null:JSON.parse(JSON.stringify(v));}
 const financingDraftsV79={};
+const financingDraftGoalKeysV95=new WeakMap();
+let financingDraftGoalSeqV95=0;
+
+function financingDraftKeyV95(i){
+  const row=data.priorityGoals?.[i];
+  if(!row)return null;
+
+  // Once a financing id exists, it is the stable identity.
+  if(typeof row[12]==="string" && row[12]){
+    return `fin:${row[12]}`;
+  }
+
+  // Unsaved/new financing drafts follow the actual goal row object, never the
+  // numeric list position. Moving/deleting another goal therefore cannot move
+  // the draft to a neighbouring goal.
+  if(!financingDraftGoalKeysV95.has(row)){
+    financingDraftGoalKeysV95.set(row,`goalobj:${++financingDraftGoalSeqV95}`);
+  }
+  return financingDraftGoalKeysV95.get(row);
+}
+function deleteFinancingDraftV95(i){
+  const key=financingDraftKeyV95(i);
+  if(key)delete financingDraftsV79[key];
+}
+function setFinancingDraftV95(i,value){
+  const key=financingDraftKeyV95(i);
+  if(key)financingDraftsV79[key]=value;
+}
 function defaultFinancingV79(){
   return {targetMode:"min",customTarget:0,equityMode:"fixed",equity:0,equityPercent:0,savingMode:"fixed",savingValue:0,timingMode:"due",dueDate:"",bindingCredit:false,credits:[],grants:[],subsidies:[],once:[]};
 }
 function financingDraftV79(i){
-  if(financingDraftsV79[i])return financingDraftsV79[i];
-  financingDraftsV79[i]=cloneFinancingV79(financingPlanV74(i))||defaultFinancingV79();
-  return financingDraftsV79[i];
+  const key=financingDraftKeyV95(i);
+  if(!key)return defaultFinancingV79();
+  if(financingDraftsV79[key])return financingDraftsV79[key];
+  financingDraftsV79[key]=cloneFinancingV79(financingPlanV74(i))||defaultFinancingV79();
+  return financingDraftsV79[key];
 }
 
 function addMonthsV74(d,n){const x=new Date(d.getFullYear(),d.getMonth(),1);x.setMonth(x.getMonth()+n);return x}
@@ -2062,7 +2105,7 @@ if(d.saveFuel){
 if(d.deleteFuel){data.fuelEntries=data.fuelEntries.filter(x=>x.id!==d.deleteFuel);save()}if(d.editCapital){editingCapital=d.editCapital;renderCapitalTable()}if(d.cancelCapital!==undefined){editingCapital=null;renderCapitalTable()}if(d.saveCapital){const r=data.capitalHistory.find(x=>x.month===d.saveCapital);document.querySelectorAll('[data-cap-field]').forEach(x=>r[x.dataset.capField]=Number(x.value)||0);r.total=Number(r.sparkasseInterest||0)+Number(r.trInterest||0)+Number(r.dividend||0);editingCapital=null;save()}if(d.editFixed){const x=data.fixedCosts.find(v=>v.id===d.editFixed);modal(`<h2>${esc(x.name)} bearbeiten</h2><label>Tag<input id="mDay" type="number" min="1" max="31" value="${x.day}"></label><label>Betrag<input id="mAmount" type="number" step="0.01" value="${x.amount}"></label><button id="mSaveFixed">Speichern</button>`);$('mSaveFixed').onclick=()=>{x.day=Number($('mDay').value)||1;x.amount=Number($('mAmount').value)||0;closeModal();save()}}if(d.editAsset){const a=data.assets.find(v=>v.id===d.editAsset);const stock=a.type==='stock';modal(`<h2>${esc(a.name)} aktualisieren</h2><label>Neuer Stand<input id="mBal" type="number" step="0.01" value="${a.balance}"></label><label>${stock?'Dividende pro Monat':'Zinssatz p. a. (%)'}<input id="mYield" type="number" step="0.01" value="${stock?a.monthlyDividend:a.rate}"></label>${stock?`<p>Berechnete Dividendenrendite: <strong id="mRendite"></strong></p>`:''}<button id="mSaveAsset">Speichern</button>`);const upd=()=>{if(stock)set('mRendite',pct(Number($('mBal').value)?Number($('mYield').value)*12/Number($('mBal').value)*100:0))};if(stock){$('mBal').oninput=upd;$('mYield').oninput=upd;upd()}$('mSaveAsset').onclick=()=>{a.balance=Number($('mBal').value)||0;if(stock)a.monthlyDividend=Number($('mYield').value)||0;else a.rate=Number($('mYield').value)||0;closeModal();save()}}if(d.financeGoal!==undefined){openFinancingV74(Number(d.financeGoal));return}
 if(d.closeModal!==undefined){
   const box=e.target.closest("[data-finance-index]");
-  if(box) delete financingDraftsV79[Number(box.dataset.financeIndex)];
+  if(box) deleteFinancingDraftV95(Number(box.dataset.financeIndex));
   closeModal();return
 }
 if(d.addCredit!==undefined){
@@ -2152,9 +2195,16 @@ if(d.saveFinance!==undefined){
   // Save the data first, exactly like the stable V82 logic.
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 
-  // Keep exactly the saved object as the active draft so adding another
-  // financing component cannot lose the previously saved ones.
-  financingDraftsV79[i]=cloneFinancingV79(stored);
+  // V95: financingIdForSaveV79 may have just added row[12], changing the
+  // draft key from the temporary goal-object key to the stable financing id.
+  // Store the saved draft only under the stable key.
+  Object.keys(financingDraftsV79)
+    .filter(k=>k.startsWith("goalobj:"))
+    .forEach(k=>{
+      const candidate=financingDraftsV79[k];
+      if(candidate===p)delete financingDraftsV79[k];
+    });
+  setFinancingDraftV95(i,cloneFinancingV79(stored));
 
   try{renderAll()}catch(err){console.error("Anzeige nach Finanzierungsspeicherung:",err)}
   openFinancingV74(i);
@@ -2166,7 +2216,7 @@ if(d.deleteFinance!==undefined){
     financingSafetyBackupV81("before-financing-delete");
     const key=financingKeyV81(i);
     if(data.goalFinancingV74 && key) delete data.goalFinancingV74[key];
-    delete financingDraftsV79[i];
+    deleteFinancingDraftV95(i);
     save();closeModal()
   }return
 }
