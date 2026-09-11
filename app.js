@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 96;
+const APP_VERSION = 97;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -1602,7 +1602,8 @@ function buildSnapshotV61(){
       savings:sg?.min?forecastDateForWealthTargetV59(sg.min)?.toISOString()||null:null
     },
     targets:{wealth:nextWealth,passive:nextPassive,cent:nextCent[0]},
-    savingsOverviewV93:savingsOverviewSnapshotV93()
+    savingsOverviewV93:savingsOverviewSnapshotV93(),
+    savingsOverviewV97:savingsOverviewSnapshotV97()
   };
 }
 function registerGoalFirstForecastsV61(snapshot){
@@ -1636,12 +1637,16 @@ function captureSnapshotOnDataChangeV61(){
   const state=ensureProgressStateV59();
 
   if(state.snapshots[ym]){
-    // V93 migration: on an explicit data save, enrich an existing monthly
-    // snapshot once with the new savings-total/through-goal forecasts.
-    // Existing historical snapshot fields are never overwritten.
+    // Existing historical fields are never overwritten.
     if(!state.snapshots[ym].savingsOverviewV93){
       state.snapshots[ym].savingsOverviewV93=savingsOverviewSnapshotV93();
       registerSavingsFirstForecastsV93(state.snapshots[ym]);
+    }
+    // V97 starts a clean, trustworthy forecast-history series. Old V93-V96
+    // comparison values are not migrated because some were linked to the
+    // wrong goal/index.
+    if(!state.snapshots[ym].savingsOverviewV97){
+      state.snapshots[ym].savingsOverviewV97=savingsOverviewSnapshotV97();
     }
     return;
   }
@@ -1877,6 +1882,124 @@ function forecastIsoFromTextV93(text){
   return d?d.toISOString():null;
 }
 
+
+function savingsOverviewSnapshotV97(){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const wealth=Math.max(0,Number(totalWealth())||0);
+  const totalMin=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[3])||0),0);
+  const totalMax=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[4])||0),0);
+
+  let cumulativeMin=0,cumulativeMax=0;
+  const through=rows.map((r,i)=>{
+    cumulativeMin+=Math.max(0,Number(r?.[3])||0);
+    cumulativeMax+=Math.max(0,Number(r?.[4])||0);
+    return {
+      key:String(goalFingerprintV81(r)||`goal-${i}`),
+      cumulativeMin,
+      cumulativeMax,
+      min:forecastIsoFromTextV93(forecastThroughGoalV93(i,"min")),
+      max:forecastIsoFromTextV93(forecastThroughGoalV93(i,"max"))
+    };
+  });
+
+  return {
+    calcVersion:97,
+    totalMin,
+    totalMax,
+    minPct:totalMin>0?wealth/totalMin*100:0,
+    maxPct:totalMax>0?wealth/totalMax*100:0,
+    endMin:forecastIsoFromTextV93(endForecastV81("min")),
+    endMax:forecastIsoFromTextV93(endForecastV81("max")),
+    through
+  };
+}
+
+function savingsSnapshotHistoryV97(){
+  const state=ensureProgressStateV59();
+  return Object.keys(state.snapshots||{})
+    .sort()
+    .map(month=>state.snapshots[month])
+    .filter(s=>s?.savingsOverviewV97?.calcVersion===97);
+}
+
+function firstSavingsForecastV97(kind,key,currentIso){
+  const history=savingsSnapshotHistoryV97();
+  for(const snap of history){
+    const o=snap.savingsOverviewV97;
+    if(kind==="total-min" && o.endMin)return o.endMin;
+    if(kind==="total-max" && o.endMax)return o.endMax;
+    if(kind==="through-min" || kind==="through-max"){
+      const item=(o.through||[]).find(x=>x?.key===key);
+      const v=kind==="through-min"?item?.min:item?.max;
+      if(v)return v;
+    }
+  }
+  // No trustworthy V97 baseline exists yet. The current correct forecast
+  // becomes the baseline instead of reusing corrupted V93-V96 history.
+  return currentIso||null;
+}
+
+function previousSavingsForecastV97(kind,key){
+  const state=ensureProgressStateV59();
+  const current=monthKeyV59();
+  const months=Object.keys(state.snapshots||{}).sort().filter(m=>m<current).reverse();
+
+  for(const month of months){
+    const o=state.snapshots[month]?.savingsOverviewV97;
+    if(!o || o.calcVersion!==97)continue;
+
+    if(kind==="total-min" && o.endMin)return o.endMin;
+    if(kind==="total-max" && o.endMax)return o.endMax;
+    if(kind==="through-min" || kind==="through-max"){
+      const item=(o.through||[]).find(x=>x?.key===key);
+      const v=kind==="through-min"?item?.min:item?.max;
+      if(v)return v;
+    }
+  }
+  return null;
+}
+
+function savingsForecastMetaV97(kind,key,currentText){
+  const current=parseForecastDateV81(currentText);
+  if(!current)return "–";
+
+  const currentIso=current.toISOString();
+  const firstIso=firstSavingsForecastV97(kind,key,currentIso);
+  const prevIso=previousSavingsForecastV97(kind,key);
+
+  const first=firstIso?new Date(firstIso):null;
+  const prev=prevIso?new Date(prevIso):null;
+  const bits=[];
+
+  if(first){
+    const d=diffDaysV59(current,first);
+    bits.push(d===0
+      ?"seit erster korrekter Prognose unverändert"
+      :`seit erster korrekter Prognose ${humanTimeGainV59(d)}`);
+  }
+
+  if(prev){
+    const d=diffDaysV59(current,prev);
+    bits.push(d===0
+      ?"unverändert zum letzten Monatsstand"
+      :`${humanTimeGainV59(d)} als letzter Monatsstand`);
+  }else{
+    bits.push("kein vergleichbarer Prognosewert im letzten Monatsstand");
+  }
+
+  return bits.join(" · ");
+}
+
+function ensureCurrentSavingsTrackingV97(){
+  const state=ensureProgressStateV59();
+  const current=state.snapshots?.[monthKeyV59()];
+  if(current && !current.savingsOverviewV97){
+    // In-memory enrichment only. It is persisted on the next explicit save,
+    // preserving the rule that startup must not rewrite the main data store.
+    current.savingsOverviewV97=savingsOverviewSnapshotV97();
+  }
+}
+
 function savingsOverviewSnapshotV93(){
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
   const wealth=Math.max(0,Number(totalWealth())||0);
@@ -2008,12 +2131,11 @@ function ensureCurrentSavingsTrackingV93(){
 
   // V96: Always backfill missing goal forecast keys. Previously this ran
   // only when the whole V93 block was missing.
-  backfillSavingsForecastKeysV96(current);
   registerSavingsFirstForecastsV93(current);
 }
 
 function renderDashboardSavingsGoalsV71(){
-  ensureCurrentSavingsTrackingV93();
+  ensureCurrentSavingsTrackingV97();
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
   const wealth=Math.max(0,Number(totalWealth())||0);
   const totalMin=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[3])||0),0);
@@ -2056,15 +2178,14 @@ function renderDashboardSavingsGoalsV71(){
       :`${signedPointsV93(maxPct-prevMaxPct)} seit letztem Monatsstand`;
   }
 
-  const prevOverview=prev?.savingsOverviewV93||null;
   if($("dashGoalsEndMinMetaV93")){
-    $("dashGoalsEndMinMetaV93").textContent=savingsForecastMetaV93(
-      "savings-total-min-v93",endMin,prevOverview?.endMin||null
+    $("dashGoalsEndMinMetaV93").textContent=savingsForecastMetaV97(
+      "total-min","",endMin
     );
   }
   if($("dashGoalsEndMaxMetaV93")){
-    $("dashGoalsEndMaxMetaV93").textContent=savingsForecastMetaV93(
-      "savings-total-max-v93",endMax,prevOverview?.endMax||null
+    $("dashGoalsEndMaxMetaV93").textContent=savingsForecastMetaV97(
+      "total-max","",endMax
     );
   }
 
@@ -2108,7 +2229,6 @@ function renderDashboardSavingsGoalsV71(){
   const throughMin=forecastThroughGoalV93(selected,"min");
   const throughMax=forecastThroughGoalV93(selected,"max");
   const key=dashboardGoalKeyV93(selected);
-  const prevThrough=prevOverview?.through?.[selected]||null;
 
   if($("dashGoalThroughMinAmountV93"))$("dashGoalThroughMinAmountV93").textContent=fmt(cumulativeMin);
   if($("dashGoalThroughMaxAmountV93"))$("dashGoalThroughMaxAmountV93").textContent=fmt(cumulativeMax);
@@ -2118,13 +2238,13 @@ function renderDashboardSavingsGoalsV71(){
   if($("dashGoalThroughMaxDateV93"))$("dashGoalThroughMaxDateV93").textContent=throughMax;
 
   if($("dashGoalThroughMinMetaV93")){
-    $("dashGoalThroughMinMetaV93").textContent=savingsForecastMetaV93(
-      `savings-through-${key}-min-v93`,throughMin,prevThrough?.min||null
+    $("dashGoalThroughMinMetaV93").textContent=savingsForecastMetaV97(
+      "through-min",key,throughMin
     );
   }
   if($("dashGoalThroughMaxMetaV93")){
-    $("dashGoalThroughMaxMetaV93").textContent=savingsForecastMetaV93(
-      `savings-through-${key}-max-v93`,throughMax,prevThrough?.max||null
+    $("dashGoalThroughMaxMetaV93").textContent=savingsForecastMetaV97(
+      "through-max",key,throughMax
     );
   }
 }
