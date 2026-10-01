@@ -1,12 +1,12 @@
 "use strict";
-const APP_VERSION = 97;
+const APP_VERSION = 98;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
  capitalHistory:[{"month":"2025-06","sparkasse":1500,"sparkasseInterest":1.81,"tradeRepublic":881.35,"trInterest":1.52,"dividend":0.02,"total":3.35},{"month":"2025-07","sparkasse":1520,"sparkasseInterest":1.01,"tradeRepublic":811.25,"trInterest":1.37,"dividend":0.37,"total":2.75},{"month":"2025-08","sparkasse":1525,"sparkasseInterest":1.02,"tradeRepublic":812.62,"trInterest":1.36,"dividend":0.21,"total":2.59},{"month":"2025-09","sparkasse":1530,"sparkasseInterest":1.02,"tradeRepublic":895.09,"trInterest":1.42,"dividend":0.1,"total":2.54},{"month":"2025-10","sparkasse":1500,"sparkasseInterest":1.0,"tradeRepublic":1297.71,"trInterest":1.81,"dividend":1.1,"total":3.91},{"month":"2025-11","sparkasse":1150,"sparkasseInterest":0.77,"tradeRepublic":1999.73,"trInterest":3.03,"dividend":0.21,"total":4.01},{"month":"2025-12","sparkasse":1460,"sparkasseInterest":0.97,"tradeRepublic":2227.86,"trInterest":2.71,"dividend":1.1,"total":4.78},{"month":"2026-01","sparkasse":885,"sparkasseInterest":0.6,"tradeRepublic":2231.61,"trInterest":3.79,"dividend":0,"total":4.39},{"month":"2026-02","sparkasse":465,"sparkasseInterest":0.35,"tradeRepublic":2235.61,"trInterest":3.43,"dividend":0.21,"total":3.99},{"month":"2026-03","sparkasse":665,"sparkasseInterest":0.5,"tradeRepublic":2169.92,"trInterest":3.72,"dividend":1.06,"total":5.28},{"month":"2026-04","sparkasse":475,"sparkasseInterest":0.32,"tradeRepublic":2174.81,"trInterest":3.58,"dividend":1.17,"total":5.07},{"month":"2026-05","sparkasse":635,"sparkasseInterest":0.42,"tradeRepublic":2655.5,"trInterest":4.27,"dividend":5.61,"total":10.3},{"month":"2026-06","sparkasse":5,"sparkasseInterest":0.11,"tradeRepublic":2562.05,"trInterest":4.46,"dividend":2.28,"total":6.85},{"month":"2026-07","sparkasse":655,"sparkasseInterest":0.49,"tradeRepublic":2567.7,"trInterest":4.91,"dividend":1.19,"total":6.59},{"month":"2026-08","sparkasse":655,"sparkasseInterest":0.49,"tradeRepublic":2622.61,"trInterest":5.01,"dividend":0,"total":5.5},{"month":"2026-09","sparkasse":null,"sparkasseInterest":0,"tradeRepublic":null,"trInterest":null,"dividend":null,"total":null}],
  incomeHistory:[{"month":"2025-06","salary":426.53,"bonus":50,"tips":150,"parents":105,"costs":-35.93,"total":795.6},{"month":"2025-07","salary":237.31,"bonus":50,"tips":125,"parents":105,"costs":-35.93,"total":596.38},{"month":"2025-08","salary":599.89,"bonus":50,"tips":200,"parents":105,"costs":-35.93,"total":1018.96},{"month":"2025-09","salary":617.17,"bonus":50,"tips":200,"parents":105,"costs":-60.93,"total":1011.24},{"month":"2025-10","salary":667.81,"bonus":50,"tips":250,"parents":105,"costs":-137.08,"total":1035.73},{"month":"2025-11","salary":719.6,"bonus":50,"tips":225,"parents":105,"costs":-920.42,"total":279.18},{"month":"2025-12","salary":761.84,"bonus":50,"tips":250,"parents":105,"costs":-181.42,"total":1070.42},{"month":"2026-01","salary":735.94,"bonus":50,"tips":225,"parents":105,"costs":-187.42,"total":928.52},{"month":"2026-02","salary":506.8,"bonus":50,"tips":125,"parents":105,"costs":-191.7,"total":595.1},{"month":"2026-03","salary":595.92,"bonus":50,"tips":225,"parents":105,"costs":-247.2,"total":728.72},{"month":"2026-04","salary":920.26,"bonus":50,"tips":250,"parents":105,"costs":-303.7,"total":1021.56},{"month":"2026-05","salary":1014.08,"bonus":50,"tips":325,"parents":105,"costs":-240.7,"total":1278.38},{"month":"2026-06","salary":514.92,"bonus":50,"tips":100,"parents":105,"costs":-215.7,"total":554.22},{"month":"2026-07","salary":560.75,"bonus":50,"tips":200,"parents":105,"costs":-240.7,"total":700.05},{"month":"2026-08","salary":852.75,"bonus":50,"tips":300,"parents":105,"costs":-215.7,"total":1092.05},{"month":"2026-09","salary":840,"bonus":50,"tips":300,"parents":105,"costs":-265.7,"total":1079.3},{"month":"2026-10","salary":840,"bonus":50,"tips":300,"parents":105,"costs":-247.2,"total":1079.3},{"month":"2026-11","salary":840,"bonus":50,"tips":300,"parents":105,"costs":-240.7,"total":1079.3},{"month":"2026-12","salary":840,"bonus":50,"tips":300,"parents":105,"costs":-215.7,"total":1079.3}],
  amexHistory:[{"month":"2025-05","expenses":-942.84},{"month":"2025-06","expenses":-332.81},{"month":"2025-07","expenses":-485.92},{"month":"2025-08","expenses":-556.42},{"month":"2025-09","expenses":-379.02},{"month":"2025-10","expenses":-354.97},{"month":"2025-11","expenses":-368.61},{"month":"2025-12","expenses":-1426.3},{"month":"2026-01","expenses":-633.6},{"month":"2026-02","expenses":-509.36},{"month":"2026-03","expenses":-602.85},{"month":"2026-04","expenses":-363.47},{"month":"2026-05","expenses":-781.81},{"month":"2026-06","expenses":-275.2},{"month":"2026-07","expenses":-586.81}],
- fixedCosts:[{"id":"netflix","name":"Netflix","amount":9.99,"day":31,"frequency":"monthly","when":"Ende des Monats"},{"id":"telekom","name":"Telekom","amount":19.95,"day":31,"frequency":"monthly","when":"Ende des Monats"},{"id":"spotify","name":"Spotify","amount":12.99,"day":1,"frequency":"monthly","when":"Anfang des Monats"},{"id":"versicherung","name":"Versicherung","amount":148.77,"day":14,"frequency":"monthly","when":"Mitte des Monats"},{"id":"cheer-month","name":"Cheerleading","amount":24,"day":1,"frequency":"monthly","when":"Anfang des Monats"},{"id":"fsv","name":"FSV","amount":31.5,"day":1,"frequency":"semiannual","months":[4,10],"when":"April & Oktober"},{"id":"hanse","name":"HanseMerkur","amount":25,"day":14,"frequency":"annual","months":[9],"when":"Mitte September"},{"id":"cheer-year","name":"Cheerleading Jahresbeitrag","amount":59,"day":1,"frequency":"annual","months":[4],"when":"April"},{"id":"reit","name":"Reitverein","amount":50,"day":1,"frequency":"annual","months":[3],"when":"März"},{"id":"friseur","name":"Friseur","amount":25,"day":1,"frequency":"bimonthly","months":[6,8,10,12],"when":"alle 2 Monate"}], assets:[{"id":"sparkasse-giro","name":"Sparkasse Girokonto","type":"bank","balance":0,"rate":0},{"id":"spk-tg1","name":"Sparkasse Tagesgeld 1","type":"savings","balance":645,"rate":0.88},{"id":"spk-tg2","name":"Sparkasse Tagesgeld 2","type":"savings","balance":10,"rate":0.88},{"id":"tr-cash","name":"Trade Republic Tagesgeld","type":"savings","balance":2622.61,"rate":2.25},{"id":"tr-stock","name":"Trade Republic Aktien","type":"stock","balance":789.98,"monthlyDividend":1.7,"costBasis":722.73}], priorityGoals:[[1,"Absicherung","Polster",10000,10000,null,null,null,null,39.36,39.36,4067.59],[2,"Bildung","Master",182.1,370,null,null,null,null,0,0,null],[3,"Haus","Dachzustand prüfen und reparieren",1500,5000,null,null,null,null,0,0,null],[4,"Haus","Treppenhaus sanieren",900,3063,null,null,null,null,0,0,null],[5,"Haus","Sanierung Bad Erdgeschoss",5000,10000,null,null,null,null,0,0,null],[6,"Haus","Renovierung Bad Wohnung",3000,7000,null,null,null,null,0,0,null],[7,"Haus","Sanierung Bad Opa",5000,10000,null,null,null,null,0,0,null],[8,"Bank","Kredit Deutsche Bildung",13440,13790,null,null,null,null,8.3,0,null],[9,"Bank","Raten Vorwerk",581.97,529.02,null,null,null,null,0,0,null],[10,"Bank","Kredit ING",52336.78,52336.78,7080,7080,590,590,0,0,null],[11,"Bank","Kredit Bulldog",45727.88,45727.88,7017.12,7017.12,584.76,584.76,0,0,null],[12,"Bank","Kredit Haus",51436.68,51436.68,10277.64,10277.64,856.47,856.47,0,0,null],[13,"Scheune","Wohnung in Scheune sanieren",180000,250000,null,null,null,null,0,0,null],[14,"Altes Haus","Architekten/Bauplaner beauftragen",18000,103500,null,null,null,null,0,0,null],[15,"Altes Haus","Grundsanierung",200000,690000,16800,22200,1400,1850,0,0,null],[16,"Altes Haus","Automat",1150,9200,534,7620,44.5,635,0,0,null],[17,"Altes Haus","Laden einrichten",3300,10000,null,null,null,null,0,0,null],[18,"Altes Haus","Ferienwohnung einrichten",12000,25000,null,null,null,null,0,0,null],[19,"Altes Haus","Eventraum einrichten",10000,22000,null,null,null,null,0,0,null],[20,"Altes Haus","Büro einrichten",3200,11200,null,null,null,null,0,0,null],[null,"Haus","Bodenbeläge Zimmer",2500,6000,null,null,null,null,0,0,null],[null,"Haus","Modernisierung Haus Isolation",37000,80000,null,null,null,null,0,0,null],[null,"Haus","Modernisierung Haus Heizung",8000,23000,2400,3600,200,300,0,0,null],[null,"Scheune","Stall bauen",4200,12900,null,null,null,null,0,0,null],[null,"Scheune","Werkstatt renovieren",4000,4800,null,null,null,null,0,0,null],[null,"Gewölbekeller","renovieren",13500,22500,null,null,null,null,0,0,null],[null,"Eckhaus","zurückkaufen",400000,480000,null,null,null,null,0,0,null],[null,"Garten","Gartenhaus renovieren",3000,5000,null,null,null,null,0,0,null],[null,"Haustier","Hund/e",150,400,600,1800,50,150,0,0,null],[null,"Haustier","Pferde",11000,24000,9600,13200,800,1100,0,0,null],[null,"Auto","Audi A3",22000,30000,2640,3600,220,300,0,0,null],[null,"Eltern","Versorgt",650000,1100000,null,null,null,null,0,0,null],[null,"Gnadenhof","Land kaufen & bauen",5913254.39,18394160,1218590,2768939,101549.17,230744.92,0,0,null],[null,"Strandhaus","kaufen",300000,2500000,null,null,null,null,0,0,null],[null,"Herrenhaus","kaufen",300000,1500000,null,null,null,null,0,0,null],[null,"Herrenhaus","sanieren",90000,700000,null,null,null,null,0,0,null],[null,"Schloss","kaufen",300000,4000000,null,null,null,null,0,0,null],[null,"Schloss","sanieren",480000,4500000,30000,135000,2500,11250,0,0,null]], fuelEntries:[{"id":"fuel-initial","date":"2026-07-01","amount":278.75,"note":"Bisheriger Stand"}],
+ fixedCosts:[{"id":"netflix","name":"Netflix","amount":9.99,"day":31,"frequency":"monthly","when":"Ende des Monats"},{"id":"telekom","name":"Telekom","amount":19.95,"day":31,"frequency":"monthly","when":"Ende des Monats"},{"id":"spotify","name":"Spotify","amount":12.99,"day":1,"frequency":"monthly","when":"Anfang des Monats"},{"id":"versicherung","name":"Versicherung","amount":148.77,"day":14,"frequency":"monthly","when":"Mitte des Monats"},{"id":"cheer-month","name":"Cheerleading","amount":24,"day":1,"frequency":"monthly","when":"Anfang des Monats"},{"id":"fsv","name":"FSV","amount":31.5,"day":1,"frequency":"semiannual","months":[4,10],"when":"April & Oktober"},{"id":"hanse","name":"HanseMerkur","amount":25,"day":14,"frequency":"annual","months":[9],"when":"Mitte September"},{"id":"cheer-year","name":"Cheerleading Jahresbeitrag","amount":59,"day":1,"frequency":"annual","months":[4],"when":"April"},{"id":"reit","name":"Reitverein","amount":50,"day":1,"frequency":"annual","months":[3],"when":"März"},{"id":"friseur","name":"Friseur","amount":25,"day":1,"frequency":"bimonthly","months":[6,8,10,12],"when":"alle 2 Monate"}], assets:[{"id":"sparkasse-giro","name":"Sparkasse Girokonto","type":"bank","balance":0,"rate":0},{"id":"spk-tg1","name":"Sparkasse Tagesgeld 1","type":"savings","balance":645,"rate":0.88},{"id":"spk-tg2","name":"Sparkasse Tagesgeld 2","type":"savings","balance":10,"rate":0.88},{"id":"tr-cash","name":"Trade Republic Tagesgeld","type":"savings","balance":2622.61,"rate":2.5},{"id":"tr-stock","name":"Trade Republic Aktien","type":"stock","balance":789.98,"monthlyDividend":1.7,"costBasis":722.73}], priorityGoals:[[1,"Absicherung","Polster",10000,10000,null,null,null,null,39.36,39.36,4067.59],[2,"Bildung","Master",182.1,370,null,null,null,null,0,0,null],[3,"Haus","Dachzustand prüfen und reparieren",1500,5000,null,null,null,null,0,0,null],[4,"Haus","Treppenhaus sanieren",900,3063,null,null,null,null,0,0,null],[5,"Haus","Sanierung Bad Erdgeschoss",5000,10000,null,null,null,null,0,0,null],[6,"Haus","Renovierung Bad Wohnung",3000,7000,null,null,null,null,0,0,null],[7,"Haus","Sanierung Bad Opa",5000,10000,null,null,null,null,0,0,null],[8,"Bank","Kredit Deutsche Bildung",13440,13790,null,null,null,null,8.3,0,null],[9,"Bank","Raten Vorwerk",581.97,529.02,null,null,null,null,0,0,null],[10,"Bank","Kredit ING",52336.78,52336.78,7080,7080,590,590,0,0,null],[11,"Bank","Kredit Bulldog",45727.88,45727.88,7017.12,7017.12,584.76,584.76,0,0,null],[12,"Bank","Kredit Haus",51436.68,51436.68,10277.64,10277.64,856.47,856.47,0,0,null],[13,"Scheune","Wohnung in Scheune sanieren",180000,250000,null,null,null,null,0,0,null],[14,"Altes Haus","Architekten/Bauplaner beauftragen",18000,103500,null,null,null,null,0,0,null],[15,"Altes Haus","Grundsanierung",200000,690000,16800,22200,1400,1850,0,0,null],[16,"Altes Haus","Automat",1150,9200,534,7620,44.5,635,0,0,null],[17,"Altes Haus","Laden einrichten",3300,10000,null,null,null,null,0,0,null],[18,"Altes Haus","Ferienwohnung einrichten",12000,25000,null,null,null,null,0,0,null],[19,"Altes Haus","Eventraum einrichten",10000,22000,null,null,null,null,0,0,null],[20,"Altes Haus","Büro einrichten",3200,11200,null,null,null,null,0,0,null],[null,"Haus","Bodenbeläge Zimmer",2500,6000,null,null,null,null,0,0,null],[null,"Haus","Modernisierung Haus Isolation",37000,80000,null,null,null,null,0,0,null],[null,"Haus","Modernisierung Haus Heizung",8000,23000,2400,3600,200,300,0,0,null],[null,"Scheune","Stall bauen",4200,12900,null,null,null,null,0,0,null],[null,"Scheune","Werkstatt renovieren",4000,4800,null,null,null,null,0,0,null],[null,"Gewölbekeller","renovieren",13500,22500,null,null,null,null,0,0,null],[null,"Eckhaus","zurückkaufen",400000,480000,null,null,null,null,0,0,null],[null,"Garten","Gartenhaus renovieren",3000,5000,null,null,null,null,0,0,null],[null,"Haustier","Hund/e",150,400,600,1800,50,150,0,0,null],[null,"Haustier","Pferde",11000,24000,9600,13200,800,1100,0,0,null],[null,"Auto","Audi A3",22000,30000,2640,3600,220,300,0,0,null],[null,"Eltern","Versorgt",650000,1100000,null,null,null,null,0,0,null],[null,"Gnadenhof","Land kaufen & bauen",5913254.39,18394160,1218590,2768939,101549.17,230744.92,0,0,null],[null,"Strandhaus","kaufen",300000,2500000,null,null,null,null,0,0,null],[null,"Herrenhaus","kaufen",300000,1500000,null,null,null,null,0,0,null],[null,"Herrenhaus","sanieren",90000,700000,null,null,null,null,0,0,null],[null,"Schloss","kaufen",300000,4000000,null,null,null,null,0,0,null],[null,"Schloss","sanieren",480000,4500000,30000,135000,2500,11250,0,0,null]], fuelEntries:[{"id":"fuel-initial","date":"2026-07-01","amount":278.75,"note":"Bisheriger Stand"}],
  amexPaid:{}, goals:[], settings:{}
 };
 const clone=o=>JSON.parse(JSON.stringify(o));
@@ -102,6 +102,13 @@ function normalizeDataV51(){
  // V81: Do not persist anything automatically during startup.
 }
 normalizeDataV51();
+// V98: confirmed TR rate change 2.25% -> 2.50% p.a.
+// Only migrate the exact former rate; any user-entered different rate is preserved.
+{
+  const tr=(data.assets||[]).find(x=>x.id==="tr-cash");
+  if(tr && Math.abs(Number(tr.rate)-2.25)<0.000001)tr.rate=2.5;
+}
+
 function save(){captureSnapshotOnDataChangeV61();localStorage.setItem(STORAGE_KEY,JSON.stringify(data));renderAll()}
 function annualOccurrences(f){return f==='monthly'?12:f==='bimonthly'?6:f==='quarterly'?4:f==='semiannual'?2:1}
 function fixedAnnual(){return data.fixedCosts.reduce((s,x)=>s+Math.abs(x.amount)*annualOccurrences(x.frequency),0)}
@@ -130,9 +137,26 @@ function nextDue(x){const d=new Date(),y=d.getFullYear(),m=d.getMonth()+1;let mo
 function renderNextFixed(){const e=$('nextFixedCosts');if(!e)return;e.innerHTML=[...data.fixedCosts].sort((a,b)=>nextDue(a)-nextDue(b)).slice(0,5).map(x=>`<div class="list-item next-fixed-item"><div class="next-fixed-main"><strong>${esc(x.name)}</strong><span>${nextDue(x).toLocaleDateString('de-DE')}</span></div><strong>${fmt(-x.amount)}</strong></div>`).join('')}
 function renderAmexDashboard(){const sel=$('amexMonthSelect');if(!sel)return;sel.innerHTML=[...data.amexHistory].reverse().map(r=>`<option value="${r.month}">${monthLabel(r.month)}</option>`).join('');sel.value=currentAmex()?.month||'';const update=()=>{const r=data.amexHistory.find(x=>x.month===sel.value);set('amexMonthTotal',fmt(Math.abs(r?.expenses||0)));set('amexStatus',data.amexPaid[sel.value]?'Abgebucht':'Noch nicht als abgebucht markiert')};sel.onchange=update;$('toggleAmexPaid').onclick=()=>{data.amexPaid[sel.value]=!data.amexPaid[sel.value];save()};update()}
 function renderDashboardHistory(){const e=$('financeHistoryBody');if(e)e.innerHTML=[...data.capitalHistory].sort((a,b)=>a.month.localeCompare(b.month)).map(r=>`<tr><td>${monthLabel(r.month)}</td><td>${r.sparkasse==null?'–':fmt(r.sparkasse)}</td><td>${fmt(r.sparkasseInterest)}</td><td>${r.tradeRepublic==null?'–':fmt(r.tradeRepublic)}</td><td>${r.trInterest==null?'–':fmt(r.trInterest)}</td><td>${r.dividend==null?'–':fmt(r.dividend)}</td><td>${r.total==null?'–':fmt(r.total)}</td></tr>`).join('');set('historyTotalProfit',fmt(data.capitalHistory.reduce((s,r)=>s+Number(r.total||0),0)))}
-const INTEREST_GOALS_V51=[[0.17,2757.78],[0.18,2920],[0.19,3082.22],[0.20,3244.44],[0.21,3406.67],[0.22,3568.89],[0.23,3731.11],[0.24,3893.33],[0.25,4055.56],[0.26,4217.78],[0.27,4380],[0.28,4542.22],[0.29,4704.44],[0.30,4866.67]];
+function interestGoalsV98(){
+  const rate=Math.max(0,Number(trSavingsAssetV58?.()?.rate||0))/100;
+  if(rate<=0)return [];
+  const goals=[];
+  for(let cent=17;cent<=30;cent++){
+    const daily=cent/100;
+    const target=daily*365/rate;
+    goals.push([cent,target]);
+  }
+  return goals;
+}
 function trCashV51(){const a=data.assets.find(x=>x.id==='tr-cash'||(String(x.name||'').toLowerCase().includes('trade republic')&&String(x.name||'').toLowerCase().includes('tagesgeld')));return Number(a?.balance||0)}
-function renderInterestGoalsV51(){const cash=trCashV51();const a=$('interestGoalsBody');if(a)a.innerHTML=INTEREST_GOALS_V51.map(([d,t])=>`<tr><td>${Math.round(d*100)} Cent</td><td>${fmt(t)}</td><td>${fmt(Math.max(0,t-cash))} fehlen</td></tr>`).join('');const b=$('interestTargetsBody');if(b)b.innerHTML=INTEREST_GOALS_V51.map(([d,t])=>`<tr><td>${Math.round(d*100)} Cent</td><td>${fmt(Math.max(0,t-cash))}</td><td>${t<=cash?'erreicht':'offen'}</td></tr>`).join('')}
+function renderInterestGoalsV51(){
+  const cash=trCashV51();
+  const goals=interestGoalsV98();
+  const a=$('interestGoalsBody');
+  if(a)a.innerHTML=goals.map(([cent,t])=>`<tr><td>${cent} Cent/Tag</td><td>${fmt(t)}</td><td>${fmt(Math.max(0,t-cash))} fehlen</td></tr>`).join('');
+  const b=$('interestTargetsBody');
+  if(b)b.innerHTML=goals.map(([cent,t])=>`<tr><td>${cent} Cent/Tag</td><td>${fmt(Math.max(0,t-cash))}</td><td>${t<=cash?'erreicht':'offen'}</td></tr>`).join('');
+}
 function renderOverview(){const p=passive(),c=capitalMetrics();set('v6TotalWealth',fmt(c.wealth));set('v6AvgSaving',fmt(avgSurplus()));const avgInc=data.incomeHistory.reduce((s,r)=>s+r.total,0)/(data.incomeHistory.length||1);set('v6SavingRate',pct(avgInc?avgSurplus()/avgInc*100:0));set('v6PassiveMonthly',fmt(p.monthly));set('v6FixedMonthly',fmt(fixedMonthly()));set('v6Coverage',pct(p.coverage));const ml=$('milestoneList');if(ml)ml.innerHTML=[5000,10000,25000,50000,100000].map(t=>{const progress=c.wealth/t*100,months=c.avg>0?Math.max(0,(t-c.wealth)/c.avg):Infinity,dt=new Date();if(Number.isFinite(months))dt.setMonth(dt.getMonth()+Math.ceil(months));return`<div class="milestone-row-v51"><strong>${fmt(t)}</strong><div class="progress"><div style="width:${Math.min(100,progress)}%"></div></div><span>${pct(progress)} · ${Number.isFinite(months)?dt.toLocaleDateString('de-DE'):'–'}</span></div>`}).join('');const yr=$('yearForecast');if(yr){const inc2026=data.incomeHistory.filter(r=>r.month.startsWith('2026')).reduce((s,r)=>s+r.total,0);const am=data.amexHistory.filter(r=>r.month.startsWith('2026'));const annualExp=(am.reduce((s,r)=>s+Math.abs(r.expenses),0)/(am.length||1))*12;yr.innerHTML=`<div class="stat"><span>Einnahmen 2026</span><strong>${fmt(inc2026)}</strong></div><div class="stat"><span>Ausgaben hochgerechnet</span><strong>${fmt(annualExp)}</strong></div><div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(p.annual)}</strong></div><div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(c.wealth+inc2026-annualExp+p.annual)}</strong></div>`}}
 let editingIncome=null;
 function renderIncome(){
@@ -1398,11 +1422,7 @@ function renderInterestGoalsV58(){
   const body=$("interestGoalsBody");
   if(!body) return;
   const current=Number(trSavingsAssetV58()?.balance||0);
-  const goals=[
-    [17,2757.78],[18,2920],[19,3082.22],[20,3244.44],[21,3406.67],
-    [22,3568.89],[23,3731.11],[24,3893.33],[25,4055.56],[26,4217.78],
-    [27,4380],[28,4542.22],[29,4704.44],[30,4866.67]
-  ];
+  const goals=interestGoalsV98();
   body.innerHTML=goals.map(([cent,target])=>{
     const progress=Math.min(100,current/target*100);
     const months=monthsToTargetV58(target);
@@ -1454,11 +1474,7 @@ const SNAPSHOT_START_MONTH_V59="2026-08";
 const WEALTH_T0_V59=2386.50;
 const WEALTH_MILESTONES_V59=[5000,10000,25000,50000,100000];
 const PASSIVE_MILESTONES_V59=[5,10,25,50,75,100];
-const CENT_GOALS_V59=[
-  [17,2757.78],[18,2920],[19,3082.22],[20,3244.44],[21,3406.67],
-  [22,3568.89],[23,3731.11],[24,3893.33],[25,4055.56],[26,4217.78],
-  [27,4380],[28,4542.22],[29,4704.44],[30,4866.67]
-];
+function centGoalsV59(){return interestGoalsV98();}
 
 function monthKeyV59(d=new Date()){
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
@@ -1587,7 +1603,8 @@ function buildSnapshotV61(){
   const coverage=currentFixedCoverageV59();
   const nextWealth=WEALTH_MILESTONES_V59.find(x=>x>wealth)||WEALTH_MILESTONES_V59.at(-1);
   const nextPassive=PASSIVE_MILESTONES_V59.find(x=>x>coverage)||PASSIVE_MILESTONES_V59.at(-1);
-  const nextCent=CENT_GOALS_V59.find(([,target])=>target>tr)||CENT_GOALS_V59.at(-1);
+  const centGoals=centGoalsV59();
+  const nextCent=centGoals.find(([,target])=>target>tr)||centGoals.at(-1)||[0,Infinity];
   const sg=savingsGoalInfoV59();
   return {
     month:ym,
@@ -1706,8 +1723,9 @@ function renderProgressV59(){
   set("nextPassiveMilestoneV59",`${nextPassive} % der Fixkosten`);
   set("nextPassiveMilestoneMetaV59",`${coverage.toFixed(2).replace(".",",")} % aktuell · ${fmtDateV59(passiveDate)}${forecastMetaV59("passive",`passive-${nextPassive}`,passiveDate)}`);
 
-  const nextCent=CENT_GOALS_V59.find(([,target])=>target>tr)||CENT_GOALS_V59.at(-1);
-  const centDate=forecastDateForCapitalTargetV59(nextCent[1],tr);
+  const centGoals=centGoalsV59();
+  const nextCent=centGoals.find(([,target])=>target>tr)||centGoals.at(-1)||[0,Infinity];
+  const centDate=Number.isFinite(nextCent[1])?forecastDateForCapitalTargetV59(nextCent[1],tr):null;
   set("nextCentGoalV59",`${nextCent[0]} Cent/Tag`);
   set("nextCentGoalMetaV59",`${fmt(Math.max(0,nextCent[1]-tr))} fehlen · ${fmtDateV59(centDate)}${forecastMetaV59("cent",`cent-${nextCent[0]}`,centDate)}`);
 
@@ -1759,7 +1777,7 @@ function renderVisibleForecastHistoryV60(){
   }
 
   // Zinsziele: add first/current/last comparison below forecast date.
-  const goals=CENT_GOALS_V59;
+  const goals=centGoalsV59();
   const rows=document.querySelectorAll("#interestGoalsBody tr");
   rows.forEach((row,i)=>{
     const goal=goals[i];
