@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 98;
+const APP_VERSION = 99;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -137,6 +137,14 @@ function nextDue(x){const d=new Date(),y=d.getFullYear(),m=d.getMonth()+1;let mo
 function renderNextFixed(){const e=$('nextFixedCosts');if(!e)return;e.innerHTML=[...data.fixedCosts].sort((a,b)=>nextDue(a)-nextDue(b)).slice(0,5).map(x=>`<div class="list-item next-fixed-item"><div class="next-fixed-main"><strong>${esc(x.name)}</strong><span>${nextDue(x).toLocaleDateString('de-DE')}</span></div><strong>${fmt(-x.amount)}</strong></div>`).join('')}
 function renderAmexDashboard(){const sel=$('amexMonthSelect');if(!sel)return;sel.innerHTML=[...data.amexHistory].reverse().map(r=>`<option value="${r.month}">${monthLabel(r.month)}</option>`).join('');sel.value=currentAmex()?.month||'';const update=()=>{const r=data.amexHistory.find(x=>x.month===sel.value);set('amexMonthTotal',fmt(Math.abs(r?.expenses||0)));set('amexStatus',data.amexPaid[sel.value]?'Abgebucht':'Noch nicht als abgebucht markiert')};sel.onchange=update;$('toggleAmexPaid').onclick=()=>{data.amexPaid[sel.value]=!data.amexPaid[sel.value];save()};update()}
 function renderDashboardHistory(){const e=$('financeHistoryBody');if(e)e.innerHTML=[...data.capitalHistory].sort((a,b)=>a.month.localeCompare(b.month)).map(r=>`<tr><td>${monthLabel(r.month)}</td><td>${r.sparkasse==null?'–':fmt(r.sparkasse)}</td><td>${fmt(r.sparkasseInterest)}</td><td>${r.tradeRepublic==null?'–':fmt(r.tradeRepublic)}</td><td>${r.trInterest==null?'–':fmt(r.trInterest)}</td><td>${r.dividend==null?'–':fmt(r.dividend)}</td><td>${r.total==null?'–':fmt(r.total)}</td></tr>`).join('');set('historyTotalProfit',fmt(data.capitalHistory.reduce((s,r)=>s+Number(r.total||0),0)))}
+function interestStepCapitalV99(){
+  const rate=Math.max(0,Number(trSavingsAssetV58?.()?.rate||0))/100;
+  return rate>0 ? (0.01*365)/rate : 0;
+}
+function fmtInterestStepCapitalV99(){
+  const n=interestStepCapitalV99();
+  return n>0?n.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" €":"–";
+}
 function interestGoalsV98(){
   const rate=Math.max(0,Number(trSavingsAssetV58?.()?.rate||0))/100;
   if(rate<=0)return [];
@@ -150,6 +158,8 @@ function interestGoalsV98(){
 }
 function trCashV51(){const a=data.assets.find(x=>x.id==='tr-cash'||(String(x.name||'').toLowerCase().includes('trade republic')&&String(x.name||'').toLowerCase().includes('tagesgeld')));return Number(a?.balance||0)}
 function renderInterestGoalsV51(){
+  const stepLabel=$("interestStepCapitalV99");
+  if(stepLabel)stepLabel.textContent=`je 0,01 € täglich rund ${fmtInterestStepCapitalV99()} mehr Kapital`;
   const cash=trCashV51();
   const goals=interestGoalsV98();
   const a=$('interestGoalsBody');
