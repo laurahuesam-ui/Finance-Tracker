@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 100;
+const APP_VERSION = 101;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -137,8 +137,15 @@ function nextDue(x){const d=new Date(),y=d.getFullYear(),m=d.getMonth()+1;let mo
 function renderNextFixed(){const e=$('nextFixedCosts');if(!e)return;e.innerHTML=[...data.fixedCosts].sort((a,b)=>nextDue(a)-nextDue(b)).slice(0,5).map(x=>`<div class="list-item next-fixed-item"><div class="next-fixed-main"><strong>${esc(x.name)}</strong><span>${nextDue(x).toLocaleDateString('de-DE')}</span></div><strong>${fmt(-x.amount)}</strong></div>`).join('')}
 function renderAmexDashboard(){const sel=$('amexMonthSelect');if(!sel)return;sel.innerHTML=[...data.amexHistory].reverse().map(r=>`<option value="${r.month}">${monthLabel(r.month)}</option>`).join('');sel.value=currentAmex()?.month||'';const update=()=>{const r=data.amexHistory.find(x=>x.month===sel.value);set('amexMonthTotal',fmt(Math.abs(r?.expenses||0)));set('amexStatus',data.amexPaid[sel.value]?'Abgebucht':'Noch nicht als abgebucht markiert')};sel.onchange=update;$('toggleAmexPaid').onclick=()=>{data.amexPaid[sel.value]=!data.amexPaid[sel.value];save()};update()}
 function renderDashboardHistory(){const e=$('financeHistoryBody');if(e)e.innerHTML=[...data.capitalHistory].sort((a,b)=>a.month.localeCompare(b.month)).map(r=>`<tr><td>${monthLabel(r.month)}</td><td>${r.sparkasse==null?'–':fmt(r.sparkasse)}</td><td>${fmt(r.sparkasseInterest)}</td><td>${r.tradeRepublic==null?'–':fmt(r.tradeRepublic)}</td><td>${r.trInterest==null?'–':fmt(r.trInterest)}</td><td>${r.dividend==null?'–':fmt(r.dividend)}</td><td>${r.total==null?'–':fmt(r.total)}</td></tr>`).join('');set('historyTotalProfit',fmt(data.capitalHistory.reduce((s,r)=>s+Number(r.total||0),0)))}
+function trInterestRateV101(){
+  const assets=Array.isArray(data.assets)?data.assets:[];
+  const asset=assets.find(x=>x?.id==="tr-cash")
+    ||assets.find(x=>String(x?.name||"").toLowerCase().includes("trade republic")
+      && String(x?.name||"").toLowerCase().includes("tagesgeld"));
+  return Math.max(0,Number(asset?.rate)||0);
+}
 function interestStepCapitalV99(){
-  const rate=Math.max(0,Number(trSavingsAssetV58?.()?.rate||0))/100;
+  const rate=trInterestRateV101()/100;
   return rate>0 ? (0.01*365)/rate : 0;
 }
 function fmtInterestStepCapitalV99(){
@@ -146,7 +153,7 @@ function fmtInterestStepCapitalV99(){
   return n>0?n.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" €":"–";
 }
 function interestGoalsV98(){
-  const rate=Math.max(0,Number(trSavingsAssetV58?.()?.rate||0))/100;
+  const rate=trInterestRateV101()/100;
   if(rate<=0)return [];
   const goals=[];
   for(let cent=17;cent<=30;cent++){
@@ -1964,6 +1971,11 @@ function targetDeltaTextV100(delta){
   return `Zielsumme ${delta>0?"+":"−"}${fmt(Math.abs(delta))}`;
 }
 
+function safeRichSavingsForecastMetaV101(kind,key,currentText,currentTarget){
+  try{return richSavingsForecastMetaV100(kind,key,currentText,currentTarget)}
+  catch(e){console.error("Sparziel-Prognosenvergleich",e);return "Vergleich wird ab Version 101 neu aufgebaut"}
+}
+
 function richSavingsForecastMetaV100(kind,key,currentText,currentTarget){
   const state=ensureProgressStateV59();
   const currentMonth=monthKeyV59();
@@ -2296,7 +2308,7 @@ function ensureCurrentSavingsTrackingV93(){
 }
 
 function renderDashboardSavingsGoalsV71(){
-  ensureCurrentSavingsTrackingV100();
+  try{ensureCurrentSavingsTrackingV100()}catch(e){console.error("Sparziel-Monatsstand",e)}
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
   const wealth=Math.max(0,Number(totalWealth())||0);
   const totalMin=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[3])||0),0);
@@ -2340,12 +2352,12 @@ function renderDashboardSavingsGoalsV71(){
   }
 
   if($("dashGoalsEndMinMetaV93")){
-    $("dashGoalsEndMinMetaV93").textContent=richSavingsForecastMetaV100(
+    $("dashGoalsEndMinMetaV93").textContent=safeRichSavingsForecastMetaV101(
       "total-min","",endMin,totalMin
     );
   }
   if($("dashGoalsEndMaxMetaV93")){
-    $("dashGoalsEndMaxMetaV93").textContent=richSavingsForecastMetaV100(
+    $("dashGoalsEndMaxMetaV93").textContent=safeRichSavingsForecastMetaV101(
       "total-max","",endMax,totalMax
     );
   }
@@ -2399,13 +2411,13 @@ function renderDashboardSavingsGoalsV71(){
   if($("dashGoalThroughMaxDateV93"))$("dashGoalThroughMaxDateV93").textContent=throughMax;
 
   if($("dashGoalThroughMinMetaV93")){
-    $("dashGoalThroughMinMetaV93").textContent=richSavingsForecastMetaV100(
-      "through-min",key,throughMin,cumMin
+    $("dashGoalThroughMinMetaV93").textContent=safeRichSavingsForecastMetaV101(
+      "through-min",key,throughMin,cumulativeMin
     );
   }
   if($("dashGoalThroughMaxMetaV93")){
-    $("dashGoalThroughMaxMetaV93").textContent=richSavingsForecastMetaV100(
-      "through-max",key,throughMax,cumMax
+    $("dashGoalThroughMaxMetaV93").textContent=safeRichSavingsForecastMetaV101(
+      "through-max",key,throughMax,cumulativeMax
     );
   }
 }
