@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 99;
+const APP_VERSION = 100;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -1630,7 +1630,8 @@ function buildSnapshotV61(){
     },
     targets:{wealth:nextWealth,passive:nextPassive,cent:nextCent[0]},
     savingsOverviewV93:savingsOverviewSnapshotV93(),
-    savingsOverviewV97:savingsOverviewSnapshotV97()
+    savingsOverviewV97:savingsOverviewSnapshotV97(),
+    savingsOverviewV100:savingsOverviewSnapshotV100()
   };
 }
 function registerGoalFirstForecastsV61(snapshot){
@@ -1674,6 +1675,9 @@ function captureSnapshotOnDataChangeV61(){
     // wrong goal/index.
     if(!state.snapshots[ym].savingsOverviewV97){
       state.snapshots[ym].savingsOverviewV97=savingsOverviewSnapshotV97();
+    }
+    if(!state.snapshots[ym].savingsOverviewV100){
+      state.snapshots[ym].savingsOverviewV100=savingsOverviewSnapshotV100();
     }
     return;
   }
@@ -1911,6 +1915,126 @@ function forecastIsoFromTextV93(text){
 }
 
 
+
+function savingsComparisonInputsV100(){
+  return {
+    wealth:Math.max(0,Number(totalWealth())||0),
+    monthlySurplus:Math.max(0,Number(avgSurplus())||0),
+    globalRate:Math.max(0,Number(data.settings?.globalGoalRateV66)||0),
+    globalRateEnd:String(data.settings?.globalGoalRateEndV69||"")
+  };
+}
+
+function forecastDateFromRemainingV100(remaining,monthlySurplus){
+  remaining=Math.max(0,Number(remaining)||0);
+  monthlySurplus=Math.max(0,Number(monthlySurplus)||0);
+  if(remaining<=0){const d=new Date();d.setDate(1);return d}
+  if(monthlySurplus<=0)return null;
+  const d=new Date();d.setDate(1);
+  d.setMonth(d.getMonth()+Math.ceil(remaining/monthlySurplus));
+  return d;
+}
+
+function comparableForecastV100(targetTotal,inputs){
+  const wealth=Math.max(0,Number(inputs?.wealth)||0);
+  const surplus=Math.max(0,Number(inputs?.monthlySurplus)||0);
+  return forecastDateFromRemainingV100(Math.max(0,Number(targetTotal)||0)-wealth,surplus);
+}
+
+function forecastChangePartsV100(currentText,oldActualIso,oldTarget,currentTarget,oldInputs){
+  const current=parseForecastDateV81(currentText);
+  const oldActual=oldActualIso?new Date(oldActualIso):null;
+  if(!current || !oldActual || !oldInputs)return null;
+
+  // Recalculate the old financial position using TODAY'S target total.
+  // Difference current vs this date = financial progress under equal conditions.
+  const oldComparable=comparableForecastV100(currentTarget,oldInputs);
+  const financialDays=oldComparable?diffDaysV59(current,oldComparable):null;
+
+  // Overall change uses the actual historical forecast, including target changes.
+  const overallDays=diffDaysV59(current,oldActual);
+  const targetDelta=(Number(currentTarget)||0)-(Number(oldTarget)||0);
+
+  return {financialDays,overallDays,targetDelta};
+}
+
+function targetDeltaTextV100(delta){
+  delta=Number(delta)||0;
+  if(Math.abs(delta)<0.005)return "Zielsumme unverändert";
+  return `Zielsumme ${delta>0?"+":"−"}${fmt(Math.abs(delta))}`;
+}
+
+function richSavingsForecastMetaV100(kind,key,currentText,currentTarget){
+  const state=ensureProgressStateV59();
+  const currentMonth=monthKeyV59();
+  const months=Object.keys(state.snapshots||{}).sort();
+
+  const extract=(snap)=>{
+    const o=snap?.savingsOverviewV100;
+    if(!o)return null;
+    if(kind==="total-min")return {iso:o.endMin,target:o.totalMin,inputs:o.inputs};
+    if(kind==="total-max")return {iso:o.endMax,target:o.totalMax,inputs:o.inputs};
+    const item=(o.through||[]).find(x=>x?.key===key);
+    if(!item)return null;
+    return kind==="through-min"
+      ?{iso:item.min,target:item.cumulativeMin,inputs:o.inputs}
+      :{iso:item.max,target:item.cumulativeMax,inputs:o.inputs};
+  };
+
+  const historical=months.filter(m=>m<currentMonth).map(m=>({month:m,s:state.snapshots[m]}));
+  const first=historical.map(x=>({month:x.month,v:extract(x.s)})).find(x=>x.v?.iso&&x.v?.inputs);
+  const prev=[...historical].reverse().map(x=>({month:x.month,v:extract(x.s)})).find(x=>x.v?.iso&&x.v?.inputs);
+
+  const parts=[];
+  if(first){
+    const c=forecastChangePartsV100(currentText,first.v.iso,first.v.target,currentTarget,first.v.inputs);
+    if(c){
+      if(c.financialDays!=null)parts.push(c.financialDays===0?"Finanzfortschritt seit erster Vergleichsbasis: unverändert":`Finanzfortschritt seit erster Vergleichsbasis: ${humanTimeGainV59(c.financialDays)}`);
+      parts.push(c.overallDays===0?"Gesamtprognose seit erster Vergleichsbasis: unverändert":`Gesamtprognose seit erster Vergleichsbasis: ${humanTimeGainV59(c.overallDays)}`);
+      parts.push(targetDeltaTextV100(c.targetDelta));
+    }
+  }else{
+    parts.push("erste Vergleichsbasis wird mit diesem Monatsstand angelegt");
+  }
+
+  if(prev && (!first || prev.month!==first.month)){
+    const c=forecastChangePartsV100(currentText,prev.v.iso,prev.v.target,currentTarget,prev.v.inputs);
+    if(c){
+      if(c.financialDays!=null)parts.push(c.financialDays===0?"Finanzfortschritt seit letztem Monatsstand: unverändert":`Finanzfortschritt seit letztem Monatsstand: ${humanTimeGainV59(c.financialDays)}`);
+      parts.push(c.overallDays===0?"Gesamtprognose seit letztem Monatsstand: unverändert":`Gesamtprognose seit letztem Monatsstand: ${humanTimeGainV59(c.overallDays)}`);
+      parts.push(`seit letztem Monatsstand ${targetDeltaTextV100(c.targetDelta).toLowerCase()}`);
+    }
+  }else if(prev){
+    parts.push("erste Vergleichsbasis entspricht dem letzten vergleichbaren Monatsstand");
+  }else{
+    parts.push("noch kein früherer V100-Monatsstand für den Vergleich");
+  }
+  return parts.join(" · ");
+}
+
+function savingsOverviewSnapshotV100(){
+  const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+  const base=savingsOverviewSnapshotV97();
+  let cumulativeMin=0,cumulativeMax=0;
+  const through=rows.map((r,i)=>{
+    cumulativeMin+=Math.max(0,Number(r?.[3])||0);
+    cumulativeMax+=Math.max(0,Number(r?.[4])||0);
+    return {
+      key:String(goalFingerprintV81(r)||`goal-${i}`),
+      cumulativeMin,cumulativeMax,
+      min:forecastIsoFromTextV93(forecastThroughGoalV93(i,"min")),
+      max:forecastIsoFromTextV93(forecastThroughGoalV93(i,"max"))
+    };
+  });
+  return {
+    calcVersion:100,
+    totalMin:base.totalMin,totalMax:base.totalMax,
+    endMin:base.endMin,endMax:base.endMax,
+    inputs:savingsComparisonInputsV100(),
+    through
+  };
+}
+
 function savingsOverviewSnapshotV97(){
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
   const wealth=Math.max(0,Number(totalWealth())||0);
@@ -2016,6 +2140,15 @@ function savingsForecastMetaV97(kind,key,currentText){
   }
 
   return bits.join(" · ");
+}
+
+
+function ensureCurrentSavingsTrackingV100(){
+  const state=ensureProgressStateV59();
+  const current=state.snapshots?.[monthKeyV59()];
+  if(current && !current.savingsOverviewV100){
+    current.savingsOverviewV100=savingsOverviewSnapshotV100();
+  }
 }
 
 function ensureCurrentSavingsTrackingV97(){
@@ -2163,7 +2296,7 @@ function ensureCurrentSavingsTrackingV93(){
 }
 
 function renderDashboardSavingsGoalsV71(){
-  ensureCurrentSavingsTrackingV97();
+  ensureCurrentSavingsTrackingV100();
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
   const wealth=Math.max(0,Number(totalWealth())||0);
   const totalMin=rows.reduce((x,r)=>x+Math.max(0,Number(r?.[3])||0),0);
@@ -2207,13 +2340,13 @@ function renderDashboardSavingsGoalsV71(){
   }
 
   if($("dashGoalsEndMinMetaV93")){
-    $("dashGoalsEndMinMetaV93").textContent=savingsForecastMetaV97(
-      "total-min","",endMin
+    $("dashGoalsEndMinMetaV93").textContent=richSavingsForecastMetaV100(
+      "total-min","",endMin,totalMin
     );
   }
   if($("dashGoalsEndMaxMetaV93")){
-    $("dashGoalsEndMaxMetaV93").textContent=savingsForecastMetaV97(
-      "total-max","",endMax
+    $("dashGoalsEndMaxMetaV93").textContent=richSavingsForecastMetaV100(
+      "total-max","",endMax,totalMax
     );
   }
 
@@ -2266,13 +2399,13 @@ function renderDashboardSavingsGoalsV71(){
   if($("dashGoalThroughMaxDateV93"))$("dashGoalThroughMaxDateV93").textContent=throughMax;
 
   if($("dashGoalThroughMinMetaV93")){
-    $("dashGoalThroughMinMetaV93").textContent=savingsForecastMetaV97(
-      "through-min",key,throughMin
+    $("dashGoalThroughMinMetaV93").textContent=richSavingsForecastMetaV100(
+      "through-min",key,throughMin,cumMin
     );
   }
   if($("dashGoalThroughMaxMetaV93")){
-    $("dashGoalThroughMaxMetaV93").textContent=savingsForecastMetaV97(
-      "through-max",key,throughMax
+    $("dashGoalThroughMaxMetaV93").textContent=richSavingsForecastMetaV100(
+      "through-max",key,throughMax,cumMax
     );
   }
 }
