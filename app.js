@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 101;
+const APP_VERSION = 102;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -310,15 +310,15 @@ function globalRateEndLabelV69(){
   return `${String(parsed.month).padStart(2,"0")}.${parsed.year}`;
 }
 
-function forecastWithGlobalRateV66(targetTotal){
+function forecastWithGlobalRateV66(targetTotal,comparisonV102=null){
   normalizeGlobalGoalRateV66();
-  const wealth=Math.max(0,Number(totalWealth())||0);
+  const wealth=Math.max(0,Number(comparisonV102?.wealth??totalWealth())||0);
   const remaining=Math.max(0,(Number(targetTotal)||0)-wealth);
   if(remaining<=0) return "bereits erreicht";
 
-  const saving=Math.max(0,Number(avgSurplus())||0);
-  const rate=Math.max(0,Number(data.settings.globalGoalRateV66)||0);
-  const rateMonths=globalRateMonthsV69();
+  const saving=Math.max(0,Number(comparisonV102?.monthlySurplus??avgSurplus())||0);
+  const rate=Math.max(0,Number(comparisonV102?.globalRate??data.settings.globalGoalRateV66)||0);
+  const rateMonths=comparisonV102?Math.max(0,Number(comparisonV102.rateMonths)||0):globalRateMonthsV69();
   const combined=saving+(rateMonths>0?rate:0);
 
   let totalMonths=0;
@@ -1110,7 +1110,7 @@ function parseForecastDateV81(text){
   const d=new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));
   return isNaN(d)?null:d;
 }
-function endForecastV81(mode="min"){
+function endForecastV81(mode="min",comparisonV102=null){
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
   const ix=mode==="max"?4:3;
   const total=rows.reduce((sum,row)=>sum+Math.max(0,Number(row?.[ix])||0),0);
@@ -1120,7 +1120,7 @@ function endForecastV81(mode="min"){
 
   // This preserves the existing general-rate logic exactly, but applies it
   // to the complete remaining target after binding-credit coverage.
-  const txt=forecastWithGlobalRateV66(remainingTarget);
+  const txt=forecastWithGlobalRateV66(remainingTarget,comparisonV102);
   let savingsEnd=parseForecastDateV81(txt);
   if(txt==="bereits erreicht"){
     savingsEnd=new Date(); savingsEnd.setDate(1);
@@ -1896,7 +1896,7 @@ function bindingTotalsThroughGoalV93(lastIndex,mode="min"){
   return {covered,latestPaidOff};
 }
 
-function forecastThroughGoalV93(lastIndex,mode="min"){
+function forecastThroughGoalV93(lastIndex,mode="min",comparisonV102=null){
   const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
   if(!rows.length)return "–";
   const last=Math.min(Math.max(0,Number(lastIndex)||0),rows.length-1);
@@ -1906,7 +1906,7 @@ function forecastThroughGoalV93(lastIndex,mode="min"){
 
   const b=bindingTotalsThroughGoalV93(last,mode);
   const remainingTarget=Math.max(0,total-b.covered);
-  const txt=forecastWithGlobalRateV66(remainingTarget);
+  const txt=forecastWithGlobalRateV66(remainingTarget,comparisonV102);
   let savingsEnd=parseForecastDateV81(txt);
   if(txt==="bereits erreicht"){
     savingsEnd=new Date();
@@ -1928,7 +1928,8 @@ function savingsComparisonInputsV100(){
     wealth:Math.max(0,Number(totalWealth())||0),
     monthlySurplus:Math.max(0,Number(avgSurplus())||0),
     globalRate:Math.max(0,Number(data.settings?.globalGoalRateV66)||0),
-    globalRateEnd:String(data.settings?.globalGoalRateEndV69||"")
+    globalRateEnd:String(data.settings?.globalGoalRateEndV66||""),
+    rateMonths:globalRateMonthsV69()
   };
 }
 
@@ -1942,20 +1943,30 @@ function forecastDateFromRemainingV100(remaining,monthlySurplus){
   return d;
 }
 
-function comparableForecastV100(targetTotal,inputs){
-  const wealth=Math.max(0,Number(inputs?.wealth)||0);
-  const surplus=Math.max(0,Number(inputs?.monthlySurplus)||0);
-  return forecastDateFromRemainingV100(Math.max(0,Number(targetTotal)||0)-wealth,surplus);
+function comparableForecastV102(kind,key,inputs){
+  if(!inputs || !Number.isFinite(Number(inputs.wealth))
+      || !Number.isFinite(Number(inputs.monthlySurplus))
+      || !Number.isFinite(Number(inputs.rateMonths)))return null;
+  let txt;
+  if(kind==="total-min")txt=endForecastV81("min",inputs);
+  else if(kind==="total-max")txt=endForecastV81("max",inputs);
+  else{
+    const rows=Array.isArray(data.priorityGoals)?data.priorityGoals:[];
+    const index=rows.findIndex(r=>String(goalFingerprintV81(r))===key);
+    if(index<0)return null;
+    txt=forecastThroughGoalV93(index,kind==="through-max"?"max":"min",inputs);
+  }
+  return parseForecastDateV81(txt);
 }
 
-function forecastChangePartsV100(currentText,oldActualIso,oldTarget,currentTarget,oldInputs){
+function forecastChangePartsV100(kind,key,currentText,oldActualIso,oldTarget,currentTarget,oldInputs){
   const current=parseForecastDateV81(currentText);
   const oldActual=oldActualIso?new Date(oldActualIso):null;
   if(!current || !oldActual || !oldInputs)return null;
 
   // Recalculate the old financial position using TODAY'S target total.
   // Difference current vs this date = financial progress under equal conditions.
-  const oldComparable=comparableForecastV100(currentTarget,oldInputs);
+  const oldComparable=comparableForecastV102(kind,key,oldInputs);
   const financialDays=oldComparable?diffDaysV59(current,oldComparable):null;
 
   // Overall change uses the actual historical forecast, including target changes.
@@ -1999,9 +2010,9 @@ function richSavingsForecastMetaV100(kind,key,currentText,currentTarget){
 
   const parts=[];
   if(first){
-    const c=forecastChangePartsV100(currentText,first.v.iso,first.v.target,currentTarget,first.v.inputs);
+    const c=forecastChangePartsV100(kind,key,currentText,first.v.iso,first.v.target,currentTarget,first.v.inputs);
     if(c){
-      if(c.financialDays!=null)parts.push(c.financialDays===0?"Finanzfortschritt seit erster Vergleichsbasis: unverändert":`Finanzfortschritt seit erster Vergleichsbasis: ${humanTimeGainV59(c.financialDays)}`);
+      if(c.financialDays!=null)parts.push(c.financialDays===0?"Finanzentwicklung (gleiche Ziele/Finanzierungen) seit erster Vergleichsbasis: unverändert":`Finanzentwicklung (gleiche Ziele/Finanzierungen) seit erster Vergleichsbasis: ${humanTimeGainV59(c.financialDays)}`);
       parts.push(c.overallDays===0?"Gesamtprognose seit erster Vergleichsbasis: unverändert":`Gesamtprognose seit erster Vergleichsbasis: ${humanTimeGainV59(c.overallDays)}`);
       parts.push(targetDeltaTextV100(c.targetDelta));
     }
@@ -2010,9 +2021,9 @@ function richSavingsForecastMetaV100(kind,key,currentText,currentTarget){
   }
 
   if(prev && (!first || prev.month!==first.month)){
-    const c=forecastChangePartsV100(currentText,prev.v.iso,prev.v.target,currentTarget,prev.v.inputs);
+    const c=forecastChangePartsV100(kind,key,currentText,prev.v.iso,prev.v.target,currentTarget,prev.v.inputs);
     if(c){
-      if(c.financialDays!=null)parts.push(c.financialDays===0?"Finanzfortschritt seit letztem Monatsstand: unverändert":`Finanzfortschritt seit letztem Monatsstand: ${humanTimeGainV59(c.financialDays)}`);
+      if(c.financialDays!=null)parts.push(c.financialDays===0?"Finanzentwicklung (gleiche Ziele/Finanzierungen) seit letztem Monatsstand: unverändert":`Finanzentwicklung (gleiche Ziele/Finanzierungen) seit letztem Monatsstand: ${humanTimeGainV59(c.financialDays)}`);
       parts.push(c.overallDays===0?"Gesamtprognose seit letztem Monatsstand: unverändert":`Gesamtprognose seit letztem Monatsstand: ${humanTimeGainV59(c.overallDays)}`);
       parts.push(`seit letztem Monatsstand ${targetDeltaTextV100(c.targetDelta).toLowerCase()}`);
     }
