@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 103;
+const APP_VERSION = 104;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -174,37 +174,73 @@ function renderInterestGoalsV51(){
   const b=$('interestTargetsBody');
   if(b)b.innerHTML=goals.map(([cent,t])=>`<tr><td>${cent} Cent/Tag</td><td>${fmt(Math.max(0,t-cash))}</td><td>${t<=cash?'erreicht':'offen'}</td></tr>`).join('');
 }
-function annualFinanceForecastV103(year=new Date().getFullYear()){
-  const ym=currentMonth();
-  const prefix=String(year)+"-";
+// V104: Each income month is already net of the fixed costs recorded in that row.
+// Fixed costs are disclosed separately but must never be deducted a second time.
+function fixedCostsForMonthV104(ym){
+  const month=Number(ym.slice(5));
+  return (data.fixedCosts||[]).reduce((sum,c)=>{
+    const freq=String(c.frequency||"monthly");
+    const months=Array.isArray(c.months)?c.months.map(Number):[];
+    const occurs=freq==="monthly" || (months.length?months.includes(month):
+      freq==="bimonthly"?month%2===0:
+      freq==="quarterly"?month%3===0:
+      freq==="semiannual"?month===1||month===7:
+      freq==="annual"?month===1:false);
+    return sum+(occurs?Math.abs(Number(c.amount)||0):0);
+  },0);
+}
+function annualFinanceForecastV104(year=new Date().getFullYear()){
+  const ym=currentMonth(),prefix=String(year)+"-";
   const incomes=new Map((data.incomeHistory||[]).filter(r=>r.month?.startsWith(prefix)).map(r=>[r.month,r]));
-  const expenses=new Map((data.amexHistory||[]).filter(r=>r.month?.startsWith(prefix)).map(r=>[r.month,Math.abs(Number(r.expenses)||0)]));
-  const historicalExpenses=[...expenses].filter(([month])=>month<ym).map(([,value])=>value);
-  const averageExpense=historicalExpenses.length?historicalExpenses.reduce((a,b)=>a+b,0)/historicalExpenses.length:0;
-  const rows=[];
+  const amex=new Map((data.amexHistory||[]).filter(r=>r.month?.startsWith(prefix)).map(r=>[r.month,Math.abs(Number(r.expenses)||0)]));
+  const historicalAmex=[...amex].filter(([m])=>m<ym).map(([,v])=>v);
+  const avgAmex=historicalAmex.length?historicalAmex.reduce((a,b)=>a+b,0)/historicalAmex.length:0;
+  const history=new Map((data.capitalHistory||[]).filter(r=>r.month?.startsWith(prefix)).map(r=>[r.month,r]));
+  const incomeRows=[],passiveRows=[];
+  let projectedCash=Math.max(0,Number(trSavingsAssetV58()?.balance)||0);
+  const assets=(data.assets||[]);
+  const otherInterestAssets=assets.filter(a=>a.type!=="stock"&&a.id!=="tr-cash");
+  const dividend=dividendMonthly();
   for(let m=1;m<=12;m++){
     const month=`${year}-${String(m).padStart(2,"0")}`;
     const inc=incomes.get(month);
     const income=inc?Number(inc.salary||0)+Number(inc.bonus||0)+Number(inc.tips||0)+Number(inc.parents||0)+Number(inc.costs||0):0;
-    const salary=Number(inc?.salary)||0;
-    const enteredExpense=expenses.get(month);
-    const expense=enteredExpense!==undefined?enteredExpense:averageExpense;
-    rows.push({month,income,salary,expense,expenseEstimated:enteredExpense===undefined,planned:month>=ym});
+    const amexExpense=amex.has(month)?amex.get(month):avgAmex;
+    const fixedExpense=fixedCostsForMonthV104(month);
+    incomeRows.push({month,income,amex:amexExpense,fixed:fixedExpense,
+      expenseEstimated:!amex.has(month),incomeMissing:!inc});
+    const h=history.get(month);
+    if(month<ym && h){
+      passiveRows.push({month,value:Number(h.sparkasseInterest||0)+Number(h.trInterest||0)+Number(h.dividend||0),source:"history"});
+    }else if(month<ym){
+      passiveRows.push({month,value:null,source:"missing"});
+    }else{
+      const tr=trSavingsAssetV58();
+      const trInterest=projectedCash*Math.max(0,Number(tr?.rate)||0)/100/365*daysInMonth(month);
+      const otherInterest=otherInterestAssets.reduce((v,a)=>v+interestForAsset(a,month),0);
+      const passive=trInterest+otherInterest+dividend;
+      passiveRows.push({month,value:passive,source:"forecast"});
+      // Existing savings projection convention: future net surplus flows into TR.
+      // This is only used for subsequent months' interest, not booked as income twice.
+      if(month>ym)projectedCash=Math.max(0,projectedCash+income-amexExpense+passive);
+    }
   }
-  const sum=(arr,key)=>arr.reduce((total,row)=>total+row[key],0);
-  const previous=rows.filter(r=>r.month<ym);
-  const remaining=rows.filter(r=>r.month>ym);
-  const p=passive();
-  return {year,rows,previous,remaining,
-    incomeTotal:sum(rows,'income'),salaryTotal:sum(rows,'salary'),
-    expenseTotal:sum(rows,'expense'),expenseActual:sum(previous,'expense'),
-    expenseProjected:sum(rows.filter(r=>r.month>=ym),'expense'),
-    averageExpense,passiveAnnual:p.annual,
-    // Current wealth already reflects the current account balances. Only future
-    // full months are added; current month is excluded to avoid double-counting.
-    yearEndWealth:totalWealth()+sum(remaining,'income')-sum(remaining,'expense')+p.monthly*remaining.length};
+  const sum=(rows,key)=>rows.reduce((v,r)=>v+(Number(r[key])||0),0);
+  const remaining=incomeRows.filter(r=>r.month>ym);
+  const passiveKnown=passiveRows.filter(r=>r.value!==null);
+  const passiveFuture=passiveRows.filter(r=>r.month>ym);
+  const passiveMissing=passiveRows.filter(r=>r.value===null).length;
+  const incomeTotal=sum(incomeRows,"income"),amexTotal=sum(incomeRows,"amex"),fixedTotal=sum(incomeRows,"fixed");
+  return {year,incomeRows,passiveRows,incomeTotal,amexTotal,fixedTotal,expenseTotal:amexTotal+fixedTotal,
+    passiveAnnual:sum(passiveKnown,"value"),passiveMissing,
+    avgAmex,estimatedAmexMonths:incomeRows.filter(r=>r.expenseEstimated).length,
+    missingIncomeMonths:incomeRows.filter(r=>r.incomeMissing).length,
+    remaining,yearEndWealth:totalWealth()+sum(remaining,"income")-sum(remaining,"amex")+sum(passiveFuture,"value"),
+    salaryTotal:(data.incomeHistory||[]).filter(r=>r.month?.startsWith(prefix)).reduce((v,r)=>v+Number(r.salary||0),0)};
 }
-function renderOverview(){const p=passive(),c=capitalMetrics();set('v6TotalWealth',fmt(c.wealth));set('v6AvgSaving',fmt(avgSurplus()));const avgInc=data.incomeHistory.reduce((s,r)=>s+r.total,0)/(data.incomeHistory.length||1);set('v6SavingRate',pct(avgInc?avgSurplus()/avgInc*100:0));set('v6PassiveMonthly',fmt(p.monthly));set('v6FixedMonthly',fmt(fixedMonthly()));set('v6Coverage',pct(p.coverage));const ml=$('milestoneList');if(ml)ml.innerHTML=[5000,10000,25000,50000,100000].map(t=>{const progress=c.wealth/t*100,months=c.avg>0?Math.max(0,(t-c.wealth)/c.avg):Infinity,dt=new Date();if(Number.isFinite(months))dt.setMonth(dt.getMonth()+Math.ceil(months));return`<div class="milestone-row-v51"><strong>${fmt(t)}</strong><div class="progress"><div style="width:${Math.min(100,progress)}%"></div></div><span>${pct(progress)} · ${Number.isFinite(months)?dt.toLocaleDateString('de-DE'):'–'}</span></div>`}).join('');const yr=$('yearForecast');if(yr){const f=annualFinanceForecastV103();yr.innerHTML=`<div class="stat"><span>Einnahmen ${f.year}</span><strong>${fmt(f.incomeTotal)}</strong><small>Jan–Dez: vergangene + manuell geplante Monate</small></div><div class="stat"><span>Amex-Ausgaben ${f.year}</span><strong>${fmt(f.expenseTotal)}</strong><small>Vorhandene Monatswerte + fehlende Monate mit Ø ${fmt(f.averageExpense)} geschätzt</small></div><div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(f.passiveAnnual)}</strong><small>Aktueller Monatswert × 12</small></div><div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(f.yearEndWealth)}</strong><small>Aktuelles Vermögen + Einnahmen ab nächstem Monat − Amex ab nächstem Monat + Passiv ab nächstem Monat; ohne zusätzliche Fixkosten außerhalb der Einnahmen-/Amex-Planung</small></div>`}}
+// Keep old callers (salary history) aligned with the new shared yearly calculation.
+function annualFinanceForecastV103(year=new Date().getFullYear()){return annualFinanceForecastV104(year)}
+function renderOverview(){const p=passive(),c=capitalMetrics();set('v6TotalWealth',fmt(c.wealth));set('v6AvgSaving',fmt(avgSurplus()));const avgInc=data.incomeHistory.reduce((s,r)=>s+r.total,0)/(data.incomeHistory.length||1);set('v6SavingRate',pct(avgInc?avgSurplus()/avgInc*100:0));set('v6PassiveMonthly',fmt(p.monthly));set('v6FixedMonthly',fmt(fixedMonthly()));set('v6Coverage',pct(p.coverage));const ml=$('milestoneList');if(ml)ml.innerHTML=[5000,10000,25000,50000,100000].map(t=>{const progress=c.wealth/t*100,months=c.avg>0?Math.max(0,(t-c.wealth)/c.avg):Infinity,dt=new Date();if(Number.isFinite(months))dt.setMonth(dt.getMonth()+Math.ceil(months));return`<div class="milestone-row-v51"><strong>${fmt(t)}</strong><div class="progress"><div style="width:${Math.min(100,progress)}%"></div></div><span>${pct(progress)} · ${Number.isFinite(months)?dt.toLocaleDateString('de-DE'):'–'}</span></div>`}).join('');const yr=$('yearForecast');if(yr){const f=annualFinanceForecastV104();yr.innerHTML=`<div class="stat"><span>Einnahmen ${f.year} (nach Fixkosten)</span><strong>${fmt(f.incomeTotal)}</strong><small>Alle 12 Monate aus Einkommenshistorie: Ist + manuelle Planung${f.missingIncomeMonths?` · ${f.missingIncomeMonths} Monate ohne Eintrag`:""}</small></div><div class="stat"><span>Amex-Ausgaben ${f.year}</span><strong>${fmt(f.amexTotal)}</strong><small>Erfasste Monatswerte${f.estimatedAmexMonths?` · ${f.estimatedAmexMonths} fehlende Monate mit Ø ${fmt(f.avgAmex)} geschätzt`:""}</small></div><div class="stat"><span>Fixkosten ${f.year}</span><strong>${fmt(f.fixedTotal)}</strong><small>Aus Fixkosten-Stammdaten; bereits im Einkommen berücksichtigt, nicht nochmals abgezogen</small></div><div class="stat"><span>Ausgaben gesamt ${f.year}</span><strong>${fmt(f.expenseTotal)}</strong><small>Amex + Fixkosten (nur zur Übersicht; keine doppelte Abbuchung)</small></div><div class="stat"><span>Passiv ${f.year} (Ist + Prognose)</span><strong>${fmt(f.passiveAnnual)}</strong><small>Vergangene Monate: Vermögenshistorie · zukünftige: monatliche Zinsen und Dividenden${f.passiveMissing?` · ${f.passiveMissing} historische Monate ohne Ertragsdaten`:""}</small></div><div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(f.yearEndWealth)}</strong><small>Aktuelles Vermögen + Netto-Einkommen der Folgemonate − deren Amex + prognostizierte passive Erträge; Fixkosten bereits im Einkommen abgezogen. Laufender Monat nicht doppelt gezählt.</small></div>`}}
 
 let editingIncome=null;
 function renderIncome(){
