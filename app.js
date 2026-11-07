@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 105;
+const APP_VERSION = 106;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -202,7 +202,7 @@ function renderInterestGoalsV51(){
   if(a)a.innerHTML=goals.map(([cent,t])=>{
     const reached=reachedInterestCentV105(cent);
     const achieved=reached||cash+1e-8>=t;
-    const reachedText=reached?`${monthLabel(reached.month)} · Tag nicht erfasst`:achieved?"Erreicht · genaues Datum nicht erfasst":"Noch nicht erreicht";
+    const reachedText=reached?`${monthLabel(reached.month)} (Monatsnachweis)`:achieved?"Erreicht · genaues Datum nicht erfasst":"Noch nicht erreicht";
     const pctDone=t>0?Math.min(100,cash/t*100):0;
     return `<tr><td>${cent} Cent/Tag</td><td>${pct(pctDone)}</td><td>${esc(interestGoalForecastTextV105(cent,t,cash,reached))}</td><td>${esc(reachedText)}</td><td>${fmt(t)}</td><td>${fmt(Math.max(0,t-cash))}</td></tr>`;
   }).join("");
@@ -2738,11 +2738,12 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catc
 const __renderAllV58=renderAll;
 renderAll=function(){
   __renderAllV58();
-  renderInterestGoalsV58();
+  // V106: The legacy V58 renderer has only five columns and would
+  // overwrite the six-column historical milestone table from V105.
   renderLongTermForecastV58();
 };
 setTimeout(()=>{
-  renderInterestGoalsV58();
+  renderInterestGoalsV51();
   renderLongTermForecastV58();
 },0);
 
