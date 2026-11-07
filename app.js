@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 106;
+const APP_VERSION = 107;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -202,7 +202,7 @@ function renderInterestGoalsV51(){
   if(a)a.innerHTML=goals.map(([cent,t])=>{
     const reached=reachedInterestCentV105(cent);
     const achieved=reached||cash+1e-8>=t;
-    const reachedText=reached?`${monthLabel(reached.month)} (Monatsnachweis)`:achieved?"Erreicht · genaues Datum nicht erfasst":"Noch nicht erreicht";
+    const reachedText=reached?monthLabel(reached.month):achieved?"Erreicht · genaues Datum nicht erfasst":"Noch nicht erreicht";
     const pctDone=t>0?Math.min(100,cash/t*100):0;
     return `<tr><td>${cent} Cent/Tag</td><td>${pct(pctDone)}</td><td>${esc(interestGoalForecastTextV105(cent,t,cash,reached))}</td><td>${esc(reachedText)}</td><td>${fmt(t)}</td><td>${fmt(Math.max(0,t-cash))}</td></tr>`;
   }).join("");
@@ -280,14 +280,22 @@ function renderOverview(){const p=passive(),c=capitalMetrics();set('v6TotalWealt
 
 let editingIncome=null;
 function renderIncome(){
-  set('salary2025',fmt(data.incomeHistory.filter(r=>r.month.startsWith('2025')).reduce((s,r)=>s+Number(r.salary||0),0)));
-  set('salary2026',fmt(annualFinanceForecastV103(2026).salaryTotal));
-  set('taxAllowanceLeft',fmt(Math.max(0,12348-annualFinanceForecastV103(2026).salaryTotal)));
+  // V107: Salary means only the salary column, not total income (tips,
+  // bonuses, parental support or costs). Separate past and planned months.
+  const salarySumV107=(predicate)=>(data.incomeHistory||[])
+    .filter(r=>predicate(r.month||""))
+    .reduce((s,r)=>s+(Number(r.salary)||0),0);
+  const cutoffV107=currentMonth();
+  const pastSalary2026V107=salarySumV107(m=>m.startsWith("2026-")&&m<cutoffV107);
+  const plannedSalary2026V107=salarySumV107(m=>m.startsWith("2026-")&&m>=cutoffV107);
+  set('salary2025',fmt(salarySumV107(m=>m.startsWith("2025-"))));
+  set('salary2026',fmt(pastSalary2026V107+plannedSalary2026V107));
+  set('salary2026Detail',`Bis Vormonat: ${fmt(pastSalary2026V107)} · laufender und zukünftige Monate: ${fmt(plannedSalary2026V107)}`);
+  set('taxAllowanceLeft',fmt(Math.max(0,12348-pastSalary2026V107-plannedSalary2026V107)));
   const b=$('incomeHistoryBody');
   if(!b)return;
   b.innerHTML=data.incomeHistory.map(r=>{
     const total=Number(r.salary||0)+Number(r.bonus||0)+Number(r.tips||0)+Number(r.parents||0)+Number(r.costs||0);
-    r.total=total;
     if(editingIncome!==r.month){
       return `<tr>
         <td>${monthLabel(r.month)}</td>
