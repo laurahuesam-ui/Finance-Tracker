@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 102;
+const APP_VERSION = 103;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -174,12 +174,43 @@ function renderInterestGoalsV51(){
   const b=$('interestTargetsBody');
   if(b)b.innerHTML=goals.map(([cent,t])=>`<tr><td>${cent} Cent/Tag</td><td>${fmt(Math.max(0,t-cash))}</td><td>${t<=cash?'erreicht':'offen'}</td></tr>`).join('');
 }
-function renderOverview(){const p=passive(),c=capitalMetrics();set('v6TotalWealth',fmt(c.wealth));set('v6AvgSaving',fmt(avgSurplus()));const avgInc=data.incomeHistory.reduce((s,r)=>s+r.total,0)/(data.incomeHistory.length||1);set('v6SavingRate',pct(avgInc?avgSurplus()/avgInc*100:0));set('v6PassiveMonthly',fmt(p.monthly));set('v6FixedMonthly',fmt(fixedMonthly()));set('v6Coverage',pct(p.coverage));const ml=$('milestoneList');if(ml)ml.innerHTML=[5000,10000,25000,50000,100000].map(t=>{const progress=c.wealth/t*100,months=c.avg>0?Math.max(0,(t-c.wealth)/c.avg):Infinity,dt=new Date();if(Number.isFinite(months))dt.setMonth(dt.getMonth()+Math.ceil(months));return`<div class="milestone-row-v51"><strong>${fmt(t)}</strong><div class="progress"><div style="width:${Math.min(100,progress)}%"></div></div><span>${pct(progress)} · ${Number.isFinite(months)?dt.toLocaleDateString('de-DE'):'–'}</span></div>`}).join('');const yr=$('yearForecast');if(yr){const inc2026=data.incomeHistory.filter(r=>r.month.startsWith('2026')).reduce((s,r)=>s+r.total,0);const am=data.amexHistory.filter(r=>r.month.startsWith('2026'));const annualExp=(am.reduce((s,r)=>s+Math.abs(r.expenses),0)/(am.length||1))*12;yr.innerHTML=`<div class="stat"><span>Einnahmen 2026</span><strong>${fmt(inc2026)}</strong></div><div class="stat"><span>Ausgaben hochgerechnet</span><strong>${fmt(annualExp)}</strong></div><div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(p.annual)}</strong></div><div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(c.wealth+inc2026-annualExp+p.annual)}</strong></div>`}}
+function annualFinanceForecastV103(year=new Date().getFullYear()){
+  const ym=currentMonth();
+  const prefix=String(year)+"-";
+  const incomes=new Map((data.incomeHistory||[]).filter(r=>r.month?.startsWith(prefix)).map(r=>[r.month,r]));
+  const expenses=new Map((data.amexHistory||[]).filter(r=>r.month?.startsWith(prefix)).map(r=>[r.month,Math.abs(Number(r.expenses)||0)]));
+  const historicalExpenses=[...expenses].filter(([month])=>month<ym).map(([,value])=>value);
+  const averageExpense=historicalExpenses.length?historicalExpenses.reduce((a,b)=>a+b,0)/historicalExpenses.length:0;
+  const rows=[];
+  for(let m=1;m<=12;m++){
+    const month=`${year}-${String(m).padStart(2,"0")}`;
+    const inc=incomes.get(month);
+    const income=inc?Number(inc.salary||0)+Number(inc.bonus||0)+Number(inc.tips||0)+Number(inc.parents||0)+Number(inc.costs||0):0;
+    const salary=Number(inc?.salary)||0;
+    const enteredExpense=expenses.get(month);
+    const expense=enteredExpense!==undefined?enteredExpense:averageExpense;
+    rows.push({month,income,salary,expense,expenseEstimated:enteredExpense===undefined,planned:month>=ym});
+  }
+  const sum=(arr,key)=>arr.reduce((total,row)=>total+row[key],0);
+  const previous=rows.filter(r=>r.month<ym);
+  const remaining=rows.filter(r=>r.month>ym);
+  const p=passive();
+  return {year,rows,previous,remaining,
+    incomeTotal:sum(rows,'income'),salaryTotal:sum(rows,'salary'),
+    expenseTotal:sum(rows,'expense'),expenseActual:sum(previous,'expense'),
+    expenseProjected:sum(rows.filter(r=>r.month>=ym),'expense'),
+    averageExpense,passiveAnnual:p.annual,
+    // Current wealth already reflects the current account balances. Only future
+    // full months are added; current month is excluded to avoid double-counting.
+    yearEndWealth:totalWealth()+sum(remaining,'income')-sum(remaining,'expense')+p.monthly*remaining.length};
+}
+function renderOverview(){const p=passive(),c=capitalMetrics();set('v6TotalWealth',fmt(c.wealth));set('v6AvgSaving',fmt(avgSurplus()));const avgInc=data.incomeHistory.reduce((s,r)=>s+r.total,0)/(data.incomeHistory.length||1);set('v6SavingRate',pct(avgInc?avgSurplus()/avgInc*100:0));set('v6PassiveMonthly',fmt(p.monthly));set('v6FixedMonthly',fmt(fixedMonthly()));set('v6Coverage',pct(p.coverage));const ml=$('milestoneList');if(ml)ml.innerHTML=[5000,10000,25000,50000,100000].map(t=>{const progress=c.wealth/t*100,months=c.avg>0?Math.max(0,(t-c.wealth)/c.avg):Infinity,dt=new Date();if(Number.isFinite(months))dt.setMonth(dt.getMonth()+Math.ceil(months));return`<div class="milestone-row-v51"><strong>${fmt(t)}</strong><div class="progress"><div style="width:${Math.min(100,progress)}%"></div></div><span>${pct(progress)} · ${Number.isFinite(months)?dt.toLocaleDateString('de-DE'):'–'}</span></div>`}).join('');const yr=$('yearForecast');if(yr){const f=annualFinanceForecastV103();yr.innerHTML=`<div class="stat"><span>Einnahmen ${f.year}</span><strong>${fmt(f.incomeTotal)}</strong><small>Jan–Dez: vergangene + manuell geplante Monate</small></div><div class="stat"><span>Amex-Ausgaben ${f.year}</span><strong>${fmt(f.expenseTotal)}</strong><small>Vorhandene Monatswerte + fehlende Monate mit Ø ${fmt(f.averageExpense)} geschätzt</small></div><div class="stat"><span>Passiv hochgerechnet</span><strong>${fmt(f.passiveAnnual)}</strong><small>Aktueller Monatswert × 12</small></div><div class="stat"><span>Vermögen Jahresende</span><strong>${fmt(f.yearEndWealth)}</strong><small>Aktuelles Vermögen + Einnahmen ab nächstem Monat − Amex ab nächstem Monat + Passiv ab nächstem Monat; ohne zusätzliche Fixkosten außerhalb der Einnahmen-/Amex-Planung</small></div>`}}
+
 let editingIncome=null;
 function renderIncome(){
   set('salary2025',fmt(data.incomeHistory.filter(r=>r.month.startsWith('2025')).reduce((s,r)=>s+Number(r.salary||0),0)));
-  set('salary2026',fmt(data.incomeHistory.filter(r=>r.month.startsWith('2026')).reduce((s,r)=>s+Number(r.salary||0),0)));
-  set('taxAllowanceLeft',fmt(Math.max(0,12348-data.incomeHistory.filter(r=>r.month.startsWith('2026')).reduce((s,r)=>s+Number(r.salary||0),0))));
+  set('salary2026',fmt(annualFinanceForecastV103(2026).salaryTotal));
+  set('taxAllowanceLeft',fmt(Math.max(0,12348-annualFinanceForecastV103(2026).salaryTotal)));
   const b=$('incomeHistoryBody');
   if(!b)return;
   b.innerHTML=data.incomeHistory.map(r=>{
