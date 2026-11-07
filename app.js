@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 104;
+const APP_VERSION = 105;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -164,16 +164,52 @@ function interestGoalsV98(){
   return goals;
 }
 function trCashV51(){const a=data.assets.find(x=>x.id==='tr-cash'||(String(x.name||'').toLowerCase().includes('trade republic')&&String(x.name||'').toLowerCase().includes('tagesgeld')));return Number(a?.balance||0)}
+// V105: Recorded monthly interest is the historical evidence for daily cent milestones.
+// A month-level record cannot establish an exact day, so never fabricate one.
+function reachedInterestCentV105(cent){
+  const records=[...(data.capitalHistory||[])].filter(r=>/^\d{4}-\d{2}$/.test(String(r.month||"")))
+    .sort((a,b)=>a.month.localeCompare(b.month));
+  const nowYm=currentMonth();
+  for(const r of records){
+    if(r.month>nowYm)continue;
+    const interest=Number(r.trInterest);
+    if(!Number.isFinite(interest)||interest<=0)continue;
+    const daily=interest/daysInMonth(r.month);
+    if(daily+1e-9>=cent/100)return {month:r.month,source:"recorded"};
+  }
+  // Current account balance is definitive for the current rate, even if
+  // the current month's historical interest record has not been refreshed.
+  const rate=trInterestRateV101()/100;
+  if(rate>0 && trCashV51()*rate/365+1e-9>=cent/100)
+    return {month:nowYm,source:"current"};
+  return null;
+}
+function interestGoalForecastTextV105(cent,target,cash,reached){
+  const state=ensureProgressStateV59();
+  const raw=state.goalForecasts?.[`cent-${cent}`]?.first;
+  const first=raw?new Date(raw):null;
+  const firstText=first&&!Number.isNaN(first.getTime())?`Erste gespeicherte Prognose: ${fmtDateV59(first)}`:"Keine frühere Prognose gespeichert";
+  if(reached)return firstText;
+  const forecast=forecastDateForCapitalTargetV59(target,cash);
+  return `${forecast?`Aktuell: ${fmtDateV59(forecast)}`:"Aktuell: keine Prognose"} · ${firstText}`;
+}
 function renderInterestGoalsV51(){
   const stepLabel=$("interestStepCapitalV99");
   if(stepLabel)stepLabel.textContent=`je 0,01 € täglich rund ${fmtInterestStepCapitalV99()} mehr Kapital`;
   const cash=trCashV51();
   const goals=interestGoalsV98();
-  const a=$('interestGoalsBody');
-  if(a)a.innerHTML=goals.map(([cent,t])=>`<tr><td>${cent} Cent/Tag</td><td>${fmt(t)}</td><td>${fmt(Math.max(0,t-cash))} fehlen</td></tr>`).join('');
-  const b=$('interestTargetsBody');
-  if(b)b.innerHTML=goals.map(([cent,t])=>`<tr><td>${cent} Cent/Tag</td><td>${fmt(Math.max(0,t-cash))}</td><td>${t<=cash?'erreicht':'offen'}</td></tr>`).join('');
+  const a=$("interestGoalsBody");
+  if(a)a.innerHTML=goals.map(([cent,t])=>{
+    const reached=reachedInterestCentV105(cent);
+    const achieved=reached||cash+1e-8>=t;
+    const reachedText=reached?`${monthLabel(reached.month)} · Tag nicht erfasst`:achieved?"Erreicht · genaues Datum nicht erfasst":"Noch nicht erreicht";
+    const pctDone=t>0?Math.min(100,cash/t*100):0;
+    return `<tr><td>${cent} Cent/Tag</td><td>${pct(pctDone)}</td><td>${esc(interestGoalForecastTextV105(cent,t,cash,reached))}</td><td>${esc(reachedText)}</td><td>${fmt(t)}</td><td>${fmt(Math.max(0,t-cash))}</td></tr>`;
+  }).join("");
+  const b=$("interestTargetsBody");
+  if(b)b.innerHTML=goals.map(([cent,t])=>`<tr><td>${cent} Cent/Tag</td><td>${fmt(Math.max(0,t-cash))}</td><td>${reachedInterestCentV105(cent)?"erreicht":"offen"}</td></tr>`).join("");
 }
+
 // V104: Each income month is already net of the fixed costs recorded in that row.
 // Fixed costs are disclosed separately but must never be deducted a second time.
 function fixedCostsForMonthV104(ym){
@@ -1864,24 +1900,7 @@ function renderVisibleForecastHistoryV60(){
     });
   }
 
-  // Zinsziele: add first/current/last comparison below forecast date.
-  const goals=centGoalsV59();
-  const rows=document.querySelectorAll("#interestGoalsBody tr");
-  rows.forEach((row,i)=>{
-    const goal=goals[i];
-    if(!goal)return;
-    const [cent,target]=goal;
-    const currentDate=forecastDateForCapitalTargetV59(target,tr);
-    const first=state.goalForecasts[`cent-${cent}`]?.first?new Date(state.goalForecasts[`cent-${cent}`].first):null;
-    const prevDate=prev?.forecasts?.cent?new Date(prev.forecasts.cent):null;
-    const cell=row.children[2];
-    if(cell){
-      let text=`${fmtDateV59(currentDate)}`;
-      if(first){const d=diffDaysV59(currentDate,first);text+=` · erste: ${fmtDateV59(first)}${d===0?"":` · ${humanTimeGainV59(d)}`}`;}
-      if(prevDate && goal===goals.find(([,t])=>t>tr)) text+=` · ${humanTimeGainV59(diffDaysV59(currentDate,prevDate))} vs. letzter Monat`;
-      cell.textContent=text;
-    }
-  });
+  // V105: Zinsziele are rendered directly by renderInterestGoalsV51; never overwrite actual dates.
 
   // Sparziel 1: visible forecast note in first row.
   const goalBody=$("priorityGoalsBody");
