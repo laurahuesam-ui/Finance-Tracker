@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 111</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 112</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -579,13 +579,14 @@
 
   <article class="panel">
     <h2>Zinseszins-Prognose</h2>
-    <p class="muted">Nur mit aktuellem Vermögen, aktuellen Zinssätzen und aktueller Dividende. Zusätzliche Einzahlungen sind nicht eingerechnet.</p>
+    <p class="muted">Zwei Szenarien: nur Zinseszins ohne Einzahlungen sowie mit monatlicher Sparrate auf das Trade-Republic-Tagesgeld. Die Konten werden mit ihren jeweiligen Zinssätzen berechnet; die aktuelle monatliche Dividende bleibt konstant und wird nicht reinvestiert.</p>
     <div class="stats-grid">
       <div class="stat"><span>Aktuelles Vermögen</span><strong id="passiveForecastStartWealth">–</strong></div>
       <div class="stat"><span>Effektive Rendite p. a.</span><strong id="passiveForecastRate">–</strong></div>
       <div class="stat"><span>Passiv pro Monat</span><strong data-global-passive-month id="passiveForecastStartPassive">–</strong></div>
       <div class="stat"><span>Fixkosten gedeckt</span><strong id="passiveForecastStartCoverage">–</strong></div>
     </div>
+    <p class="muted">Angenommene monatliche Sparrate: <strong id="passiveForecastMonthlySaving">–</strong> (wie in der langfristigen TR-Prognose). Zinssätze und Fixkosten bleiben in beiden Szenarien konstant.</p>
     <div id="passiveForecastBody" class="list"></div>
   </article>
 

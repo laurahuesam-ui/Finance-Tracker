@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 111;
+const APP_VERSION = 112;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -411,7 +411,58 @@ function renderFuel(){
 function renderFixed(){const p=passive();set('fixedMonthlyTotal',fmt(fixedMonthly()));set('fixedYearlyTotal',fmt(fixedAnnual()));set('nextFixedCount',fmt(fixedDaily()));set('fixedCostsPassiveCoverage',pct(p.coverage));set('fixedCostsDailyTotal',fmt(fixedDaily()));const b=$('fixedCostListV6');if(b)b.innerHTML=data.fixedCosts.map(x=>`<div class="list-item fixed-cost-item"><div><h3>${esc(x.name)}</h3><p>Tag ${x.day} · ${esc(x.when)}</p></div><div class="fixed-cost-values"><strong>${fmt(-x.amount)}</strong><small>${fmt(x.amount*annualOccurrences(x.frequency)/365)} pro Tag</small><button data-edit-fixed="${x.id}">Bearbeiten</button></div></div>`).join('')}
 function renderAssets(){const c=capitalMetrics(),p=passive();set('assetTotal',fmt(c.wealth));const b=$('assetList');if(b)b.innerHTML=data.assets.map(a=>{const month=a.type==='stock'?Number(a.monthlyDividend||0):interestForAsset(a);const annual=month*12;return`<div class="list-item"><div><h3>${esc(a.name)}</h3><p>${a.type==='stock'?`Aktien · durchschnittliche Dividende: ${fmt(month)}/Monat · Rendite ${pct(a.balance?month*12/a.balance*100:0)}`:`Tagesgeldkonto · Zinssatz: ${pct(a.rate)}`}</p><small>Dynamisch übernommen: ${fmt(month)}/Monat · ${fmt(annual)}/Jahr</small></div><div><strong>${fmt(a.balance)}</strong><button data-edit-asset="${a.id}">Aktualisieren</button></div></div>`}).join('');const cards=[['Aktueller Vermögenswert',c.wealth],['Kapital t=0',START_CAPITAL],['Kapitaldifferenz',c.diff],['Steigerung Durchschnitt pro Monat',c.avg],['Kapitalsteigerung',pct(c.growth)],['Aktueller Aktienwert',stockValue()],['Gewinn Aktien',stockProfit()],['Gewinn Zinsen',c.interestProfit],['Gewinn Dividende',c.dividendProfit],['Zinsen aktueller Monat',p.interest],['Durchschnittliche Dividende pro Monat',p.dividend],['Passiv pro Tag',p.daily],['Passiv pro Monat',p.monthly],['Fixkosten gedeckt',pct(p.coverage)]];const cm=$('capitalMetricCards');if(cm)cm.innerHTML=cards.map(([k,v])=>`<div class="stat"><span>${k}</span><strong>${typeof v==='string'?v:fmt(v)}</strong></div>`).join('');renderCapitalTable()}
 let editingCapital=null;function renderCapitalTable(){syncCurrentCapital();const b=$('capitalMasterBody');if(!b)return;b.innerHTML=[...data.capitalHistory].sort((a,b)=>a.month.localeCompare(b.month)).map(r=>{const current=r.month===currentMonth();if(editingCapital!==r.month)return`<tr><td>${monthLabel(r.month)}</td><td>${r.sparkasse==null?'–':fmt(r.sparkasse)}</td><td>${fmt(r.sparkasseInterest)}</td><td>${r.tradeRepublic==null?'–':fmt(r.tradeRepublic)}</td><td>${r.trInterest==null?'–':fmt(r.trInterest)}</td><td>${r.dividend==null?'–':fmt(r.dividend)}</td><td>${r.total==null?'–':fmt(r.total)}</td><td><button data-edit-capital="${r.month}">Bearbeiten</button></td></tr>`;const fields=current?['dividend']:['sparkasse','sparkasseInterest','tradeRepublic','trInterest','dividend'];return`<tr><td>${monthLabel(r.month)}</td>${['sparkasse','sparkasseInterest','tradeRepublic','trInterest','dividend'].map(k=>`<td>${fields.includes(k)?`<input class="inline-input" data-cap-field="${k}" value="${r[k]??''}" type="number" step="0.01">`:fmt(r[k])}</td>`).join('')}<td>${fmt(r.total)}</td><td><button data-save-capital="${r.month}">Speichern</button><button data-cancel-capital>Abbrechen</button></td></tr>`}).join('')}
-function renderPassive(){const p=passive();set('passiveInterestMonth',fmt(p.interest));set('passiveDividendMonth',fmt(p.dividend));set('passiveTotalDay',fmt(p.daily));set('passiveTabMonth',fmt(p.monthly));set('passiveTabYear',fmt(p.annual));set('passiveCoverage',pct(p.coverage));set('passiveForecastStartWealth',fmt(totalWealth()));set('passiveForecastRate',pct(totalWealth()?p.annual/totalWealth()*100:0));set('passiveForecastStartPassive',fmt(p.monthly));set('passiveForecastStartCoverage',pct(p.coverage));const rate=totalWealth()?p.annual/totalWealth():0;const b=$('passiveForecastBody');if(b)b.innerHTML=[5,10,25,50,75,100].map(t=>{const targetMonthly=fixedMonthly()*t/100,target=rate?targetMonthly*12/rate:Infinity,progress=target?totalWealth()/target*100:0;let years=target<=totalWealth()?0:rate?Math.log(target/totalWealth())/Math.log(1+rate):Infinity;const dt=new Date();if(Number.isFinite(years))dt.setMonth(dt.getMonth()+Math.ceil(years*12));return`<div class="list-item passive-forecast-item"><div class="passive-forecast-main"><strong>${t} % der Fixkosten</strong><div class="progress"><div style="width:${Math.min(100,progress)}%"></div></div><small>${fmt(target)} · ${fmt(targetMonthly)}/Monat</small></div><div class="passive-forecast-meta"><strong>${pct(progress)}</strong><small>${years===0?'bereits erreicht':Number.isFinite(years)?dt.toLocaleDateString('de-DE'):'nicht erreichbar'}</small></div></div>`}).join('')}
+function passiveProjectionV112(months, monthlyDeposit=0){
+  const assets=(data.assets||[]).filter(a=>["savings","bank","cash"].includes(a.type))
+    .map(a=>({balance:Math.max(0,Number(a.balance)||0),rate:Math.max(0,Number(a.rate)||0)/1200,
+      tr:a===trSavingsAssetV58()}));
+  const dividend=dividendMonthly();
+  const tr=assets.find(a=>a.tr);
+  for(let m=0;m<months;m++){
+    if(tr)tr.balance+=Math.max(0,monthlyDeposit);
+    for(const a of assets)a.balance*=1+a.rate;
+  }
+  const monthlyInterest=assets.reduce((sum,a)=>sum+a.balance*a.rate,0);
+  return {monthly:monthlyInterest+dividend,interest:monthlyInterest,dividend};
+}
+function passiveGoalMonthsV112(targetMonthly,deposit){
+  if(passiveProjectionV112(0,deposit).monthly>=targetMonthly)return 0;
+  for(let m=1;m<=2400;m++)if(passiveProjectionV112(m,deposit).monthly>=targetMonthly)return m;
+  return Infinity;
+}
+function passiveGoalDateV112(months){
+  if(months===0)return 'bereits erreicht';
+  if(!Number.isFinite(months))return 'mit diesen Annahmen nicht erreichbar';
+  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+months);
+  return d.toLocaleDateString('de-DE');
+}
+function renderPassive(){
+  const p=passive();
+  set('passiveInterestMonth',fmt(p.interest));set('passiveDividendMonth',fmt(p.dividend));
+  set('passiveTotalDay',fmt(p.daily));set('passiveTabMonth',fmt(p.monthly));
+  set('passiveTabYear',fmt(p.annual));set('passiveCoverage',pct(p.coverage));
+  set('passiveForecastStartWealth',fmt(totalWealth()));
+  set('passiveForecastRate',pct(totalWealth()?p.annual/totalWealth()*100:0));
+  set('passiveForecastStartPassive',fmt(p.monthly));set('passiveForecastStartCoverage',pct(p.coverage));
+  const saving=Math.max(0,averageMonthlySavingV58());
+  set('passiveForecastMonthlySaving',fmt(saving));
+  const monthlyCosts=fixedMonthly();
+  const b=$('passiveForecastBody');
+  if(b)b.innerHTML=[5,10,25,50,75,100].map(t=>{
+    const targetMonthly=monthlyCosts*t/100;
+    const progress=targetMonthly?Math.min(100,p.monthly/targetMonthly*100):100;
+    const noDeposit=passiveGoalMonthsV112(targetMonthly,0);
+    const withDeposit=passiveGoalMonthsV112(targetMonthly,saving);
+    return `<div class="list-item passive-forecast-item"><div class="passive-forecast-main">
+      <strong>${t} % der Fixkosten</strong>
+      <div class="progress"><div class="progress-bar" style="width:${progress}%"></div></div>
+      <small>${fmt(targetMonthly)}/Monat nötig · aktuell ${fmt(p.monthly)}/Monat</small>
+    </div><div class="passive-forecast-meta"><strong>${pct(progress)}</strong>
+      <small>Nur Zinseszins: ${passiveGoalDateV112(noDeposit)}</small>
+      <small>Mit Sparrate: ${passiveGoalDateV112(withDeposit)}</small>
+    </div></div>`;
+  }).join('');
+}
+
 function syncFirstGoal(){const g=data.priorityGoals[0];if(g){g[11]=totalWealth();g[9]=g[3]?g[11]/g[3]*100:0;g[10]=g[4]?g[11]/g[4]*100:0}}
 
 function addMonthsSafeV64(date,months){
