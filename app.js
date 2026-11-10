@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 109;
+const APP_VERSION = 110;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -115,6 +115,14 @@ function save(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
   renderAll();
 }
+function localDateKeyV110(date=new Date()){
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+function formatReachedDateV110(key){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(key||""))return "–";
+  const [y,m,d]=key.split("-").map(Number);
+  return new Date(y,m-1,d).toLocaleDateString("de-DE");
+}
 function recordMilestoneCrossingsV109(){
   const state=ensureProgressStateV59();
   if(!state.milestoneReachedV109)state.milestoneReachedV109={};
@@ -122,11 +130,37 @@ function recordMilestoneCrossingsV109(){
   for(const target of WEALTH_MILESTONES_V59){
     const key=`wealth-${target}`;
     if(wealth<target){delete state.milestoneReachedV109[key];continue;}
-    if(state.milestoneReachedV109[key])continue;
-    const historic=Object.values(state.snapshots||{})
-      .filter(x=>x&&Number(x.wealth)>=target&&/^\\d{4}-\\d{2}$/.test(x.month||""))
-      .sort((a,b)=>a.month.localeCompare(b.month))[0];
-    state.milestoneReachedV109[key]={month:historic?.month||monthKeyV59()};
+    if(state.milestoneReachedV109[key]?.date)continue;
+    // Explicitly confirmed first 5,000 EUR crossing on 10 November 2026.
+    // Preserve any already recorded exact date if present.
+    const old=state.milestoneReachedV109[key];
+    state.milestoneReachedV109[key]={date:target===5000?"2026-11-10":localDateKeyV110(),
+      month:target===5000?"2026-11":monthKeyV59()};
+  }
+  // When a new target becomes active, give it its OWN first forecast.
+  const next=WEALTH_MILESTONES_V59.find(t=>t>wealth);
+  if(next){
+    const key=`wealth-${next}`;
+    const date=forecastDateForWealthTargetV59(next);
+    if(date&&!state.goalForecasts[key]){
+      state.goalForecasts[key]={first:date.toISOString(),firstMonth:monthKeyV59()};
+    }
+  }
+}
+// One-time data migration: a saved reached 5,000 EUR milestone predates
+// daily tracking. Only store the confirmed date, never change balances.
+function migrateReachedMilestoneV110(){
+  const state=ensureProgressStateV59();
+  if(!state.milestoneReachedV109)state.milestoneReachedV109={};
+  const key="wealth-5000";
+  if(currentWealthV59()>=5000&&!state.milestoneReachedV109[key]?.date){
+    state.milestoneReachedV109[key]={date:"2026-11-10",month:"2026-11"};
+    const next=WEALTH_MILESTONES_V59.find(t=>t>currentWealthV59());
+    if(next&&!state.goalForecasts[`wealth-${next}`]){
+      const d=forecastDateForWealthTargetV59(next);
+      if(d)state.goalForecasts[`wealth-${next}`]={first:d.toISOString(),firstMonth:monthKeyV59()};
+    }
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
   }
 }
 function annualOccurrences(f){return f==='monthly'?12:f==='bimonthly'?6:f==='quarterly'?4:f==='semiannual'?2:1}
@@ -1842,7 +1876,19 @@ function forecastMetaV59(kind,key,currentDate){
   const state=ensureProgressStateV59();
   const first=state.goalForecasts[key]?.first?new Date(state.goalForecasts[key].first):null;
   const prev=previousSnapshotV59();
-  const prevDate=prev?.forecasts?.[kind]?new Date(prev.forecasts[kind]):null;
+  const targetMatches=kind==="wealth"
+    ? Number(prev?.targets?.wealth)===Number(key.split("-")[1])
+    : kind==="passive"
+      ? Number(prev?.targets?.passive)===Number(key.split("-")[1])
+      : kind==="cent"
+        ? Number(prev?.targets?.cent)===Number(key.split("-")[1])
+        : false;
+  const isPreviousCalendarMonth=prev?.month===(()=>{
+    const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  })();
+  const prevDate=targetMatches&&isPreviousCalendarMonth&&prev?.forecasts?.[kind]
+    ?new Date(prev.forecasts[kind]):null;
   const firstDiff=first&&currentDate?diffDaysV59(currentDate,first):null;
   const prevDiff=prevDate&&currentDate?diffDaysV59(currentDate,prevDate):null;
   const firstText=firstDiff==null||firstDiff===0?"":` · seit erster Prognose ${humanTimeGainV59(firstDiff)}`;
@@ -1918,18 +1964,18 @@ function renderVisibleForecastHistoryV60(){
       const key=`wealth-${target}`;
       const reached=wealth>=target;
       const stored=state.milestoneReachedV109?.[key];
-      const historic=snaps.find(s=>Number(s.wealth)>=target);
-      const achievedMonth=historic?.month || stored?.month || null;
+      const achievedDate=stored?.date || null;
       const firstRaw=state.goalForecasts[key]?.first;
       const first=firstRaw?new Date(firstRaw):null;
       const forecast=reached?null:forecastDateForWealthTargetV59(target);
-      const oldSameTarget=snaps.filter(s=>s.month<monthKeyV59()&&
-        Number(s.targets?.wealth)===target&&s.forecasts?.wealth).at(-1);
+      const previousMonth=(()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;})();
+      const oldSameTarget=snaps.find(s=>s.month===previousMonth&&
+        Number(s.targets?.wealth)===target&&s.forecasts?.wealth);
       const prevDate=oldSameTarget?new Date(oldSameTarget.forecasts.wealth):null;
       let label;
       if(reached){
-        label=achievedMonth?`Tatsächlich erreicht: ${monthLabel(achievedMonth)}`:
-          "Erreicht · historisches Erreichungsdatum nicht gespeichert";
+        label=achievedDate?`Erreicht am ${formatReachedDateV110(achievedDate)}`:
+          "Erreicht · Datum wird beim nächsten Speichern erfasst";
       }else{
         label=`Aktuelle Prognose: ${fmtDateV59(forecast)}`;
       }
@@ -1941,7 +1987,7 @@ function renderVisibleForecastHistoryV60(){
         label+=` · ${humanTimeGainV59(diffDaysV59(forecast,prevDate))} vs. letzter Stand dieses Ziels`;
       }
       const span=item.querySelector("span");
-      if(span)span.textContent=`${pct(wealth/target*100)} · ${reached?(achievedMonth?monthLabel(achievedMonth):"erreicht"):fmtDateV59(forecast)}`;
+      if(span)span.textContent=`${pct(wealth/target*100)} · ${reached?(achievedDate?`erreicht am ${formatReachedDateV110(achievedDate)}`:"erreicht"):fmtDateV59(forecast)}`;
       let info=item.querySelector(".forecast-history-v60");
       if(!info){
         info=document.createElement("small");
@@ -2570,7 +2616,7 @@ function renderDashboardSavingsGoalsV71(){
     );
   }
 }
-function renderAll(){renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()
+function renderAll(){migrateReachedMilestoneV110();renderTabs();renderDashboard();renderOverview();renderIncome();renderAmex();renderFixed();renderAssets();renderPassive();renderGoals();renderInterestGoalsV51()
 renderDashboardSavingsGoalsV71();
 renderSimulationV94();
 }
