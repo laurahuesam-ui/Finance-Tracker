@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 112;
+const APP_VERSION = 113;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -1999,7 +1999,11 @@ function renderProgressV59(){
   const nextCent=centGoals.find(([,target])=>target>tr)||centGoals.at(-1)||[0,Infinity];
   const centDate=Number.isFinite(nextCent[1])?forecastDateForCapitalTargetV59(nextCent[1],tr):null;
   set("nextCentGoalV59",`${nextCent[0]} Cent/Tag`);
-  set("nextCentGoalMetaV59",`${fmt(Math.max(0,nextCent[1]-tr))} fehlen · ${fmtDateV59(centDate)}${forecastMetaV59("cent",`cent-${nextCent[0]}`,centDate)}`);
+  // V113: Show exactly the same cent-goal forecast and first saved forecast as in Passiv.
+  // Do not create a separate dashboard forecast or compare unrelated cent targets.
+  const centReached=reachedInterestCentV105(nextCent[0]);
+  const centForecastInfo=interestGoalForecastTextV105(nextCent[0],nextCent[1],tr,centReached);
+  set("nextCentGoalMetaV59",`${fmt(Math.max(0,nextCent[1]-tr))} fehlen · ${centForecastInfo}`);
 
   const sg=savingsGoalInfoV59();
   if(sg){
