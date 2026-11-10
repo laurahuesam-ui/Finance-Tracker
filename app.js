@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 108;
+const APP_VERSION = 109;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -109,7 +109,26 @@ normalizeDataV51();
   if(tr && Math.abs(Number(tr.rate)-2.25)<0.000001)tr.rate=2.5;
 }
 
-function save(){captureSnapshotOnDataChangeV61();localStorage.setItem(STORAGE_KEY,JSON.stringify(data));renderAll()}
+function save(){
+  captureSnapshotOnDataChangeV61();
+  recordMilestoneCrossingsV109();
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+  renderAll();
+}
+function recordMilestoneCrossingsV109(){
+  const state=ensureProgressStateV59();
+  if(!state.milestoneReachedV109)state.milestoneReachedV109={};
+  const wealth=Number(totalWealth())||0;
+  for(const target of WEALTH_MILESTONES_V59){
+    const key=`wealth-${target}`;
+    if(wealth<target){delete state.milestoneReachedV109[key];continue;}
+    if(state.milestoneReachedV109[key])continue;
+    const historic=Object.values(state.snapshots||{})
+      .filter(x=>x&&Number(x.wealth)>=target&&/^\\d{4}-\\d{2}$/.test(x.month||""))
+      .sort((a,b)=>a.month.localeCompare(b.month))[0];
+    state.milestoneReachedV109[key]={month:historic?.month||monthKeyV59()};
+  }
+}
 function annualOccurrences(f){return f==='monthly'?12:f==='bimonthly'?6:f==='quarterly'?4:f==='semiannual'?2:1}
 function fixedAnnual(){return data.fixedCosts.reduce((s,x)=>s+Math.abs(x.amount)*annualOccurrences(x.frequency),0)}
 function fixedMonthly(){return fixedAnnual()/12}
@@ -126,12 +145,12 @@ function currentIncome(){return data.incomeHistory.find(x=>x.month===currentMont
 function currentAmex(){return data.amexHistory.find(x=>x.month===currentMonth())||data.amexHistory.at(-1)}
 function monthsSinceStart(){const d=new Date();return Math.max(1,(d.getFullYear()-2025)*12+(d.getMonth()+1-6))}
 function syncCurrentCapital(){let r=data.capitalHistory.find(x=>x.month===currentMonth());if(!r){r={month:currentMonth(),dividend:0};data.capitalHistory.push(r)};const spk=data.assets.filter(a=>a.type==='savings'&&a.name.toLowerCase().includes('sparkasse'));const tr=data.assets.find(a=>a.id==='tr-cash');r.sparkasse=spk.reduce((s,a)=>s+a.balance,0);r.sparkasseInterest=spk.reduce((s,a)=>s+interestForAsset(a),0);r.tradeRepublic=tr?.balance||0;r.trInterest=tr?interestForAsset(tr):0;r.total=r.sparkasseInterest+r.trInterest+Number(r.dividend||0)}
-function capitalMetrics(){syncCurrentCapital();const wealth=totalWealth(),diff=wealth-START_CAPITAL;const hist=data.capitalHistory.filter(x=>x.month!==currentMonth());return{wealth,diff,growth:diff/START_CAPITAL*100,avg:diff/monthsSinceStart(),interestProfit:hist.reduce((s,r)=>s+Number(r.sparkasseInterest||0)+Number(r.trInterest||0),0)+monthlyInterest(),dividendProfit:hist.reduce((s,r)=>s+Number(r.dividend||0),0)+Number(data.capitalHistory.find(x=>x.month===currentMonth())?.dividend||0)}}
+function capitalMetrics(){const wealth=totalWealth(),diff=wealth-START_CAPITAL;const hist=data.capitalHistory.filter(x=>x.month!==currentMonth());return{wealth,diff,growth:diff/START_CAPITAL*100,avg:diff/monthsSinceStart(),interestProfit:hist.reduce((s,r)=>s+Number(r.sparkasseInterest||0)+Number(r.trInterest||0),0)+monthlyInterest(),dividendProfit:hist.reduce((s,r)=>s+Number(r.dividend||0),0)+Number(data.capitalHistory.find(x=>x.month===currentMonth())?.dividend||0)}}
 function cumulativeAmex(){let sum=0;return new Map([...data.amexHistory].sort((a,b)=>a.month.localeCompare(b.month)).map((r,i)=>[r.month,(sum+=Math.abs(r.expenses))/(i+1)]))}
 function avgSurplus(){const inc=new Map(data.incomeHistory.map(r=>[r.month,Number(r.total||0)]));const rows=data.amexHistory.filter(r=>inc.has(r.month));return rows.length?rows.reduce((s,r)=>s+inc.get(r.month)-Math.abs(r.expenses),0)/rows.length:0}
 function set(id,v){const e=$(id);if(e)e.textContent=v}
 function renderTabs(){document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.page)?.classList.add('active')})}
-function renderDashboard(){const p=passive(),c=capitalMetrics(),inc=currentIncome(),am=currentAmex();set('headerMonth',new Date().toLocaleDateString('de-DE',{month:'long',year:'numeric'}));set('totalWealth',fmt(c.wealth));set('wealthChange',`${c.diff>=0?'+':''}${fmt(c.diff)} seit Juni 2025`);set('monthExpenses',fmt(fixedDaily()));set('monthIncome',fmt(inc?.total||0));set('monthBalance',`Monatsüberschuss: ${fmt((inc?.total||0)-Math.abs(am?.expenses||0))}`);set('passiveMonth',`${fmt(p.monthly)}/Monat`);set('passiveYear',`${fmt(p.annual)}/Jahr`);set('breakEvenPassive',pct(p.coverage));set('breakEvenWithSalary',`Mit Einnahmen: ${pct(((inc?.total||0)+p.monthly)/fixedMonthly()*100)} der Fixkosten`);const bar=$('passiveProgress');if(bar)bar.style.width=`${Math.min(100,p.coverage)}%`;set('interestProfit',fmt(c.interestProfit));set('dailyInterest',`aktuell ${fmt(p.interest/daysInMonth(currentMonth()))}/Tag`);set('dividendProfit',fmt(c.dividendProfit));set('monthlyDividend',`durchschnittlich ${fmt(p.dividend)}/Monat`);set('stockProfit',fmt(stockProfit()));set('dashboardStockValue',`aktueller Aktienwert: ${fmt(stockValue())}`);set('capitalGrowth',pct(c.growth));set('capitalDelta',`${c.diff>=0?'+':''}${fmt(c.diff)} seit Juni 2025 · Ø ${fmt(c.avg)} pro Monat · aktuelles Vermögen ${fmt(c.wealth)}`);renderAssetSummary();renderNextFixed();renderDashboardHistory();renderAmexDashboard()}
+function renderDashboard(){const p=passive(),c=capitalMetrics(),inc=currentIncome(),am=currentAmex();set('headerMonth',new Date().toLocaleDateString('de-DE',{month:'long',year:'numeric'}));set('totalWealth',fmt(c.wealth));set('wealthChange',`${c.diff>=0?'+':''}${fmt(c.diff)} seit Juni 2025`);set('monthExpenses',fmt(fixedDaily()));set('monthIncome',fmt(inc?.total||0));set('monthBalance',`Monatsüberschuss: ${fmt((inc?.total||0)-Math.abs(am?.expenses||0))}`);set('passiveMonth',`${fmt(p.monthly)}/Monat`);set('passiveYear',`${fmt(p.daily)}/Tag · ${fmt(p.annual)}/Jahr`);set('breakEvenPassive',pct(p.coverage));set('breakEvenWithSalary',`Mit Einnahmen: ${pct(((inc?.total||0)+p.monthly)/fixedMonthly()*100)} der Fixkosten`);const bar=$('passiveProgress');if(bar)bar.style.width=`${Math.min(100,p.coverage)}%`;set('interestProfit',fmt(c.interestProfit));set('dailyInterest',`aktuell ${fmt(p.interest/daysInMonth(currentMonth()))}/Tag`);set('dividendProfit',fmt(c.dividendProfit));set('monthlyDividend',`durchschnittlich ${fmt(p.dividend)}/Monat`);set('stockProfit',fmt(stockProfit()));set('dashboardStockValue',`aktueller Aktienwert: ${fmt(stockValue())}`);set('capitalGrowth',pct(c.growth));set('capitalDelta',`${c.diff>=0?'+':''}${fmt(c.diff)} seit Juni 2025 · Ø ${fmt(c.avg)} pro Monat · aktuelles Vermögen ${fmt(c.wealth)}`);renderAssetSummary();renderNextFixed();renderDashboardHistory();renderAmexDashboard()}
 function renderAssetSummary(){const e=$('assetSummary');if(e)e.innerHTML=data.assets.map(a=>`<div class="list-item"><span>${esc(a.name)}</span><strong>${fmt(a.balance)}</strong></div>`).join('')}
 function nextDue(x){const d=new Date(),y=d.getFullYear(),m=d.getMonth()+1;let months=x.frequency==='monthly'?[m,m+1]:x.months||[];for(let add=0;add<14;add++){let mm=m+add,yy=y+Math.floor((mm-1)/12);mm=((mm-1)%12)+1;if(x.frequency==='monthly'||months.includes(mm)){let day=Math.min(x.day,new Date(yy,mm,0).getDate());let dt=new Date(yy,mm-1,day);if(dt>=new Date(y,m-1,d.getDate()))return dt}}return new Date(y+1,0,1)}
 function renderNextFixed(){const e=$('nextFixedCosts');if(!e)return;e.innerHTML=[...data.fixedCosts].sort((a,b)=>nextDue(a)-nextDue(b)).slice(0,5).map(x=>`<div class="list-item next-fixed-item"><div class="next-fixed-main"><strong>${esc(x.name)}</strong><span>${nextDue(x).toLocaleDateString('de-DE')}</span></div><strong>${fmt(-x.amount)}</strong></div>`).join('')}
@@ -446,7 +465,10 @@ function forecastWithGlobalRateV66(targetTotal,comparisonV102=null){
     totalMonths=Math.ceil(remaining/saving);
   }
 
-  const d=new Date();
+  const anchor=comparisonV102?.snapshotMonth;
+  const d=/^\\d{4}-\\d{2}$/.test(anchor||"")
+    ?new Date(Number(anchor.slice(0,4)),Number(anchor.slice(5,7))-1,1)
+    :new Date();
   d.setDate(1);
   d.setMonth(d.getMonth()+totalMonths);
   return d.toLocaleDateString("de-DE");
@@ -1882,27 +1904,51 @@ function renderVisibleForecastHistoryV60(){
   const tr=Number(trSavingsAssetV58?.()?.balance||0);
   const coverage=currentFixedCoverageV59();
 
-  // Vermögens-Meilensteine in Übersicht: append forecast comparison text.
+  // V109: One independent history per wealth milestone.
+  // Reached dates come from an actual stored monthly wealth snapshot, never "today".
   const wealthTargets=WEALTH_MILESTONES_V59;
   const milestoneRoot=$("milestoneList");
   if(milestoneRoot){
+    const snaps=Object.values(state.snapshots||{})
+      .filter(s=>s&&/^\\d{4}-\\d{2}$/.test(s.month||""))
+      .sort((a,b)=>a.month.localeCompare(b.month));
     [...milestoneRoot.children].forEach((item,i)=>{
       const target=wealthTargets[i];
-      if(!target) return;
-      const currentDate=forecastDateForWealthTargetV59(target);
+      if(!target)return;
       const key=`wealth-${target}`;
-      const first=state.goalForecasts[key]?.first?new Date(state.goalForecasts[key].first):null;
-      const prevDate=prev?.forecasts?.wealth?new Date(prev.forecasts.wealth):null;
-      let text=`Aktuelle Prognose: ${fmtDateV59(currentDate)}`;
-      if(first){const d=diffDaysV59(currentDate,first);text+=` · Erste Prognose: ${fmtDateV59(first)}${d===0?"":` · ${humanTimeGainV59(d)}`}`;}
-      if(prevDate && target===wealthTargets.find(x=>x>wealth)) text+=` · ${humanTimeGainV59(diffDaysV59(currentDate,prevDate))} als letzter Monatsstand`;
+      const reached=wealth>=target;
+      const stored=state.milestoneReachedV109?.[key];
+      const historic=snaps.find(s=>Number(s.wealth)>=target);
+      const achievedMonth=historic?.month || stored?.month || null;
+      const firstRaw=state.goalForecasts[key]?.first;
+      const first=firstRaw?new Date(firstRaw):null;
+      const forecast=reached?null:forecastDateForWealthTargetV59(target);
+      const oldSameTarget=snaps.filter(s=>s.month<monthKeyV59()&&
+        Number(s.targets?.wealth)===target&&s.forecasts?.wealth).at(-1);
+      const prevDate=oldSameTarget?new Date(oldSameTarget.forecasts.wealth):null;
+      let label;
+      if(reached){
+        label=achievedMonth?`Tatsächlich erreicht: ${monthLabel(achievedMonth)}`:
+          "Erreicht · historisches Erreichungsdatum nicht gespeichert";
+      }else{
+        label=`Aktuelle Prognose: ${fmtDateV59(forecast)}`;
+      }
+      if(first && !Number.isNaN(first.getTime())){
+        label+=` · Erste Prognose: ${fmtDateV59(first)}`;
+        if(forecast)label+=` · ${humanTimeGainV59(diffDaysV59(forecast,first))}`;
+      }
+      if(forecast&&prevDate&&!Number.isNaN(prevDate.getTime())){
+        label+=` · ${humanTimeGainV59(diffDaysV59(forecast,prevDate))} vs. letzter Stand dieses Ziels`;
+      }
+      const span=item.querySelector("span");
+      if(span)span.textContent=`${pct(wealth/target*100)} · ${reached?(achievedMonth?monthLabel(achievedMonth):"erreicht"):fmtDateV59(forecast)}`;
       let info=item.querySelector(".forecast-history-v60");
       if(!info){
         info=document.createElement("small");
         info.className="forecast-history-v60";
         item.appendChild(info);
       }
-      info.textContent=text;
+      info.textContent=label;
     });
   }
 
@@ -2102,7 +2148,7 @@ function richSavingsForecastMetaV100(kind,key,currentText,currentTarget){
 
   const parts=[];
   if(first){
-    const c=forecastChangePartsV100(kind,key,currentText,first.v.iso,first.v.target,currentTarget,first.v.inputs);
+    const c=forecastChangePartsV100(kind,key,currentText,first.v.iso,first.v.target,currentTarget,{...first.v.inputs,snapshotMonth:first.month});
     if(c){
       if(c.financialDays!=null)parts.push(c.financialDays===0?"Finanzentwicklung (gleiche Ziele/Finanzierungen) seit erster Vergleichsbasis: unverändert":`Finanzentwicklung (gleiche Ziele/Finanzierungen) seit erster Vergleichsbasis: ${humanTimeGainV59(c.financialDays)}`);
       parts.push(c.overallDays===0?"Gesamtprognose seit erster Vergleichsbasis: unverändert":`Gesamtprognose seit erster Vergleichsbasis: ${humanTimeGainV59(c.overallDays)}`);
@@ -2113,7 +2159,7 @@ function richSavingsForecastMetaV100(kind,key,currentText,currentTarget){
   }
 
   if(prev && (!first || prev.month!==first.month)){
-    const c=forecastChangePartsV100(kind,key,currentText,prev.v.iso,prev.v.target,currentTarget,prev.v.inputs);
+    const c=forecastChangePartsV100(kind,key,currentText,prev.v.iso,prev.v.target,currentTarget,{...prev.v.inputs,snapshotMonth:prev.month});
     if(c){
       if(c.financialDays!=null)parts.push(c.financialDays===0?"Finanzentwicklung (gleiche Ziele/Finanzierungen) seit letztem Monatsstand: unverändert":`Finanzentwicklung (gleiche Ziele/Finanzierungen) seit letztem Monatsstand: ${humanTimeGainV59(c.financialDays)}`);
       parts.push(c.overallDays===0?"Gesamtprognose seit letztem Monatsstand: unverändert":`Gesamtprognose seit letztem Monatsstand: ${humanTimeGainV59(c.overallDays)}`);
