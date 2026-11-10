@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 110;
+const APP_VERSION = 111;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -1895,6 +1895,29 @@ function forecastMetaV59(kind,key,currentDate){
   const prevText=prevDiff==null||prevDiff===0?"":` · ${humanTimeGainV59(prevDiff)} als letzter Monatsstand`;
   return `${firstText}${prevText}`;
 }
+// V111: Identical, target-specific forecast details in milestones and dashboard.
+function wealthMilestoneForecastMetaV111(target,forecast){
+  const state=ensureProgressStateV59();
+  const firstRaw=state.goalForecasts?.[`wealth-${target}`]?.first;
+  const first=firstRaw?new Date(firstRaw):null;
+  let result=`Aktuelle Prognose: ${fmtDateV59(forecast)}`;
+  if(first&&!Number.isNaN(first.getTime())){
+    result+=` · Erste Prognose: ${fmtDateV59(first)}`;
+    const diff=forecast?diffDaysV59(forecast,first):null;
+    if(diff!==null&&diff!==0)result+=` · ${humanTimeGainV59(diff)}`;
+  }
+  const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);
+  const previousMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;
+  const snap=state.snapshots?.[previousMonth];
+  if(snap&&Number(snap.targets?.wealth)===Number(target)&&snap.forecasts?.wealth&&forecast){
+    const prevDate=new Date(snap.forecasts.wealth);
+    if(!Number.isNaN(prevDate.getTime())){
+      const diff=diffDaysV59(forecast,prevDate);
+      if(diff!==null&&diff!==0)result+=` · ${humanTimeGainV59(diff)} vs. letzter Stand dieses Ziels`;
+    }
+  }
+  return result;
+}
 function renderProgressV59(){
   captureMonthlySnapshotV59();
   const state=ensureProgressStateV59();
@@ -1914,7 +1937,7 @@ function renderProgressV59(){
   const nextWealth=WEALTH_MILESTONES_V59.find(x=>x>wealth)||WEALTH_MILESTONES_V59.at(-1);
   const wealthDate=forecastDateForWealthTargetV59(nextWealth);
   set("nextWealthMilestoneV59",fmt(nextWealth));
-  set("nextWealthMilestoneMetaV59",`${(wealth/nextWealth*100).toFixed(2).replace(".",",")} % · ${fmtDateV59(wealthDate)}${forecastMetaV59("wealth",`wealth-${nextWealth}`,wealthDate)}`);
+  set("nextWealthMilestoneMetaV59",`${(wealth/nextWealth*100).toFixed(2).replace(".",",")} % · ${fmtDateV59(wealthDate)} · ${wealthMilestoneForecastMetaV111(nextWealth,wealthDate)}`);
 
   const nextPassive=PASSIVE_MILESTONES_V59.find(x=>x>coverage)||PASSIVE_MILESTONES_V59.at(-1);
   const passiveDate=forecastDateForPassiveCoverageV59(nextPassive);
@@ -1965,27 +1988,10 @@ function renderVisibleForecastHistoryV60(){
       const reached=wealth>=target;
       const stored=state.milestoneReachedV109?.[key];
       const achievedDate=stored?.date || null;
-      const firstRaw=state.goalForecasts[key]?.first;
-      const first=firstRaw?new Date(firstRaw):null;
       const forecast=reached?null:forecastDateForWealthTargetV59(target);
-      const previousMonth=(()=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;})();
-      const oldSameTarget=snaps.find(s=>s.month===previousMonth&&
-        Number(s.targets?.wealth)===target&&s.forecasts?.wealth);
-      const prevDate=oldSameTarget?new Date(oldSameTarget.forecasts.wealth):null;
-      let label;
-      if(reached){
-        label=achievedDate?`Erreicht am ${formatReachedDateV110(achievedDate)}`:
-          "Erreicht · Datum wird beim nächsten Speichern erfasst";
-      }else{
-        label=`Aktuelle Prognose: ${fmtDateV59(forecast)}`;
-      }
-      if(first && !Number.isNaN(first.getTime())){
-        label+=` · Erste Prognose: ${fmtDateV59(first)}`;
-        if(forecast)label+=` · ${humanTimeGainV59(diffDaysV59(forecast,first))}`;
-      }
-      if(forecast&&prevDate&&!Number.isNaN(prevDate.getTime())){
-        label+=` · ${humanTimeGainV59(diffDaysV59(forecast,prevDate))} vs. letzter Stand dieses Ziels`;
-      }
+      const label=reached
+        ? `${achievedDate?`Erreicht am ${formatReachedDateV110(achievedDate)}`:"Erreicht · Datum wird beim nächsten Speichern erfasst"}${state.goalForecasts[key]?.first?` · Erste Prognose: ${fmtDateV59(new Date(state.goalForecasts[key].first))}`:""}`
+        : wealthMilestoneForecastMetaV111(target,forecast);
       const span=item.querySelector("span");
       if(span)span.textContent=`${pct(wealth/target*100)} · ${reached?(achievedDate?`erreicht am ${formatReachedDateV110(achievedDate)}`:"erreicht"):fmtDateV59(forecast)}`;
       let info=item.querySelector(".forecast-history-v60");
