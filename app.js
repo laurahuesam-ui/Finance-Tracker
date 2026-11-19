@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 114;
+const APP_VERSION = 115;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
