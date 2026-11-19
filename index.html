@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 113</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 112</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -507,11 +507,11 @@
   <article class="panel">
     <h2>Schicht- und Einkommensplanung</h2>
     <div class="stats-grid">
+      <div class="stat"><span>Lohnsteuerfreibetrag</span><strong>12.348,00 €</strong></div>
       <div class="stat"><span>Pro Schicht (5 h)</span><strong>75,00 €</strong></div>
-      <div class="stat"><span>12 Schichten/Monat</span><strong>900,00 €</strong></div>
-      <div class="stat"><span>Max. 14 Schichten</span><strong>1.050,00 €</strong></div>
-      <div class="stat"><span>Jahr bei 12/Monat</span><strong>10.800,00 €</strong></div>
-      <div class="stat"><span>Maximal im Jahr</span><strong>12.600,00 €</strong></div>
+      <div class="stat"><span>Schichten pro Monat</span><strong>8,04</strong></div>
+      <div class="stat"><span>Minijobgrenze</span><strong>603,00 €</strong></div>
+      <div class="stat"><span>Minijob Jahresgrenze</span><strong>7.236,00 €</strong></div>
     </div>
   </article>
 </section>
@@ -579,14 +579,13 @@
 
   <article class="panel">
     <h2>Zinseszins-Prognose</h2>
-    <p class="muted">Zwei Szenarien: nur Zinseszins ohne Einzahlungen sowie mit monatlicher Sparrate auf das Trade-Republic-Tagesgeld. Die Konten werden mit ihren jeweiligen Zinssätzen berechnet; die aktuelle monatliche Dividende bleibt konstant und wird nicht reinvestiert.</p>
+    <p class="muted">Nur mit aktuellem Vermögen, aktuellen Zinssätzen und aktueller Dividende. Zusätzliche Einzahlungen sind nicht eingerechnet.</p>
     <div class="stats-grid">
       <div class="stat"><span>Aktuelles Vermögen</span><strong id="passiveForecastStartWealth">–</strong></div>
       <div class="stat"><span>Effektive Rendite p. a.</span><strong id="passiveForecastRate">–</strong></div>
       <div class="stat"><span>Passiv pro Monat</span><strong data-global-passive-month id="passiveForecastStartPassive">–</strong></div>
       <div class="stat"><span>Fixkosten gedeckt</span><strong id="passiveForecastStartCoverage">–</strong></div>
     </div>
-    <p class="muted">Angenommene monatliche Sparrate: <strong id="passiveForecastMonthlySaving">–</strong> (wie in der langfristigen TR-Prognose). Zinssätze und Fixkosten bleiben in beiden Szenarien konstant.</p>
     <div id="passiveForecastBody" class="list"></div>
   </article>
 
