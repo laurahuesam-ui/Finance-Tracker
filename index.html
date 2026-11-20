@@ -9,12 +9,12 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=120">
 <style>.comparison-controls-v118{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}.comparison-controls-v118 label{display:flex;flex-direction:column;gap:5px;min-width:145px;flex:1}.comparison-controls-v118 select{max-width:100%;padding:9px;border-radius:8px}.comparison-choices-v118{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:8px;margin:12px 0 20px}.comparison-choice-v118{display:flex;gap:9px;align-items:center;padding:10px;border:1px solid #9996;border-radius:8px}.comparison-choice-v118 small{display:block;opacity:.65}.comparison-legend-v118{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0 20px}</style></head>
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 119</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 120</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -645,6 +645,6 @@
   if ('caches' in window) caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).catch(()=>{});
 })();
 </script>
-<script src="./app.js?v=119"></script>
+<script src="./app.js?v=120"></script>
 </body>
 </html>
