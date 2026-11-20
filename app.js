@@ -3097,7 +3097,7 @@ function monthEndArchiveV118(){
  }
  return [...m.values()].sort((a,b)=>a.date.localeCompare(b.date));
 }
-function projectAtV118(s,date,saving,savingAmount=null,savingStartDate=null){
+function projectAtV118(s,date,saving,savingAmount=null,savingStartDate=null,monthlyDividend=0){
  const start=new Date(s.date+'T12:00:00Z'),end=new Date(date+'T12:00:00Z');if(end<start)return null;
  // Apply interest month by month, splitting at historical TR rate changes.
  // A partial month earns prorated interest; completed months receive a saving contribution.
@@ -3120,7 +3120,7 @@ function projectAtV118(s,date,saving,savingAmount=null,savingStartDate=null){
   }
   if(stop.getTime()===nextMonth.getTime()&&saving&&(!savingStartDate||stop.toISOString().slice(0,10)>savingStartDate)){
    const ix=s.assets.findIndex(isTrCashV122);
-   if(ix>=0)balances[ix]+=Math.max(0,Number(savingAmount==null?s.saving:savingAmount)||0);
+   if(ix>=0)balances[ix]=Math.max(0,balances[ix]+Number(savingAmount==null?s.saving:savingAmount||0)+Number(monthlyDividend||0));
   }
   cursor=stop;
  }
@@ -3128,8 +3128,40 @@ function projectAtV118(s,date,saving,savingAmount=null,savingStartDate=null){
 }
 // V125: German presentation dates, ISO dates remain unchanged for calculations and storage.
 function displayDateV125(iso){const m=String(iso||'').match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);return m?(m[3]?`${m[3]}.${m[2]}.${m[1]}`:`${m[2]}.${m[1]}`):String(iso||'')}
-let compareSavingModeV125='same'; // 'none' | 'same' | 'historic'
-function selectedSavingV125(s){return compareSavingModeV125==='none'?0:compareSavingModeV125==='same'?Math.max(0,Number(avgSurplus())||0):Math.max(0,Number(s.saving)||0)}
+// V130: derive net external flows from recorded Tagesgeld balances, not from income minus Amex.
+// Interest and dividends are already included in the account balance; subtract both exactly once.
+function netSavingsStatsV130(){
+ const history=(data.capitalHistory||[]).filter(r=>/^\d{4}-\d{2}$/.test(String(r.month||''))&&Number.isFinite(Number(r.sparkasse))&&r.sparkasse!=null&&Number.isFinite(Number(r.tradeRepublic))&&r.tradeRepublic!=null).sort((a,b)=>a.month.localeCompare(b.month));
+ if(history.length<2)return {known:false,net:0,dividend:0,intervals:0};
+ let net=0,dividend=0,intervals=0;
+ for(let i=1;i<history.length;i++){
+  const prev=history[i-1],cur=history[i];
+  const prevMonth=Number(prev.month.slice(0,4))*12+Number(prev.month.slice(5,7));
+  const curMonth=Number(cur.month.slice(0,4))*12+Number(cur.month.slice(5,7));
+  if(curMonth-prevMonth!==1)continue; // don't allocate unknown missing months to one month
+  const delta=(Number(cur.sparkasse)+Number(cur.tradeRepublic))-(Number(prev.sparkasse)+Number(prev.tradeRepublic));
+  const interest=Number(cur.sparkasseInterest||0)+Number(cur.trInterest||0);
+  const div=Number(cur.dividend||0);
+  net+=delta-interest-div;dividend+=div;intervals++;
+ }
+ return {known:intervals>0,net:intervals?net/intervals:0,dividend:intervals?dividend/intervals:0,intervals};
+}
+let compareSavingModeV125='net'; // 'none' | 'net' | 'growth' | 'same'
+function selectedSavingV125(s){
+ if(compareSavingModeV125==='none'||compareSavingModeV125==='growth')return 0;
+ if(compareSavingModeV125==='net')return netSavingsStatsV130().net;
+ return Number(avgSurplus())||0;
+}
+function growthForecastV130(s,date,commonStartDate=null){
+ const from=new Date((commonStartDate||s.date)+'T12:00:00Z'),to=new Date(date+'T12:00:00Z');
+ if(to<from)return null;
+ return snapshotWealthV118(s)+(to-from)/86400000/(365.2425/12)*Number(capitalMetrics().avg||0);
+}
+function scenarioForecastV130(s,date,savingStartDate){
+ if(compareSavingModeV125==='growth')return growthForecastV130(s,date,savingStartDate);
+ const stats=netSavingsStatsV130();
+ return projectAtV118(s,date,compareSavingModeV125!=='none',selectedSavingV125(s),savingStartDate,compareSavingModeV125==='net'?stats.dividend:0);
+}
 let compareSelectedV118=[];
 let compareModeV118='calendar';let compareScenarioV118='interest';let compareMonthsV118=120;let compareMonthlyV118=true;
 function renderCompareV118(){
@@ -3152,7 +3184,7 @@ function renderCompareV118(){
  const points=selected.map((s,i)=>{
   const series=[];for(let j=0;j<=100;j++){
    const end=compareModeV118==='duration'?new Date(Date.UTC(new Date(s.date+'T12:00:00Z').getUTCFullYear(),new Date(s.date+'T12:00:00Z').getUTCMonth()+Math.round(j*compareMonthsV118/100),Math.min(new Date(s.date+'T12:00:00Z').getUTCDate(),28),12)):new Date(plotStart.getTime()+(future-plotStart)*j/100);
-   const ds=end.toISOString().slice(0,10);const val=projectAtV118(s,ds,withSavingV126,selectedSavingV125(s),commonSavingStartV126);if(val===null)continue;
+   const ds=end.toISOString().slice(0,10);const val=scenarioForecastV130(s,ds,commonSavingStartV126);if(val===null)continue;
    const x=compareModeV118==='duration'?j/100:(end-plotStart)/(future-plotStart||1);
    series.push({x,y:val,date:ds});
   }return {s,color:colors[i],series};
@@ -3164,17 +3196,17 @@ function renderCompareV118(){
  // Compare the same forecast horizon/mode for every row, not raw starting balances.
  const referenceSnapshotV127=last;
  const referenceTargetV127=referenceSnapshotV127?(compareModeV118==='duration'?new Date(Date.UTC(Number(referenceSnapshotV127.date.slice(0,4)),Number(referenceSnapshotV127.date.slice(5,7))-1+compareMonthsV118,Math.min(Number(referenceSnapshotV127.date.slice(8)),28),12)).toISOString().slice(0,10):futureDate):null;
- const referenceForecastV127=referenceSnapshotV127?projectAtV118(referenceSnapshotV127,referenceTargetV127,withSavingV126,selectedSavingV125(referenceSnapshotV127),commonSavingStartV126):null;
+ const referenceForecastV127=referenceSnapshotV127?scenarioForecastV130(referenceSnapshotV127,referenceTargetV127,commonSavingStartV126):null;
  const fmtDiffV127=value=>(value>0.005?'+':value< -0.005?'−':'')+fmt(Math.abs(value));
  const rows=selected.map((s,i)=>{
   const at=compareModeV118==='duration'?new Date(Date.UTC(Number(s.date.slice(0,4)),Number(s.date.slice(5,7))-1+compareMonthsV118,Math.min(Number(s.date.slice(8)),28),12)).toISOString().slice(0,10):futureDate;
-  const total=projectAtV118(s,at,withSavingV126,selectedSavingV125(s),commonSavingStartV126);const baseline=projectAtV118(s,at,false);const gain=total-snapshotWealthV118(s);const pureInterest=baseline-snapshotWealthV118(s);
+  const total=scenarioForecastV130(s,at,commonSavingStartV126);const baseline=projectAtV118(s,at,false);const gain=total-snapshotWealthV118(s);const pureInterest=compareSavingModeV125==='growth'?0:baseline-snapshotWealthV118(s);
   const interestAssumptions=(s.assets||[]).filter(a=>a.type==='savings').map(a=>esc(a.name)+': '+(isTrCashV122(a)?'2,00 → 2,25 → 2,50 %':isSparkasseSavingsV124(a)?'0,80 → 0,90 → 1,00 %':Number(a.rate||0).toFixed(2)+' %')).join(' · ');
-  const savingLabel=compareSavingModeV125==='none'?'Keine':compareSavingModeV125==='same'?fmt(selectedSavingV125(s))+'/Monat (heutiger Durchschnitt)':s.capitalOnlyV119&&!s.savingKnownV120?'Unbekannt':fmt(s.saving||0)+'/Monat (damals)';
+  const statsV130=netSavingsStatsV130();const savingLabel=compareSavingModeV125==='none'?'Keine':compareSavingModeV125==='net'?fmt(statsV130.net)+'/Monat Nettozufluss + '+fmt(statsV130.dividend)+'/Monat Dividenden':compareSavingModeV125==='growth'?fmt(capitalMetrics().avg)+'/Monat Vermögenszuwachs (linear, ohne zusätzliche Zinsen)':fmt(selectedSavingV125(s))+'/Monat rechnerischer Überschuss';
   return `<tr><td class="compare-date-v128"><span style="color:${colors[i]}">●</span> <strong>${esc(displayDateV125(s.capitalOnlyV119?s.month:s.date))}</strong><details class="compare-details-v128"><summary>Details</summary><div><b>Zieldatum:</b> ${esc(displayDateV125(at))}</div><div><b>Sparrate:</b> ${savingLabel}</div><div><b>Zinssätze:</b> ${interestAssumptions||'Keine Tagesgeldkonten'}</div><div><b>Datenbasis:</b> ${s.capitalOnlyV119?'Nur Tagesgeld':'Gesamtvermögen'}</div></details></td><td>${fmt(snapshotWealthV118(s))}</td><td class="compare-forecast-v128"><strong>${fmt(total)}</strong></td><td>${fmt(pureInterest)}</td><td>${fmt(gain-pureInterest)}</td><td class="compare-difference-v128"><strong>${fmtDiffV127(referenceForecastV127-total)}</strong></td></tr>`;
  }).join('');
  const actual=first&&last&&compareModeV118==='calendar'?`<div class="stats-grid"><div class="stat"><span>Differenz der erfassten Ausgangsbeträge</span><strong>${fmt(snapshotWealthV118(last)-snapshotWealthV118(first))}</strong></div><div class="stat"><span>Zinsdifferenz der Szenarien bis zum gemeinsamen Zieltag</span><strong>${fmt((projectAtV118(last,futureDate,false)-snapshotWealthV118(last))-(projectAtV118(first,futureDate,false)-snapshotWealthV118(first)))}</strong><small>Nur Zinsen; Einzahlungen und ursprüngliches Vermögen nicht als Ertrag gezählt</small></div></div>`:'';
- host.innerHTML=`<div class="comparison-controls-v118"><label>Backups <select id="compareGroupingV118"><option value="monthly" ${compareMonthlyV118?'selected':''}>Letztes Backup je Monat</option><option value="all" ${!compareMonthlyV118?'selected':''}>Alle einzelnen Backups</option></select></label><label>Vergleich <select id="compareModeV118"><option value="calendar" ${compareModeV118==='calendar'?'selected':''}>Gleicher Kalenderstichtag</option><option value="duration" ${compareModeV118==='duration'?'selected':''}>Gleiche Laufzeit</option></select></label><label>Prognose / Sparrate <select id="compareSavingModeV125"><option value="none" ${compareSavingModeV125==='none'?'selected':''}>Ohne Sparrate (nur Zinsen)</option><option value="historic" ${compareSavingModeV125==='historic'?'selected':''}>Mit damaliger Sparrate</option><option value="same" ${compareSavingModeV125==='same'?'selected':''}>Mit heutigem Durchschnitt für alle</option></select></label><label>Zeitraum <select id="compareHorizonV118">${[1,3,5,10,20,30,40,50].map(n=>`<option value="${n*12}" ${compareMonthsV118===n*12?'selected':''}>${n} Jahre</option>`).join('')}</select></label></div><p class="muted">${compareSelectedV118.length}/10 Vergleichslinien · ${compareMonthlyV118?'Monatsletzter Stand':'Einzelne Stichtage'} · Kapitalhistorie automatisch enthalten. Pro Monat wird ein vollständiges Backup bevorzugt, falls vorhanden; sonst der Monatswert aus der Kapitalhistorie.</p>${choices}<h3>Zukunftsvergleich</h3><p class="muted">TR-Tagesgeld: zeitabhängige Zinsen – 2,00 % bis 16.06.2026, 2,25 % vom 17.06. bis 15.09.2026 und 2,50 % ab 16.09.2026 (für die Zukunft als konstant angenommen). Sparkasse-Tagesgeld: 0,80 % bis 30.06.2026, 0,90 % vom 01.07. bis 19.09.2026 und 1,00 % ab 20.09.2026 (für die Zukunft als konstant angenommen). Wähle ohne Sparrate, damalige Sparrate oder den heutigen Durchschnitt für alle. Bei gleichem Kalenderstichtag beginnen zusätzliche Einzahlungen für alle Szenarien erst ab dem neuesten ausgewählten Stichtag; ältere Guthaben werden bis dahin nur verzinst. Einzahlungen fließen monatlich auf das TR-Tagesgeld.</p><p class="muted"><strong>Aktuelles Szenario: ${compareSavingModeV125==='none'?'Nur Zinsen – ohne weitere Einzahlungen':compareSavingModeV125==='historic'?'Mit damaliger Sparrate':'Mit heutigem Durchschnitt für alle'}</strong>${withSavingV126&&commonSavingStartV126?' · Gleicher Einzahlungsbeginn für alle: '+displayDateV125(commonSavingStartV126):''}</p>${svg}<div class="comparison-legend-v118">${points.map(p=>`<span style="color:${p.color}">● ${esc(displayDateV125(p.s.date))}</span>`).join(' ')}</div>${actual}${actualChart}<p class="muted compare-table-intro-v128">Vergleich mit Zinsen und Sparraten-Effekt · Zieldatum, Zinssätze und Sparrate unter „Details“. Auf kleinen Bildschirmen ist die Tabelle seitlich scrollbar.</p><div class="table-wrap compare-table-wrap-v128"><table class="compare-table-v128"><thead><tr><th>Stichtag</th><th>Startkapital</th><th>Prognose</th><th>Zinsen ohne Einzahlungen</th><th>Sparraten-Effekt inkl. Zinsen</th><th>Differenz zu heute</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">Differenz zu heute = Prognose des neuesten ausgewählten Stichtags minus jeweilige Prognose. Ein positiver Wert bedeutet, dass die heutige Prognose höher liegt; beim neuesten Stichtag ist die Differenz 0 €. Bei „Gleiche Laufzeit“ werden gleich lange Zeiträume, aber unterschiedliche Zieldaten verglichen. Die Kapitalhistorie enthält keine Aktien oder Girokonten. Monatsenddaten sind Zuordnungen, keine nachgewiesenen Tagesstände. Aktien und Girokonten aus vollständigen Backups bleiben konstant. Die Prognosen sind Modellrechnungen, keine garantierten Erträge.</p>`;
+ host.innerHTML=`<div class="comparison-controls-v118"><label>Backups <select id="compareGroupingV118"><option value="monthly" ${compareMonthlyV118?'selected':''}>Letztes Backup je Monat</option><option value="all" ${!compareMonthlyV118?'selected':''}>Alle einzelnen Backups</option></select></label><label>Vergleich <select id="compareModeV118"><option value="calendar" ${compareModeV118==='calendar'?'selected':''}>Gleicher Kalenderstichtag</option><option value="duration" ${compareModeV118==='duration'?'selected':''}>Gleiche Laufzeit</option></select></label><label>Prognose / Sparrate <select id="compareSavingModeV125"><option value="none" ${compareSavingModeV125==='none'?'selected':''}>Ohne Sparrate (nur Zinsen)</option><option value="net" ${compareSavingModeV125==='net'?'selected':''}>Nettozufluss Tagesgeld + Dividenden</option><option value="growth" ${compareSavingModeV125==='growth'?'selected':''}>Ø tatsächliche Vermögenssteigerung</option><option value="same" ${compareSavingModeV125==='same'?'selected':''}>Ø rechnerische Sparrate (Einnahmen − Amex)</option></select></label><label>Zeitraum <select id="compareHorizonV118">${[1,3,5,10,20,30,40,50].map(n=>`<option value="${n*12}" ${compareMonthsV118===n*12?'selected':''}>${n} Jahre</option>`).join('')}</select></label></div><p class="muted">${compareSelectedV118.length}/10 Vergleichslinien · ${compareMonthlyV118?'Monatsletzter Stand':'Einzelne Stichtage'} · Kapitalhistorie automatisch enthalten. Pro Monat wird ein vollständiges Backup bevorzugt, falls vorhanden; sonst der Monatswert aus der Kapitalhistorie.</p>${choices}<h3>Zukunftsvergleich</h3><p class="muted">TR-Tagesgeld: zeitabhängige Zinsen – 2,00 % bis 16.06.2026, 2,25 % vom 17.06. bis 15.09.2026 und 2,50 % ab 16.09.2026 (für die Zukunft als konstant angenommen). Sparkasse-Tagesgeld: 0,80 % bis 30.06.2026, 0,90 % vom 01.07. bis 19.09.2026 und 1,00 % ab 20.09.2026 (für die Zukunft als konstant angenommen). Vier Modelle: nur Zinsen, Nettozufluss aufs Tagesgeld mit separat berücksichtigten Dividenden, tatsächliche Ø Vermögenssteigerung (linear ohne zusätzliche Erträge) oder rechnerischer Ø Überschuss aus Einnahmen minus Amex. Bei gleichem Kalenderstichtag beginnen zusätzliche Einzahlungen bzw. die lineare Fortschreibung für alle Szenarien erst ab dem neuesten ausgewählten Stichtag; ältere Guthaben werden bis dahin nur verzinst. Nettozuflüsse und Dividenden werden monatlich auf TR-Tagesgeld gerechnet; bei negativer Nettoveränderung werden Entnahmen auf TR begrenzt. Dividenden werden im Nettozufluss einmal abgezogen und für die Prognose einmal hinzugefügt.</p><p class="muted"><strong>Aktuelles Szenario: ${compareSavingModeV125==='none'?'Nur Zinsen – ohne weitere Einzahlungen':compareSavingModeV125==='net'?'Nettozufluss Tagesgeld + durchschnittliche Dividenden':compareSavingModeV125==='growth'?'Tatsächliche Ø Vermögenssteigerung – linear ohne zusätzliche Zinsen':'Rechnerische Ø Sparrate (Einnahmen − Amex)'}</strong>${withSavingV126&&commonSavingStartV126?' · Gleicher Einzahlungsbeginn für alle: '+displayDateV125(commonSavingStartV126):''}</p>${svg}<div class="comparison-legend-v118">${points.map(p=>`<span style="color:${p.color}">● ${esc(displayDateV125(p.s.date))}</span>`).join(' ')}</div>${actual}${actualChart}<p class="muted compare-table-intro-v128">Vergleich der vier Prognosemodelle · Zieldatum, Zinssätze und Sparrate unter „Details“. Auf kleinen Bildschirmen ist die Tabelle seitlich scrollbar.</p><div class="table-wrap compare-table-wrap-v128"><table class="compare-table-v128"><thead><tr><th>Stichtag</th><th>Startkapital</th><th>Prognose</th><th>${compareSavingModeV125==='growth'?'Zusätzliche Zinsen':'Zinsen ohne Einzahlungen'}</th><th>${compareSavingModeV125==='growth'?'Vermögenszuwachs':'Sparraten-Effekt inkl. Zinsen'}</th><th>Differenz zu heute</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">Differenz zu heute = Prognose des neuesten ausgewählten Stichtags minus jeweilige Prognose. Ein positiver Wert bedeutet, dass die heutige Prognose höher liegt; beim neuesten Stichtag ist die Differenz 0 €. Bei „Gleiche Laufzeit“ werden gleich lange Zeiträume, aber unterschiedliche Zieldaten verglichen. Der Nettozufluss ist eine Schätzung aus aufeinanderfolgenden Monatsständen abzüglich der dort verbuchten Zinsen und Dividenden; interne Umbuchungen und unvollständige Monate können die Aussagekraft einschränken. Die Kapitalhistorie enthält keine Aktien oder Girokonten. Monatsenddaten sind Zuordnungen, keine nachgewiesenen Tagesstände. Aktien und Girokonten aus vollständigen Backups bleiben konstant. Die Prognosen sind Modellrechnungen, keine garantierten Erträge.</p>`;
  $('compareGroupingV118').onchange=e=>{compareMonthlyV118=e.target.value==='monthly';compareSelectedV118=[];renderCompareV118()};
  $('compareModeV118').onchange=e=>{compareModeV118=e.target.value;renderCompareV118()};
  
