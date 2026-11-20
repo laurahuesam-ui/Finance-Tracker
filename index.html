@@ -14,7 +14,7 @@
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 116</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 117</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -637,6 +637,6 @@
   if ('caches' in window) caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).catch(()=>{});
 })();
 </script>
-<script src="app.js"></script>
+<script src="./app.js?v=117"></script>
 </body>
 </html>

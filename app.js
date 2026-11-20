@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 116;
+const APP_VERSION = 117;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -425,8 +425,20 @@ function passiveProjectionV112(months, monthlyDeposit=0){
   return {monthly:monthlyInterest+dividend,interest:monthlyInterest,dividend};
 }
 function passiveGoalMonthsV112(targetMonthly,deposit){
-  if(passiveProjectionV112(0,deposit).monthly>=targetMonthly)return 0;
-  for(let m=1;m<=2400;m++)if(passiveProjectionV112(m,deposit).monthly>=targetMonthly)return m;
+  // One pass over months instead of recalculating all preceding months per goal.
+  const trAsset=trSavingsAssetV58();
+  const assets=(data.assets||[]).filter(a=>["savings","bank","cash"].includes(a.type))
+    .map(a=>({balance:Math.max(0,Number(a.balance)||0),rate:Math.max(0,Number(a.rate)||0)/1200,
+      tr:a===trAsset}));
+  const dividend=dividendMonthly();
+  const monthly=()=>assets.reduce((sum,a)=>sum+a.balance*a.rate,dividend);
+  if(monthly()>=targetMonthly)return 0;
+  const tr=assets.find(a=>a.tr);
+  for(let m=1;m<=2400;m++){
+    if(tr)tr.balance+=Math.max(0,deposit);
+    for(const a of assets)a.balance*=1+a.rate;
+    if(monthly()>=targetMonthly)return m;
+  }
   return Infinity;
 }
 function passiveGoalDateV112(months){
@@ -2891,7 +2903,7 @@ $('importBackup').onchange=async e=>{
 $('deleteAll').onclick=()=>{if(confirm('Alle Daten auf Stammdaten zurücksetzen?')){data=clone(DEFAULTS);save()}};
 bindSimulationV94();
 renderAll();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+// Service Worker disabled to prevent mixed-version cached assets.
 
 
 const __renderAllV58=renderAll;
