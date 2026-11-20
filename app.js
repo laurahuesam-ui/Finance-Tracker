@@ -1,5 +1,5 @@
 "use strict";
-const APP_VERSION = 117;
+const APP_VERSION = 118;
 const STORAGE_KEY="finanzenPwaV49Clean";
 const START_CAPITAL=2386.50;
 const DEFAULTS={
@@ -2878,7 +2878,7 @@ $('closeModal').onclick=closeModal;$('addFuelEntry').onclick=()=>{
   };
   $('cancelNewFuel').onclick=closeModal;
 };
-$('exportBackup').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`finanzen-backup-${backupDateStampV57()}.json`;a.click();URL.revokeObjectURL(a.href)};
+$('exportBackup').onclick=()=>{const blob=new Blob([JSON.stringify({...data,statisticsArchiveV118:archiveDatesV118()},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`finanzen-backup-${backupDateStampV57()}.json`;a.click();URL.revokeObjectURL(a.href)};
 $('importBackup').onchange=async e=>{
   const file=e.target.files?.[0];
   if(!file)return;
@@ -2891,7 +2891,10 @@ $('importBackup').onchange=async e=>{
   try{
     const x=JSON.parse(await file.text());
     if(!x || typeof x!=='object') throw new Error('Ungültiges Backup');
-    data={...clone(DEFAULTS),...x};
+    if(Array.isArray(x.statisticsArchiveV118)){
+      const a=readArchiveV118();for(const entry of x.statisticsArchiveV118){if(entry.date&&Array.isArray(entry.assets)&&!a.some(old=>old.id===entry.id))a.push(entry)}writeArchiveV118(a);
+    }
+    data={...clone(DEFAULTS),...x};delete data.statisticsArchiveV118;
     save();
     alert('Backup wurde erfolgreich importiert.');
   }catch{
@@ -2900,7 +2903,7 @@ $('importBackup').onchange=async e=>{
     e.target.value='';
   }
 };
-$('deleteAll').onclick=()=>{if(confirm('Alle Daten auf Stammdaten zurücksetzen?')){data=clone(DEFAULTS);save()}};
+$('deleteAll').onclick=()=>{if(confirm('Alle Daten auf Stammdaten zurücksetzen?')){data=clone(DEFAULTS);localStorage.removeItem(HISTORY_KEY_V118);save()}};
 bindSimulationV94();
 renderAll();
 // Service Worker disabled to prevent mixed-version cached assets.
@@ -3025,3 +3028,117 @@ document.addEventListener("DOMContentLoaded",()=>{
     save();
   });
 });
+
+
+// V118: Independent local archive. Importing an ordinary backup never overwrites it.
+const HISTORY_KEY_V118='finanzenPwaScenarioArchiveV118';
+const SEED_SNAPSHOTS_V118=[{"id":"backup-2026-09-07","date":"2026-09-07","label":"Backup 2026-09-07","source":"Mitgeliefertes Backup","assets":[{"id":"sparkasse-giro","name":"Sparkasse Girokonto","type":"bank","balance":95,"rate":0},{"id":"spk-tg1","name":"Sparkasse Tagesgeld 1","type":"savings","balance":450,"rate":0.9},{"id":"spk-tg2","name":"Sparkasse Tagesgeld 2","type":"savings","balance":20,"rate":0.9},{"id":"tr-cash","name":"Trade Republic Tagesgeld","type":"savings","balance":2627.84,"rate":2.25},{"id":"tr-stock","name":"Trade Republic Aktien","type":"stock","balance":793.69,"monthlyDividend":1.7}],"saving":268.544},{"id":"backup-2026-11-07","date":"2026-11-07","label":"Backup 2026-11-07","source":"Mitgeliefertes Backup","assets":[{"id":"sparkasse-giro","name":"Sparkasse Girokonto","type":"bank","balance":111.77,"rate":0},{"id":"spk-tg1","name":"Sparkasse Tagesgeld 1","type":"savings","balance":650,"rate":0.9},{"id":"spk-tg2","name":"Sparkasse Tagesgeld 2","type":"savings","balance":30,"rate":0.9},{"id":"tr-cash","name":"Trade Republic Tagesgeld","type":"savings","balance":2942.95,"rate":2.5},{"id":"tr-stock","name":"Trade Republic Aktien","type":"stock","balance":834.62,"monthlyDividend":1.81}],"saving":247.36411765},{"id":"backup-2026-11-10","date":"2026-11-10","label":"Backup 2026-11-10","source":"Mitgeliefertes Backup","assets":[{"id":"sparkasse-giro","name":"Sparkasse Girokonto","type":"bank","balance":261.37,"rate":0},{"id":"spk-tg1","name":"Sparkasse Tagesgeld 1","type":"savings","balance":950,"rate":0.9},{"id":"spk-tg2","name":"Sparkasse Tagesgeld 2","type":"savings","balance":30,"rate":0.9},{"id":"tr-cash","name":"Trade Republic Tagesgeld","type":"savings","balance":2942.95,"rate":2.5},{"id":"tr-stock","name":"Trade Republic Aktien","type":"stock","balance":846.22,"monthlyDividend":1.83}],"saving":276.27722222},{"id":"backup-2026-11-11","date":"2026-11-11","label":"Backup 2026-11-11","source":"Mitgeliefertes Backup","assets":[{"id":"sparkasse-giro","name":"Sparkasse Girokonto","type":"bank","balance":237.37,"rate":0},{"id":"spk-tg1","name":"Sparkasse Tagesgeld 1","type":"savings","balance":950,"rate":0.9},{"id":"spk-tg2","name":"Sparkasse Tagesgeld 2","type":"savings","balance":30,"rate":0.9},{"id":"tr-cash","name":"Trade Republic Tagesgeld","type":"savings","balance":3442.95,"rate":2.5},{"id":"tr-stock","name":"Trade Republic Aktien","type":"stock","balance":847.03,"monthlyDividend":1.83}],"saving":274.77}];
+function readArchiveV118(){try{const a=JSON.parse(localStorage.getItem(HISTORY_KEY_V118));return Array.isArray(a)?a:[]}catch{return []}}
+function writeArchiveV118(a){try{localStorage.setItem(HISTORY_KEY_V118,JSON.stringify(a))}catch(e){alert('Der lokale Speicher ist voll. Bitte das Statistik-Archiv exportieren.')}}
+function snapshotFromBackupV118(d,date,label,source){
+ if(!d||!Array.isArray(d.assets)||!d.assets.length||!/^\d{4}-\d{2}-\d{2}$/.test(date))throw Error('Ungültiges Datum oder fehlende Konten im Backup');
+ const inc=new Map((d.incomeHistory||[]).map(x=>[x.month,Number(x.total)||0]));
+ const rows=(d.amexHistory||[]).filter(x=>inc.has(x.month));
+ const saving=rows.length?rows.reduce((v,x)=>v+inc.get(x.month)-Math.abs(Number(x.expenses)||0),0)/rows.length:0;
+ return {id:'snap-'+date+'-'+Math.random().toString(36).slice(2,9),date,label,source,assets:d.assets.map(a=>({id:a.id,name:a.name,type:a.type,balance:Number(a.balance)||0,rate:Number(a.rate)||0,monthlyDividend:Number(a.monthlyDividend)||0})),saving};
+}
+function snapshotWealthV118(s){return (s.assets||[]).reduce((v,a)=>v+(Number(a.balance)||0),0)}
+function initArchiveV118(){
+ const a=readArchiveV118();let changed=false;
+ for(const s of SEED_SNAPSHOTS_V118){if(!a.some(x=>x.id===s.id)){a.push(s);changed=true}}
+ if(changed)writeArchiveV118(a);
+}
+function captureArchiveV118(){
+ const date=localDateKeyV110();const a=readArchiveV118();const s=snapshotFromBackupV118(data,date,'Automatisch '+date,'Automatische Momentaufnahme');s.id='auto-'+date;
+ const i=a.findIndex(x=>x.id===s.id);if(i>=0)a[i]=s;else a.push(s);
+ writeArchiveV118(a);
+}
+// V119: Historical capital data are the primary monthly source. Never infer missing assets.
+function capitalSnapshotsV119(){
+ return (data.capitalHistory||[]).filter(r=>/^\d{4}-\d{2}$/.test(String(r.month||'')) && (r.sparkasse!=null||r.tradeRepublic!=null)).map(r=>{
+  const assets=[];
+  if(r.sparkasse!=null)assets.push({id:'capital-spk',name:'Sparkasse Tagesgeld (Kapitalhistorie)',type:'savings',balance:Number(r.sparkasse)||0,rate:0});
+  if(r.tradeRepublic!=null)assets.push({id:'tr-cash',name:'Trade Republic Tagesgeld',type:'savings',balance:Number(r.tradeRepublic)||0,rate:0});
+  return {id:'capital-'+r.month,date:r.month+'-'+String(new Date(Number(r.month.slice(0,4)),Number(r.month.slice(5,7)),0).getDate()).padStart(2,'0'),label:'Kapitalhistorie '+r.month,source:'Kapitalhistorie (Monatswert; kein vollständiges Vermögen)',assets,saving:0,capitalOnlyV119:true,month:r.month,passive:Number(r.total)||0};
+ });
+}
+function archiveDatesV118(){
+ const archive=readArchiveV118().filter(s=>s.date&&Array.isArray(s.assets));
+ const capital=capitalSnapshotsV119();
+ return [...archive,...capital].sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
+}
+function monthEndArchiveV118(){
+ const m=new Map();
+ for(const s of archiveDatesV118()){
+  const key=s.date.slice(0,7),prev=m.get(key);
+  // Monthly history is the authoritative monthly series; full snapshots are kept as separate options.
+  if(!prev||s.capitalOnlyV119||(!prev.capitalOnlyV119&&s.date>=prev.date))m.set(key,s);
+ }
+ return [...m.values()].sort((a,b)=>a.date.localeCompare(b.date));
+}
+function projectAtV118(s,date,saving){
+ const start=new Date(s.date+'T12:00:00Z'),end=new Date(date+'T12:00:00Z');if(end<start)return null;
+ // Calendar-accurate monthly compounding with prorated partial months. Contributions at each completed month.
+ let balances=(s.assets||[]).map(a=>Number(a.balance)||0), cursor=new Date(start), iterations=0;
+ while(cursor<end&&iterations++<2400){
+  const next=new Date(Date.UTC(cursor.getUTCFullYear(),cursor.getUTCMonth()+1,1,12));
+  const stop=next<end?next:end;
+  const days=(stop-cursor)/86400000;
+  const monthDays=new Date(Date.UTC(cursor.getUTCFullYear(),cursor.getUTCMonth()+1,0)).getUTCDate();
+  for(let i=0;i<balances.length;i++){
+   const a=s.assets[i];if(a.type==='savings')balances[i]*=Math.pow(1+(Number(a.rate)||0)/1200,days/monthDays);
+  }
+  if(stop.getTime()===next.getTime()&&saving){const ix=s.assets.findIndex(a=>a.id==='tr-cash'||/trade republic.*tagesgeld/i.test(a.name||''));if(ix>=0)balances[ix]+=Math.max(0,Number(s.saving)||0)}
+  cursor=stop;
+ }
+ return balances.reduce((a,b)=>a+b,0);
+}
+let compareSelectedV118=[];
+let compareModeV118='calendar';let compareScenarioV118='interest';let compareMonthsV118=120;let compareMonthlyV118=true;
+function renderCompareV118(){
+ const host=$('comparisonAreaV118');if(!host)return;
+ const all=archiveDatesV118();const monthly=monthEndArchiveV118();const eligible=compareMonthlyV118?monthly:all;
+ const allowed=new Set(eligible.map(s=>s.id));compareSelectedV118=compareSelectedV118.filter(id=>allowed.has(id));
+ if(!compareSelectedV118.length&&eligible.length){compareSelectedV118=[eligible[0].id];if(eligible.length>1)compareSelectedV118.push(eligible[eligible.length-1].id)}
+ const selected=eligible.filter(s=>compareSelectedV118.includes(s.id)).sort((a,b)=>a.date.localeCompare(b.date));
+ const choices=eligible.map(s=>`<label class="comparison-choice-v118"><input type="checkbox" data-compare-select="${esc(s.id)}" ${compareSelectedV118.includes(s.id)?'checked':''} ${!compareSelectedV118.includes(s.id)&&compareSelectedV118.length>=10?'disabled':''}><span>${esc(s.date)} · ${fmt(snapshotWealthV118(s))} <small>${esc(s.source||'Backup')}${s.capitalOnlyV119?' · nur erfasste Tagesgeldkonten':''}</small></span></label>`).join('');
+ const first=selected[0],last=selected[selected.length-1];
+ const start=last?new Date(last.date+'T12:00:00Z'):new Date();
+ const future=new Date(Date.UTC(start.getUTCFullYear(),start.getUTCMonth()+compareMonthsV118,Math.min(start.getUTCDate(),28),12));
+ const futureDate=future.toISOString().slice(0,10);
+ const colors=['#0d9488','#2563eb','#c026d3','#d97706','#dc2626','#059669','#7c3aed','#475569','#0891b2','#be185d'];
+ const plotStart=first?new Date(first.date+'T12:00:00Z'):start;
+ const plotEnd=compareModeV118==='duration'?new Date(Date.UTC(2000,0,1+compareMonthsV118*30.4375,12)):future;
+ const points=selected.map((s,i)=>{
+  const series=[];for(let j=0;j<=30;j++){
+   const end=compareModeV118==='duration'?new Date(Date.UTC(new Date(s.date+'T12:00:00Z').getUTCFullYear(),new Date(s.date+'T12:00:00Z').getUTCMonth()+Math.round(j*compareMonthsV118/30),Math.min(new Date(s.date+'T12:00:00Z').getUTCDate(),28),12)):new Date(plotStart.getTime()+(future-plotStart)*j/30);
+   const ds=end.toISOString().slice(0,10);const val=projectAtV118(s,ds,compareScenarioV118==='saving');if(val===null)continue;
+   const x=compareModeV118==='duration'?j/30:(end-plotStart)/(future-plotStart||1);
+   series.push({x,y:val,date:ds});
+  }return {s,color:colors[i],series};
+ });
+ const values=points.flatMap(x=>x.series.map(p=>p.y));const ymin=Math.min(...values,0),ymax=Math.max(...values,1)*1.04;
+ const svg=points.length?`<svg viewBox="0 0 760 300" role="img" aria-label="Vergleich der Vermögensprognosen" style="width:100%;height:auto;overflow:visible"><line x1="55" y1="260" x2="740" y2="260" stroke="currentColor" opacity=".4"/><line x1="55" y1="15" x2="55" y2="260" stroke="currentColor" opacity=".4"/>${[0,.5,1].map(p=>`<text x="48" y="${264-235*p}" text-anchor="end" font-size="11" fill="currentColor">${esc(Math.round(ymin+(ymax-ymin)*p).toLocaleString('de-DE'))} €</text>`).join('')}${points.map(p=>`<polyline fill="none" stroke="${p.color}" stroke-width="2.5" points="${p.series.map(t=>`${(55+t.x*685).toFixed(1)},${(260-(t.y-ymin)/(ymax-ymin)*235).toFixed(1)}`).join(' ')}"/>`).join('')}<text x="55" y="285" fill="currentColor" font-size="12">${compareModeV118==='duration'?'Start':esc(first.date)}</text><text x="740" y="285" text-anchor="end" fill="currentColor" font-size="12">${compareModeV118==='duration'?compareMonthsV118/12+' Jahre':esc(futureDate)}</text></svg>`:'<p>Bitte Backups auswählen.</p>';
+ const actualValues=selected.map(s=>snapshotWealthV118(s));const actualMax=Math.max(...actualValues,1);const actualChart=selected.length?`<h3>Gespeicherte Kapitalstände (bei Kapitalhistorie nur Tagesgeld)</h3><svg viewBox="0 0 760 190" role="img" aria-label="Tatsächliche Vermögensstände der ausgewählten Backups" style="width:100%;height:auto">${selected.map((s,i)=>{const w=selected.length>1?Math.min(65,600/selected.length):65;const x=70+i*660/selected.length;const v=snapshotWealthV118(s),height=130*v/actualMax;return `<rect x="${x}" y="${145-height}" width="${w}" height="${height}" fill="${colors[i]}"/><text x="${x}" y="${140-height}" fill="currentColor" font-size="11">${Math.round(v).toLocaleString('de-DE')} €</text><text x="${x}" y="166" fill="currentColor" font-size="11">${esc(s.date.slice(5))}</text>`}).join('')}</svg>`:'';
+ const rows=selected.map((s,i)=>{
+  const at=compareModeV118==='duration'?new Date(Date.UTC(Number(s.date.slice(0,4)),Number(s.date.slice(5,7))-1+compareMonthsV118,Math.min(Number(s.date.slice(8)),28),12)).toISOString().slice(0,10):futureDate;
+  const total=projectAtV118(s,at,compareScenarioV118==='saving');const baseline=projectAtV118(s,at,false);const gain=total-snapshotWealthV118(s);const pureInterest=baseline-snapshotWealthV118(s);
+  return `<tr><td><span style="color:${colors[i]}">●</span> ${esc(s.date)}</td><td>${fmt(snapshotWealthV118(s))}</td><td>${esc(at)}</td><td>${fmt(total)}</td><td>${fmt(pureInterest)}</td><td>${fmt(gain-pureInterest)}</td></tr>`;
+ }).join('');
+ const actual=first&&last&&compareModeV118==='calendar'?`<div class="stats-grid"><div class="stat"><span>Differenz der erfassten Ausgangsbeträge</span><strong>${fmt(snapshotWealthV118(last)-snapshotWealthV118(first))}</strong></div><div class="stat"><span>Zinsdifferenz der Szenarien bis zum gemeinsamen Zieltag</span><strong>${fmt((projectAtV118(last,futureDate,false)-snapshotWealthV118(last))-(projectAtV118(first,futureDate,false)-snapshotWealthV118(first)))}</strong><small>Nur Zinsen; Einzahlungen und ursprüngliches Vermögen nicht als Ertrag gezählt</small></div></div>`:'';
+ host.innerHTML=`<div class="comparison-controls-v118"><label>Backups <select id="compareGroupingV118"><option value="monthly" ${compareMonthlyV118?'selected':''}>Letztes Backup je Monat</option><option value="all" ${!compareMonthlyV118?'selected':''}>Alle einzelnen Backups</option></select></label><label>Vergleich <select id="compareModeV118"><option value="calendar" ${compareModeV118==='calendar'?'selected':''}>Gleicher Kalenderstichtag</option><option value="duration" ${compareModeV118==='duration'?'selected':''}>Gleiche Laufzeit</option></select></label><label>Prognose <select id="compareScenarioV118"><option value="interest" ${compareScenarioV118==='interest'?'selected':''}>Ohne Einzahlungen</option><option value="saving" ${compareScenarioV118==='saving'?'selected':''}>Mit damaliger Sparrate</option></select></label><label>Zeitraum <select id="compareHorizonV118">${[1,3,5,10,20].map(n=>`<option value="${n*12}" ${compareMonthsV118===n*12?'selected':''}>${n} Jahre</option>`).join('')}</select></label></div><p class="muted">${compareSelectedV118.length}/10 Vergleichslinien · ${compareMonthlyV118?'Monatsletzter Stand':'Einzelne Stichtage'} · Kapitalhistorie ab Juni 2025 automatisch enthalten. Monatswerte enthalten nur die erfassten Tagesgeldkonten; vollständige Backups bleiben separat wählbar.</p><div class="comparison-choices-v118">${choices||'<p>Noch keine historischen Werte vorhanden.</p>'}</div><h3>Prognose der erfassten Konten</h3><p class="muted">Kapitalhistorie: nur Sparkasse- und TR-Tagesgeld; historische Zinssätze und Sparraten sind dort nicht vollständig gespeichert. Deshalb werden für diese Monatswerte keine unbekannten Zinssätze oder Sparraten ergänzt. Für vollständige Vermögensprognosen einzelne Backups auswählen.</p>${svg}<div class="comparison-legend-v118">${points.map(p=>`<span style="color:${p.color}">● ${esc(p.s.date)}</span>`).join(' ')}</div>${actual}${actualChart}<div class="table-wrap"><table><thead><tr><th>Backup</th><th>Startvermögen</th><th>Zieldatum</th><th>Prognose</th><th>Zinsen ohne Einzahlungen</th><th>Zusätzliche Einzahlungen inkl. deren Zinsen</th></tr></thead><tbody>${rows}</tbody></table></div><p class="muted">Aktienkurse und Girokonten bleiben konstant. Sparraten werden ausschließlich auf TR-Tagesgeld gebucht. Historische Zinsen gelten als Szenarioannahme unverändert. Keine garantierte Prognose.</p>`;
+ $('compareGroupingV118').onchange=e=>{compareMonthlyV118=e.target.value==='monthly';compareSelectedV118=[];renderCompareV118()};
+ $('compareModeV118').onchange=e=>{compareModeV118=e.target.value;renderCompareV118()};
+ $('compareScenarioV118').onchange=e=>{compareScenarioV118=e.target.value;renderCompareV118()};
+ $('compareHorizonV118').onchange=e=>{compareMonthsV118=Number(e.target.value);renderCompareV118()};
+ host.querySelectorAll('[data-compare-select]').forEach(el=>el.onchange=()=>{if(el.checked){if(compareSelectedV118.length<10)compareSelectedV118.push(el.dataset.compareSelect)}else compareSelectedV118=compareSelectedV118.filter(x=>x!==el.dataset.compareSelect);renderCompareV118()});
+}
+function downloadArchiveV118(){const a=document.createElement('a'),blob=new Blob([JSON.stringify({format:'finanzen-statistik-v118',snapshots:archiveDatesV118()},null,2)],{type:'application/json'});a.href=URL.createObjectURL(blob);a.download='finanzen-statistik-archiv-'+localDateKeyV110()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function bindArchiveV118(){
+ $('importCompareV118').onchange=async e=>{const files=[...e.target.files];let count=0;const archive=readArchiveV118();for(const f of files){try{const d=JSON.parse(await f.text());if(d.format==='finanzen-statistik-v118'&&Array.isArray(d.snapshots)){for(const s of d.snapshots){if(s.date&&Array.isArray(s.assets)&&!archive.some(x=>x.id===s.id)){archive.push(s);count++}}continue}const match=f.name.match(/(20\d{2}-\d{2}-\d{2})/);if(!match){alert('Für '+f.name+' fehlt ein Datum im Dateinamen (JJJJ-MM-TT).');continue}const s=snapshotFromBackupV118(d,match[1],f.name,'Importiertes Backup');if(!archive.some(x=>x.date===s.date&&x.source==='Importiertes Backup'&&snapshotWealthV118(x)===snapshotWealthV118(s))){archive.push(s);count++}}catch(err){alert('Nicht lesbar: '+f.name+' – '+err.message)}}writeArchiveV118(archive);e.target.value='';renderCompareV118();alert(count+' Momentaufnahme(n) gespeichert. Die aktuellen Finanzdaten wurden nicht ersetzt.')};
+ $('exportCompareV118').onclick=downloadArchiveV118;
+ $('captureCompareV118').onclick=()=>{captureArchiveV118();renderCompareV118()};
+}
+initArchiveV118();captureArchiveV118();bindArchiveV118();renderCompareV118();
+const __saveArchiveV118=save;save=function(){__saveArchiveV118();captureArchiveV118();renderCompareV118()};
+const __renderAllArchiveV118=renderAll;renderAll=function(){__renderAllArchiveV118();renderCompareV118()};

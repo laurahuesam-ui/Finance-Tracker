@@ -10,11 +10,11 @@
   <link rel="icon" href="icon-192.png">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="stylesheet" href="style.css">
-</head>
+<style>.comparison-controls-v118{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}.comparison-controls-v118 label{display:flex;flex-direction:column;gap:5px;min-width:145px;flex:1}.comparison-controls-v118 select{max-width:100%;padding:9px;border-radius:8px}.comparison-choices-v118{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:8px;margin:12px 0 20px}.comparison-choice-v118{display:flex;gap:9px;align-items:center;padding:10px;border:1px solid #9996;border-radius:8px}.comparison-choice-v118 small{display:block;opacity:.65}.comparison-legend-v118{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0 20px}</style></head>
 <body>
 <header class="app-header">
   <div>
-    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 117</span></div>
+    <div class="title-row"><h1>Finanzen</h1><span class="version-badge">Version 119</span></div>
     <p id="headerMonth"></p>
   </div>
   <button id="installBtn" class="secondary hidden">Installieren</button>
@@ -30,6 +30,7 @@
   <button class="tab" data-page="passiveIncome">Passiv</button>
   <button class="tab" data-page="goals">Sparziele</button>
   <button class="tab" data-page="simulation">Simulation</button>
+  <button class="tab" data-page="statisticsV118">Entwicklung</button>
   <button class="tab" data-page="backup">Backup</button>
 </nav>
 
@@ -436,6 +437,13 @@
     </article>
   </section>
 
+<section id="statisticsV118" class="page">
+ <article class="panel"><h2>Finanzentwicklung &amp; Was-wäre-wenn</h2>
+ <p class="muted">Vergleiche echte Backup-Stichtage und deren Zukunftsprognosen. Das letzte Backup je Monat wird automatisch erkannt. Bis zu 10 Kurven.</p>
+ <div class="button-row"><label class="file-button">Weitere Backups hinzufügen<input id="importCompareV118" type="file" accept=".json,application/json" multiple></label><button id="captureCompareV118" class="secondary">Heutigen Stand speichern</button><button id="exportCompareV118" class="secondary">Statistik-Archiv exportieren</button></div>
+ <p class="muted">Statistik-Import ersetzt keine Finanzdaten. Die Momentaufnahmen werden dauerhaft lokal im Browser gespeichert. Für andere Geräte bitte das Statistik-Archiv exportieren und dort importieren.</p>
+ <div id="comparisonAreaV118"></div>
+ </article></section>
   <section id="backup" class="page">
     <article class="panel">
       <h2>Backup und Export</h2>
@@ -637,6 +645,6 @@
   if ('caches' in window) caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).catch(()=>{});
 })();
 </script>
-<script src="./app.js?v=117"></script>
+<script src="./app.js?v=119"></script>
 </body>
 </html>
