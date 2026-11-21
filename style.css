@@ -308,3 +308,9 @@ th:first-child,td:first-child{text-align:left}
 #comparisonAreaV118 .compare-details-v128 div{white-space:normal;line-height:1.45;margin-top:5px;overflow-wrap:anywhere}
 #comparisonAreaV118 .compare-table-intro-v128{font-size:.84rem;margin:10px 0}
 @media(max-width:620px){#comparisonAreaV118 .compare-table-v128 th,#comparisonAreaV118 .compare-table-v128 td{padding:9px 6px;font-size:.78rem}#comparisonAreaV118 .compare-table-v128 th{font-size:.72rem}#comparisonAreaV118 .compare-details-v128{font-size:.75rem}}
+
+/* V132: Expanded details overlay the table rather than widening its columns. */
+#comparisonAreaV118 .compare-date-v128{position:relative}
+#comparisonAreaV118 .compare-details-v128[open]{min-width:0}
+#comparisonAreaV118 .compare-detail-panel-v132{position:absolute;z-index:15;top:100%;left:0;width:min(340px,80vw);max-width:80vw;padding:12px 14px;border:1px solid var(--border,#d5dce4);border-radius:10px;background:var(--card,#fff);color:inherit;box-shadow:0 8px 24px rgba(0,0,0,.18);white-space:normal}
+#comparisonAreaV118 .compare-detail-panel-v132 div{white-space:normal;overflow-wrap:anywhere}
